@@ -1,384 +1,545 @@
 import "./Hotels.css";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import API from "../api/axios";
 
-import blueSky from "../images/roomImg1.png";
-import hilton from "../images/roomImg2.png";
-import sheraton from "../images/roomImg3.png";
+const FALLBACK_HERO =
+  "https://images.unsplash.com/photo-1601918774946-25832a4be0d6?auto=format&fit=crop&w=2200&q=85";
 
 function Hotels() {
-  const hotels = [
-    {
-      image: blueSky,
-      name: "Blue Sky Hotel",
-      location: "Addis Ababa",
-      rating: "5.0",
-      reviews: 128,
-      price: 80,
-      badge: "POPULAR",
-      description:
-        "Comfortable rooms with modern facilities and excellent service.",
-    },
-    {
-      image: hilton,
-      name: "Hilton Hotel",
-      location: "Bahir Dar",
-      rating: "4.8",
-      reviews: 96,
-      price: 120,
-      badge: "BEST VALUE",
-      description:
-        "Enjoy a relaxing stay with beautiful views and premium services.",
-    },
-    {
-      image: sheraton,
-      name: "Sheraton Hotel",
-      location: "Hawassa",
-      rating: "4.9",
-      reviews: 154,
-      price: 150,
-      badge: "LUXURY",
-      description:
-        "A luxury hotel experience designed for comfort and relaxation.",
-    },
-  ];
+  const navigate = useNavigate();
+
+  const [hotels, setHotels] = useState([]);
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("favoriteHotels") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [destination, setDestination] = useState("");
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [guests, setGuests] = useState(2);
+  const [searched, setSearched] = useState(false);
+
+  useEffect(() => {
+    const loadHotels = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const response = await API.get("/hotels");
+        const data = Array.isArray(response.data)
+          ? response.data
+          : response.data?.hotels || [];
+        setHotels(data);
+      } catch (err) {
+        console.error("Failed to load hotels:", err);
+        setError(
+          err.response?.data?.message ||
+            "Could not load hotels. Make sure the backend is running on port 5000.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHotels();
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("favoriteHotels", JSON.stringify(favorites));
+  }, [favorites]);
+
+  const filteredHotels = useMemo(() => {
+    const query = destination.trim().toLowerCase();
+    if (!query) return hotels;
+
+    return hotels.filter((hotel) =>
+      [hotel.name, hotel.location, hotel.city, hotel.address]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query)),
+    );
+  }, [hotels, destination]);
+
+  const toggleFavorite = (id) => {
+    if (!id) return;
+    setFavorites((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
+  };
+
+  const getImage = (hotel) => {
+    if (!hotel?.image) return FALLBACK_HERO;
+    if (String(hotel.image).startsWith("http")) return hotel.image;
+    if (String(hotel.image).startsWith("/")) {
+      return `http://localhost:5000${hotel.image}`;
+    }
+    return `http://localhost:5000/uploads/${hotel.image}`;
+  };
+
+  const getRating = (hotel) => Number(hotel?.rating ?? 4.8).toFixed(1);
+  const getReviews = (hotel) => hotel?.reviews ?? 0;
+  const getPrice = (hotel) => hotel?.price ?? 0;
+  const getLocation = (hotel) => hotel?.location || hotel?.city || "Ethiopia";
+
+  const handleSearch = () => {
+    setSearched(true);
+    document.getElementById("hotels")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleBook = (hotel) => {
+    if (!hotel?._id) return;
+
+    sessionStorage.setItem(
+      "hotelBookingSearch",
+      JSON.stringify({ checkIn, checkOut, guests }),
+    );
+
+    navigate(`/booking/hotel/${hotel._id}`);
+  };
+
+  const handleDetails = (hotel) => {
+    if (!hotel?._id) return;
+    navigate(`/hotels/${hotel._id}`);
+  };
+
+  const scrollToHotels = () => {
+    setDestination("");
+    setSearched(false);
+    document.getElementById("hotels")?.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
-    <div className="home-page">
-      {/* =========================
-          NAVBAR
-      ========================= */}
+    <div className="hotel-home">
+      <header className="hotel-navbar">
+        <div className="hotel-nav-inner">
+          <button
+            className="brand"
+            onClick={() => navigate("/")}
+            aria-label="HotelBooking home"
+          >
+            <span className="brand-icon">▣</span>
+            <span>
+              Hotel<span>Booking</span>
+            </span>
+          </button>
 
-      <nav className="navbar">
-        <div className="nav-container">
-          <div className="logo">
-            Stay<span>Lux</span>
+          <nav className="main-nav">
+            <a className="active" href="#home">
+              Home
+            </a>
+            <a href="#hotels">Hotels</a>
+            <a href="#destinations">Destinations</a>
+            <a href="#about">About</a>
+            <button onClick={() => navigate("/my-bookings")}>
+              My Bookings
+            </button>
+          </nav>
+
+          <div className="nav-actions">
+            <button
+              className="nav-search"
+              aria-label="Search"
+              onClick={handleSearch}
+            >
+              ⌕
+            </button>
+            <button className="login-btn" onClick={() => navigate("/login")}>
+              Login
+            </button>
+            <button
+              className="register-btn"
+              onClick={() => navigate("/register")}
+            >
+              Register
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section
+          className="hero"
+          id="home"
+          style={{ backgroundImage: `url("${FALLBACK_HERO}")` }}
+        >
+          <div className="hero-shade" />
+          <div className="hero-inner">
+            <div className="hero-copy">
+              <div className="eyebrow">WELCOME TO HOTEL BOOKING</div>
+              <h1>
+                Find Your
+                <br />
+                <span>Perfect Stay</span>
+              </h1>
+              <p>
+                Discover beautiful hotels, comfortable rooms,
+                <br className="desktop-break" /> and unforgettable experiences
+                at the best prices.
+              </p>
+            </div>
+
+            <div className="booking-search-panel">
+              <div className="search-control location-control">
+                <span className="control-icon">⌖</span>
+                <div>
+                  <label>Location</label>
+                  <input
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    placeholder="Where are you going?"
+                  />
+                </div>
+                <span className="chevron">⌄</span>
+              </div>
+
+              <div className="search-control">
+                <span className="control-icon">□</span>
+                <div>
+                  <label>Check In</label>
+                  <input
+                    type="date"
+                    value={checkIn}
+                    onChange={(e) => setCheckIn(e.target.value)}
+                  />
+                </div>
+                <span className="chevron">⌄</span>
+              </div>
+
+              <div className="search-control">
+                <span className="control-icon">□</span>
+                <div>
+                  <label>Check Out</label>
+                  <input
+                    type="date"
+                    value={checkOut}
+                    onChange={(e) => setCheckOut(e.target.value)}
+                  />
+                </div>
+                <span className="chevron">⌄</span>
+              </div>
+
+              <div className="search-control guests-control">
+                <span className="control-icon">♧</span>
+                <div>
+                  <label>Guests</label>
+                  <select
+                    value={guests}
+                    onChange={(e) => setGuests(Number(e.target.value))}
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                      <option key={n} value={n}>
+                        {n} Guest{n > 1 ? "s" : ""} · {Math.ceil(n / 2)} Room
+                        {Math.ceil(n / 2) > 1 ? "s" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <span className="chevron">⌄</span>
+              </div>
+
+              <button className="search-hotels-btn" onClick={handleSearch}>
+                ⌕ <span>Search Hotels</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="benefits">
+          <div className="benefit">
+            <span className="benefit-icon">▥</span>
+            <div>
+              <h3>Best Hotels</h3>
+              <p>
+                Handpicked hotels for
+                <br />
+                your comfort and safety.
+              </p>
+            </div>
+          </div>
+          <div className="benefit">
+            <span className="benefit-icon">◆</span>
+            <div>
+              <h3>Great Prices</h3>
+              <p>
+                Get the best rates
+                <br />
+                with no hidden fees.
+              </p>
+            </div>
+          </div>
+          <div className="benefit">
+            <span className="benefit-icon">✓</span>
+            <div>
+              <h3>Secure Booking</h3>
+              <p>
+                Your data and payments
+                <br />
+                are always protected.
+              </p>
+            </div>
+          </div>
+          <div className="benefit">
+            <span className="benefit-icon">◉</span>
+            <div>
+              <h3>24/7 Support</h3>
+              <p>
+                We are here to help,
+                <br />
+                anytime you need us.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="hotels-section" id="hotels">
+          <div className="section-heading-row">
+            <div>
+              <div className="section-eyebrow">POPULAR HOTELS</div>
+              <h2>Recommended for You</h2>
+              <p>Explore our top-rated hotels and find your perfect stay.</p>
+            </div>
+            <button className="view-all" onClick={scrollToHotels}>
+              View All Hotels <span>→</span>
+            </button>
           </div>
 
-          <div className="nav-links">
+          {searched && destination && (
+            <div className="search-result-note">
+              Showing hotels matching <strong>{destination}</strong> ·{" "}
+              {filteredHotels.length} result
+              {filteredHotels.length === 1 ? "" : "s"}
+              <button onClick={scrollToHotels}>Clear</button>
+            </div>
+          )}
+
+          {loading && <div className="state-box">Loading hotels...</div>}
+          {!loading && error && (
+            <div className="state-box error-box">{error}</div>
+          )}
+          {!loading && !error && filteredHotels.length === 0 && (
+            <div className="state-box">
+              No hotels found. Try another location.
+            </div>
+          )}
+
+          {!loading && filteredHotels.length > 0 && (
+            <div className="hotel-grid">
+              {filteredHotels.map((hotel, index) => {
+                const id = hotel._id || hotel.id || `hotel-${index}`;
+                const rating = getRating(hotel);
+                const reviews = getReviews(hotel);
+                const price = getPrice(hotel);
+                const location = getLocation(hotel);
+                const isFavorite = favorites.includes(id);
+
+                return (
+                  <article className="hotel-card" key={id}>
+                    <div className="hotel-photo-wrap">
+                      <img
+                        src={getImage(hotel)}
+                        alt={hotel.name || "Hotel"}
+                        className="hotel-photo"
+                        onError={(e) => {
+                          e.currentTarget.src = FALLBACK_HERO;
+                        }}
+                      />
+                      <span
+                        className={`hotel-badge ${index % 3 === 1 ? "blue" : index % 3 === 2 ? "purple" : "green"}`}
+                      >
+                        {hotel.badge ||
+                          (index % 3 === 1
+                            ? "Popular"
+                            : index % 3 === 2
+                              ? "Luxury"
+                              : "Best Seller")}
+                      </span>
+                      <button
+                        className={`favorite ${isFavorite ? "liked" : ""}`}
+                        onClick={() => toggleFavorite(id)}
+                        aria-label="Toggle favorite"
+                      >
+                        {isFavorite ? "♥" : "♡"}
+                      </button>
+                    </div>
+
+                    <div className="hotel-card-body">
+                      <div className="hotel-title-row">
+                        <h3>{hotel.name || "Hotel"}</h3>
+                        <div className="card-price">
+                          <strong>${price}</strong>
+                          <span>per night</span>
+                        </div>
+                      </div>
+                      <div className="hotel-location">
+                        <span>⌖</span>
+                        {location}
+                      </div>
+                      <div className="rating-row">
+                        <span className="stars">★★★★★</span>
+                        <strong>{rating}</strong>
+                        <span className="review-text">({reviews} reviews)</span>
+                      </div>
+                      <p className="hotel-description">
+                        {hotel.description ||
+                          "Comfortable hotel with modern facilities"}
+                      </p>
+                      <div className="amenities">
+                        <span>⌁ WiFi</span>
+                        <span>❄ AC</span>
+                        <span>▣ Parking</span>
+                      </div>
+                      <div className="card-actions">
+                        <button
+                          className="details-btn"
+                          onClick={() => handleDetails(hotel)}
+                        >
+                          View Details
+                        </button>
+                        <button
+                          className="book-btn"
+                          onClick={() => handleBook(hotel)}
+                        >
+                          Book Now <span>→</span>
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="offers-banner" id="offers">
+          <div className="offer-icon">☼</div>
+          <div>
+            <h2>Special Offers</h2>
+            <p>Get up to 30% off on selected hotels.</p>
+          </div>
+          <button onClick={scrollToHotels}>
+            Explore Deals <span>→</span>
+          </button>
+        </section>
+
+        <section className="destinations" id="destinations">
+          <div className="section-heading-row">
+            <div>
+              <div className="section-eyebrow">DESTINATIONS</div>
+              <h2>Explore Ethiopia</h2>
+              <p>Discover beautiful places and unforgettable stays.</p>
+            </div>
+            <button className="view-all" onClick={scrollToHotels}>
+              Browse Hotels <span>→</span>
+            </button>
+          </div>
+          <div className="destination-grid">
+            {[
+              [
+                "Addis Ababa",
+                "Capital city of Ethiopia",
+                "https://images.unsplash.com/photo-1589394815804-964ed0be2eb5?auto=format&fit=crop&w=900&q=80",
+              ],
+              [
+                "Bahir Dar",
+                "Beautiful lakeside destination",
+                "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80",
+              ],
+              [
+                "Hawassa",
+                "Relaxing city beside Lake Hawassa",
+                "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+              ],
+            ].map(([name, text, image]) => (
+              <button
+                className="destination-card"
+                key={name}
+                onClick={() => {
+                  setDestination(name);
+                  document
+                    .getElementById("hotels")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <img src={image} alt={name} />
+                <div>
+                  <h3>{name}</h3>
+                  <p>{text}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="about-strip" id="about">
+          <div>
+            <div className="section-eyebrow">ABOUT HOTEL BOOKING</div>
+            <h2>Your journey starts with the right stay.</h2>
+            <p>
+              Find trusted hotels, compare prices and book your next stay with
+              confidence.
+            </p>
+          </div>
+          <button onClick={scrollToHotels}>
+            Find a Hotel <span>→</span>
+          </button>
+        </section>
+      </main>
+
+      <footer className="footer">
+        <div className="footer-main">
+          <div className="footer-brand">
+            <button className="brand footer-logo" onClick={() => navigate("/")}>
+              <span className="brand-icon">▣</span>
+              <span>
+                Hotel<span>Booking</span>
+              </span>
+            </button>
+            <p>Find the perfect stay, wherever you go.</p>
+          </div>
+          <div>
+            <h4>Quick Links</h4>
             <a href="#home">Home</a>
             <a href="#hotels">Hotels</a>
             <a href="#destinations">Destinations</a>
-            <a href="#offers">Offers</a>
             <a href="#about">About</a>
           </div>
-
-          <div className="nav-actions">
-            <button className="language-button">🌐 EN</button>
-
-            <button className="signin-button">Sign In</button>
-
-            <button className="register-button">Register</button>
-          </div>
-        </div>
-      </nav>
-
-      {/* =========================
-          HERO
-      ========================= */}
-
-      <section className="hero-section" id="home">
-        <div className="hero-overlay"></div>
-
-        <div className="hero-content">
-          <div className="hero-badge">✨ Your perfect stay starts here</div>
-
-          <h1>
-            Your journey
-            <span>begins here.</span>
-          </h1>
-
-          <p>
-            Discover beautiful hotels, comfortable rooms, and unforgettable
-            experiences. Find the perfect place to stay at the best prices.
-          </p>
-
-          {/* SEARCH BOX */}
-
-          <div className="search-box">
-            <div className="search-item">
-              <span>📍</span>
-
-              <div>
-                <small>Destination</small>
-                <strong>Addis Ababa</strong>
-              </div>
-            </div>
-
-            <div className="search-item">
-              <span>📅</span>
-
-              <div>
-                <small>Check In</small>
-                <strong>Select date</strong>
-              </div>
-            </div>
-
-            <div className="search-item">
-              <span>📅</span>
-
-              <div>
-                <small>Check Out</small>
-                <strong>Select date</strong>
-              </div>
-            </div>
-
-            <button className="search-button">🔍 Search</button>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================
-          FEATURES
-      ========================= */}
-
-      <section className="features-section">
-        <div className="feature-box">
-          <div className="feature-icon">🏨</div>
-
-          <h3>500+ Hotels</h3>
-
-          <p>
-            Choose from hundreds of comfortable and affordable hotels across
-            Ethiopia.
-          </p>
-        </div>
-
-        <div className="feature-box">
-          <div className="feature-icon">⭐</div>
-
-          <h3>Best Prices</h3>
-
-          <p>
-            Get competitive prices and great deals for your next hotel stay.
-          </p>
-        </div>
-
-        <div className="feature-box">
-          <div className="feature-icon">🛎️</div>
-
-          <h3>24/7 Support</h3>
-
-          <p>Our support team is always ready to help you with your booking.</p>
-        </div>
-      </section>
-
-      {/* =========================
-          HOTELS
-      ========================= */}
-
-      <section className="hotels-section" id="hotels">
-        <div className="section-header">
           <div>
-            <div className="section-label">OUR HOTELS</div>
-
-            <h2>Handpicked hotels</h2>
-
-            <p>Discover some of our most popular places to stay.</p>
+            <h4>Support</h4>
+            <a href="#about">Help Center</a>
+            <a href="#about">Terms & Conditions</a>
+            <a href="#about">Privacy Policy</a>
+            <a href="#about">Contact Us</a>
           </div>
-
-          <button className="view-all-button">View All Hotels →</button>
-        </div>
-
-        <div className="hotel-grid">
-          {hotels.map((hotel, index) => (
-            <div className="hotel-wrapper" key={index}>
-              <div className="popular-badge">{hotel.badge}</div>
-
-              <div className="hotel-card">
-                {/* HOTEL IMAGE */}
-
-                <div className="hotel-image-container">
-                  <img
-                    src={hotel.image}
-                    alt={hotel.name}
-                    className="hotel-image"
-                  />
-
-                  <button className="favorite-button">♡</button>
-                </div>
-
-                {/* HOTEL INFORMATION */}
-
-                <div className="hotel-info">
-                  <div className="hotel-location">📍 {hotel.location}</div>
-
-                  <h3>{hotel.name}</h3>
-
-                  <div className="hotel-rating">
-                    <span className="stars">★★★★★</span>
-
-                    <strong>{hotel.rating}</strong>
-
-                    <span className="reviews">({hotel.reviews} reviews)</span>
-                  </div>
-
-                  <p className="hotel-description">{hotel.description}</p>
-
-                  <div className="hotel-features">
-                    <span>📶 WiFi</span>
-                    <span>❄️ AC</span>
-                    <span>🅿️ Parking</span>
-                  </div>
-
-                  <div className="hotel-bottom">
-                    <div className="hotel-price">
-                      <span>From</span>
-
-                      <strong>${hotel.price}</strong>
-
-                      <small>/ night</small>
-                    </div>
-
-                    <button className="book-button">Book Now</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* =========================
-          DESTINATIONS
-      ========================= */}
-
-      <section className="destinations-section" id="destinations">
-        <div className="section-title-center">
-          <div className="section-label">EXPLORE ETHIOPIA</div>
-
-          <h2>Popular destinations</h2>
-
-          <p>Discover amazing places and find your perfect hotel.</p>
-        </div>
-
-        <div className="destination-grid">
-          <div className="destination-card">
-            <div className="destination-overlay">
-              <h3>Addis Ababa</h3>
-              <p>Capital city of Ethiopia</p>
-            </div>
-          </div>
-
-          <div className="destination-card destination-two">
-            <div className="destination-overlay">
-              <h3>Bahir Dar</h3>
-              <p>Beautiful lakeside destination</p>
-            </div>
-          </div>
-
-          <div className="destination-card destination-three">
-            <div className="destination-overlay">
-              <h3>Hawassa</h3>
-              <p>Relax beside Lake Hawassa</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================
-          CTA
-      ========================= */}
-
-      <section className="home-cta" id="offers">
-        <div className="cta-content">
-          <div className="cta-icon">🎁</div>
-
-          <h2>Save up to 30% on your next stay</h2>
-
-          <p>
-            Book your next hotel with StayLux and enjoy exclusive offers,
-            comfortable rooms, and unforgettable experiences.
-          </p>
-
-          <button>Explore Special Offers →</button>
-        </div>
-      </section>
-
-      {/* =========================
-          ABOUT
-      ========================= */}
-
-      <section className="about-section" id="about">
-        <div className="about-content">
-          <div className="about-text">
-            <div className="section-label">WHY STAYLUX</div>
-
-            <h2>A better way to book your stay</h2>
-
-            <p>
-              We make finding and booking hotels simple. Compare hotels,
-              discover great destinations, and choose the room that is perfect
-              for you.
-            </p>
-
-            <div className="about-list">
-              <div>
-                <span>✓</span>
-                <strong>Easy booking</strong>
-              </div>
-
-              <div>
-                <span>✓</span>
-                <strong>Secure reservations</strong>
-              </div>
-
-              <div>
-                <span>✓</span>
-                <strong>Best available prices</strong>
-              </div>
-
-              <div>
-                <span>✓</span>
-                <strong>Customer support</strong>
-              </div>
-            </div>
-          </div>
-
-          <div className="about-image">
-            <img src={blueSky} alt="Hotel room" />
-          </div>
-        </div>
-      </section>
-
-      {/* =========================
-          NEWSLETTER
-      ========================= */}
-
-      <section className="newsletter-section">
-        <div className="newsletter-content">
           <div>
-            <h2>Get the best hotel deals</h2>
-
-            <p>Subscribe and receive special offers directly in your inbox.</p>
+            <h4>Account</h4>
+            <button onClick={() => navigate("/login")}>Login</button>
+            <button onClick={() => navigate("/register")}>Register</button>
+            <button onClick={() => navigate("/my-bookings")}>
+              My Bookings
+            </button>
           </div>
-
-          <div className="newsletter-form">
-            <input type="email" placeholder="Enter your email address" />
-
-            <button>Subscribe</button>
+          <div>
+            <h4>Follow Us</h4>
+            <div className="socials">
+              <a href="#footer">f</a>
+              <a href="#footer">𝕏</a>
+              <a href="#footer">◎</a>
+              <a href="#footer">in</a>
+            </div>
           </div>
         </div>
-      </section>
-
-      {/* =========================
-          FOOTER
-      ========================= */}
-
-      <footer className="home-footer">
-        <h3>
-          Stay<span>Lux</span>
-        </h3>
-
-        <p>Find your perfect stay, wherever your journey takes you.</p>
-
-        <div className="footer-links">
-          <a href="#home">Home</a>
-          <a href="#hotels">Hotels</a>
-          <a href="#destinations">Destinations</a>
-          <a href="#offers">Offers</a>
-          <a href="#about">About</a>
+        <div className="footer-bottom">
+          <span>
+            © {new Date().getFullYear()} HotelBooking. All rights reserved.
+          </span>
+          <em>Travel More ♡</em>
         </div>
-
-        <p className="copyright">© 2026 StayLux. All rights reserved.</p>
       </footer>
     </div>
   );

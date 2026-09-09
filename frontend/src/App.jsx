@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 // User Pages
-import Home from "./pages/Home";
+//import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
@@ -32,13 +32,13 @@ function App() {
       <Routes>
         {/* ================= USER PAGES ================= */}
 
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Hotels />} />
+
+        <Route path="/hotels" element={<Hotels />} />
 
         <Route path="/login" element={<Login />} />
 
         <Route path="/register" element={<Register />} />
-
-        <Route path="/hotels" element={<Hotels />} />
 
         {/* Hotel Details */}
         <Route path="/hotels/:id" element={<HotelDetails />} />
