@@ -1,0 +1,527 @@
+/* =========================================
+   ADMIN USERS PAGE
+========================================= */
+
+.admin-users-page {
+  min-height: 100vh;
+  padding: 40px;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(99, 102, 241, 0.08),
+      transparent 30%
+    ),
+    #f6f8fc;
+  color: #111827;
+}
+
+
+/* =========================================
+   HEADER
+========================================= */
+
+.users-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 30px;
+}
+
+.users-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #6366f1;
+}
+
+.users-header h1 {
+  margin: 7px 0;
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.users-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 15px;
+}
+
+.users-back-btn {
+  border: none;
+  background: white;
+  color: #334155;
+  padding: 13px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.07);
+  transition: 0.25s;
+}
+
+.users-back-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+}
+
+
+/* =========================================
+   ERROR
+========================================= */
+
+.users-error {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+  padding: 15px 18px;
+  border-radius: 13px;
+  margin-bottom: 25px;
+  font-weight: 600;
+}
+
+
+/* =========================================
+   STATISTICS
+========================================= */
+
+.users-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.user-stat-card {
+  background: white;
+  border-radius: 18px;
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+  border: 1px solid #eef2f7;
+  transition: 0.25s;
+}
+
+.user-stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.1);
+}
+
+.user-stat-icon {
+  width: 55px;
+  height: 55px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 25px;
+}
+
+.user-stat-icon.purple {
+  background: #eef2ff;
+}
+
+.user-stat-icon.blue {
+  background: #eff6ff;
+}
+
+.user-stat-icon.green {
+  background: #ecfdf5;
+}
+
+.user-stat-card span {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+.user-stat-card strong {
+  display: block;
+  font-size: 27px;
+}
+
+
+/* =========================================
+   MAIN CARD
+========================================= */
+
+.users-card {
+  background: white;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid #edf1f7;
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.07);
+}
+
+
+/* =========================================
+   TOOLBAR
+========================================= */
+
+.users-toolbar {
+  padding: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.users-toolbar h2 {
+  margin: 0 0 5px;
+  font-size: 20px;
+}
+
+.users-toolbar p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.users-controls {
+  display: flex;
+  gap: 12px;
+}
+
+
+/* Search */
+
+.user-search {
+  width: 240px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 13px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+}
+
+.user-search span {
+  font-size: 15px;
+}
+
+.user-search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+}
+
+
+/* Filter */
+
+.role-filter {
+  height: 44px;
+  padding: 0 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: white;
+  color: #334155;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+
+/* =========================================
+   TABLE
+========================================= */
+
+.users-table-wrapper {
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th {
+  background: #f8fafc;
+  padding: 15px 22px;
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.users-table td {
+  padding: 19px 22px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 14px;
+}
+
+.users-table tbody tr {
+  transition: 0.2s;
+}
+
+.users-table tbody tr:hover {
+  background: #fafbff;
+}
+
+
+/* =========================================
+   USER PROFILE
+========================================= */
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 43px;
+  height: 43px;
+  border-radius: 13px;
+  background: linear-gradient(
+    135deg,
+    #6366f1,
+    #8b5cf6
+  );
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.user-name strong {
+  display: block;
+  color: #111827;
+  margin-bottom: 3px;
+}
+
+.user-name span {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+
+/* =========================================
+   EMAIL
+========================================= */
+
+.user-email {
+  color: #475569;
+}
+
+
+/* =========================================
+   ROLE BADGES
+========================================= */
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-role {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.user-role {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+
+/* =========================================
+   STATUS
+========================================= */
+
+.active-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.active-status span {
+  width: 7px;
+  height: 7px;
+  background: #22c55e;
+  border-radius: 50%;
+}
+
+
+/* =========================================
+   ACTIONS
+========================================= */
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-btn {
+  border: none;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 8px 11px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.role-btn:hover {
+  background: #e0e7ff;
+}
+
+.delete-user-btn {
+  width: 35px;
+  height: 35px;
+  border: none;
+  border-radius: 9px;
+  background: #fff1f2;
+  color: #dc2626;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.delete-user-btn:hover {
+  background: #fee2e2;
+  transform: scale(1.05);
+}
+
+
+/* =========================================
+   EMPTY
+========================================= */
+
+.no-users {
+  text-align: center;
+  padding: 70px 20px;
+}
+
+.no-users > div {
+  font-size: 50px;
+  margin-bottom: 12px;
+}
+
+.no-users h3 {
+  margin: 0 0 7px;
+  font-size: 20px;
+}
+
+.no-users p {
+  margin: 0;
+  color: #94a3b8;
+}
+
+
+/* =========================================
+   LOADING
+========================================= */
+
+.users-loading {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.users-loading h3 {
+  margin: 15px 0 5px;
+}
+
+.users-loading p {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.users-spinner {
+  width: 43px;
+  height: 43px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: usersSpin 0.8s linear infinite;
+}
+
+@keyframes usersSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 900px) {
+  .admin-users-page {
+    padding: 25px;
+  }
+
+  .users-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .users-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .users-controls {
+    width: 100%;
+  }
+
+  .user-search {
+    flex: 1;
+  }
+}
+
+
+@media (max-width: 600px) {
+  .admin-users-page {
+    padding: 18px;
+  }
+
+  .users-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .users-header h1 {
+    font-size: 30px;
+  }
+
+  .users-back-btn {
+    width: 100%;
+  }
+
+  .users-controls {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .user-search {
+    width: auto;
+  }
+
+  .role-filter {
+    width: 100%;
+  }
+}

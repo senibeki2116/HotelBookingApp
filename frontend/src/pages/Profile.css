@@ -1,0 +1,131 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.profile-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)),
+    url("https://images.unsplash.com/photo-1566073771259-6a8506099945");
+
+  background-size: cover;
+  background-position: center;
+
+  padding: 30px;
+}
+
+.profile-card {
+  width: 420px;
+
+  background: rgba(255, 255, 255, 0.18);
+
+  backdrop-filter: blur(15px);
+
+  border-radius: 20px;
+
+  padding: 40px;
+
+  /* changed */
+  color: white;
+
+  text-align: center;
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.profile-avatar {
+  width: 120px;
+  height: 120px;
+
+  border-radius: 50%;
+
+  background: rgb(248, 244, 244);
+
+  color: #ff7a18;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-size: 60px;
+
+  margin: auto;
+  margin-bottom: 20px;
+}
+
+.profile-card h1 {
+  margin-bottom: 30px;
+
+  color: #ffffff;
+}
+
+.profile-info {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 18px;
+
+  margin-bottom: 30px;
+}
+
+.info-box {
+  background: rgba(255, 255, 255, 0.25);
+
+  padding: 15px;
+
+  border-radius: 12px;
+
+  text-align: left;
+}
+
+.info-box h3 {
+  color: #ffd166;
+
+  margin-bottom: 8px;
+
+  font-size: 16px;
+}
+
+/* fixed username and email visibility */
+.info-box p {
+  font-size: 18px;
+
+  color: white;
+
+  font-weight: 600;
+
+  opacity: 1;
+}
+
+.logout-btn {
+  width: 100%;
+
+  padding: 14px;
+
+  border: none;
+
+  border-radius: 10px;
+
+  background: #ff4d4d;
+
+  color: white;
+
+  font-size: 17px;
+
+  cursor: pointer;
+
+  transition: 0.3s;
+}
+
+.logout-btn:hover {
+  background: #d63031;
+
+  transform: scale(1.03);
+}

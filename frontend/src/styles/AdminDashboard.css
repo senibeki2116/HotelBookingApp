@@ -1,0 +1,355 @@
+/* =========================
+   ADMIN DASHBOARD
+========================= */
+
+.admin-dashboard {
+  min-height: 100vh;
+  background: #f5f7fb;
+  padding: 35px 45px;
+  color: #172033;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 35px;
+}
+
+.admin-header h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.admin-header p {
+  margin: 8px 0 0;
+  color: #718096;
+  font-size: 16px;
+}
+
+.admin-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 10px 18px;
+  border-radius: 14px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.06);
+}
+
+.profile-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.admin-profile strong {
+  display: block;
+  font-size: 14px;
+}
+
+.admin-profile span {
+  display: block;
+  color: #718096;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* =========================
+   STATISTICS
+========================= */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 18px;
+  padding: 25px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+  transition: 0.25s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.09);
+}
+
+.stat-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.hotel-icon {
+  background: #e8f0ff;
+}
+
+.booking-icon {
+  background: #f0eaff;
+}
+
+.users-icon {
+  background: #e8fff2;
+}
+
+.revenue-icon {
+  background: #fff4df;
+}
+
+.stat-card p {
+  margin: 0;
+  color: #718096;
+  font-size: 14px;
+}
+
+.stat-card h2 {
+  margin: 5px 0;
+  font-size: 28px;
+}
+
+.stat-card span {
+  color: #9aa4b2;
+  font-size: 12px;
+}
+
+/* =========================
+   SECTION
+========================= */
+
+.section {
+  margin-bottom: 40px;
+}
+
+.section-title {
+  margin-bottom: 18px;
+}
+
+.section-title h2 {
+  margin: 0;
+  font-size: 23px;
+}
+
+.section-title p {
+  margin: 6px 0 0;
+  color: #718096;
+}
+
+/* =========================
+   MANAGEMENT CARDS
+========================= */
+
+.management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 22px;
+}
+
+.management-card {
+  background: white;
+  border-radius: 18px;
+  padding: 28px;
+  display: flex;
+  gap: 20px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+  transition: 0.25s ease;
+}
+
+.management-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+.management-icon {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  background: #eef4ff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 30px;
+}
+
+.management-content h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.management-content p {
+  color: #718096;
+  margin: 8px 0 18px;
+  line-height: 1.5;
+}
+
+.management-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.primary-btn,
+.secondary-btn {
+  border: none;
+  padding: 11px 17px;
+  border-radius: 9px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.primary-btn {
+  background: #2563eb;
+  color: white;
+}
+
+.primary-btn:hover {
+  background: #1d4ed8;
+}
+
+.secondary-btn {
+  background: #edf2f7;
+  color: #26364d;
+}
+
+.secondary-btn:hover {
+  background: #e2e8f0;
+}
+
+/* =========================
+   RECENT BOOKINGS
+========================= */
+
+.recent-section {
+  margin-bottom: 40px;
+}
+
+.table-container {
+  background: white;
+  border-radius: 18px;
+  overflow-x: auto;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead {
+  background: #f8fafc;
+}
+
+th {
+  text-align: left;
+  padding: 17px 20px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+td {
+  padding: 18px 20px;
+  border-top: 1px solid #edf2f7;
+  font-size: 14px;
+}
+
+.guest {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.guest-avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background: #e8f0ff;
+  color: #2563eb;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+}
+
+.status {
+  padding: 6px 11px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.confirmed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1100px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 800px) {
+  .admin-dashboard {
+    padding: 25px 18px;
+  }
+
+  .admin-header {
+    align-items: flex-start;
+    gap: 20px;
+    flex-direction: column;
+  }
+
+  .management-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 550px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-header h1 {
+    font-size: 28px;
+  }
+
+  .management-card {
+    flex-direction: column;
+  }
+}
