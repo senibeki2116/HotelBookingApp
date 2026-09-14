@@ -1,41 +1,97 @@
+require("dotenv").config();
+
+console.log(
+  "OpenAI API Key loaded:",
+  process.env.OPENAI_API_KEY ? "YES" : "NO",
+);
+
 const express = require("express");
-const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
 
-dotenv.config();
-
 const connectDB = require("./config/db");
 
+// Routes
 const hotelRoutes = require("./routes/hotelRoutes");
 const userRoutes = require("./routes/userRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const aiRoutes = require("./routes/aiRoutes");
 
 const app = express();
 
-// Connect MongoDB
-connectDB();
+// ================================
+// MIDDLEWARE
+// ================================
 
-// Middleware
 app.use(cors());
+
 app.use(express.json());
 
-// Static folder
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// ================================
+// DATABASE
+// ================================
+
+connectDB();
+
+// ================================
+// STATIC FILES
+// ================================
+
+app.use("/uploads", express.static(path.join(__dirname, "Uploads")));
+
+// ================================
+// API ROUTES
+// ================================
+
 app.use("/api/users", userRoutes);
+
 app.use("/api/hotels", hotelRoutes);
+
 app.use("/api/bookings", bookingRoutes);
+
 app.use("/api/admin", adminRoutes);
 
-// Test route
+app.use("/api/ai", aiRoutes);
+
+// ================================
+// ROOT ROUTE
+// ================================
+
 app.get("/", (req, res) => {
-  res.send("Hotel Booking Backend is Running!");
+  res.json({
+    message: "Hotel Booking Backend is Running!",
+  });
 });
 
-// Start server
+// ================================
+// 404 HANDLER
+// ================================
+
+app.use((req, res) => {
+  res.status(404).json({
+    message: "Route not found",
+  });
+});
+
+// ================================
+// ERROR HANDLER
+// ================================
+
+app.use((err, req, res, next) => {
+  console.error("Server Error:", err);
+
+  res.status(err.status || 500).json({
+    message: err.message || "Internal server error",
+  });
+});
+
+// ================================
+// START SERVER
+// ================================
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
