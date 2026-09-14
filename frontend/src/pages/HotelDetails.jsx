@@ -4,202 +4,240 @@ import axios from "axios";
 import "./HotelDetails.css";
 import fallbackImg from "../images/regImage.png";
 
+const API_URL = "http://localhost:5000";
+
 function HotelDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [hotel, setHotel] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showLoginMessage, setShowLoginMessage] = useState(false);
+  const [error, setError] = useState("");
 
-  // ==========================
-  // Get Hotel
-  // ==========================
+  // ========================================
+  // FETCH HOTEL
+  // ========================================
+
   useEffect(() => {
     const fetchHotel = async () => {
       try {
-        const response = await axios.get(
-          `http://localhost:5000/api/hotels/${id}`
-        );
+        setLoading(true);
+        setError("");
+
+        const response = await axios.get(`${API_URL}/api/hotels/${id}`);
 
         setHotel(response.data);
-      } catch (error) {
-        console.error("Failed to load hotel:", error);
+      } catch (err) {
+        console.error("Failed to load hotel:", err);
+
+        setError(err?.response?.data?.message || "Unable to load this hotel.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchHotel();
+    if (id) {
+      fetchHotel();
+    }
   }, [id]);
 
-  // ==========================
-  // Book Hotel
-  // ==========================
+  // ========================================
+  // BOOK NOW
+  // ========================================
+
   const handleBooking = () => {
-  console.log("BOOK NOW CLICKED");
+    const token = localStorage.getItem("token");
 
-  const token = localStorage.getItem("token");
+    if (!token) {
+      const shouldLogin = window.confirm(
+        "Please login to your account before booking this hotel.\n\nWould you like to login now?",
+      );
 
-  console.log("TOKEN:", token);
-  console.log("HOTEL:", hotel);
-  console.log("HOTEL ID:", hotel?._id);
+      if (shouldLogin) {
+        navigate("/login");
+      }
 
-  if (!token) {
-    alert("Please login first.");
-    navigate("/login");
-    return;
-  }
+      return;
+    }
 
-  if (!hotel?._id) {
-    alert("Hotel ID is missing.");
-    return;
-  }
+    if (!hotel?._id) {
+      alert("Hotel information is unavailable.");
+      return;
+    }
 
-  navigate(`/booking/hotel/${hotel._id}`);
-};
-  // ==========================
-  // Loading
-  // ==========================
+    navigate(`/booking/hotel/${hotel._id}`);
+  };
+
+  // ========================================
+  // LOADING
+  // ========================================
+
   if (loading) {
     return (
       <div className="details-loading">
         <div className="loading-spinner"></div>
-        <p>Loading hotel...</p>
+        <h3>Loading hotel...</h3>
+        <p>Please wait while we get the hotel details.</p>
       </div>
     );
   }
 
-  // ==========================
-  // Hotel Not Found
-  // ==========================
-  if (!hotel) {
+  // ========================================
+  // ERROR
+  // ========================================
+
+  if (error || !hotel) {
     return (
       <div className="hotel-not-found">
+        <div className="not-found-icon">🏨</div>
+
         <h2>Hotel not found</h2>
 
-        <button onClick={() => navigate("/hotels")}>
+        <p>{error || "We couldn't find the hotel you're looking for."}</p>
+
+        <button className="back-hotels-btn" onClick={() => navigate("/hotels")}>
           ← Back to Hotels
         </button>
       </div>
     );
   }
 
-  // ==========================
-  // Image
-  // ==========================
+  // ========================================
+  // HOTEL IMAGE
+  // ========================================
+
   const hotelImage =
     hotel.image && hotel.image.startsWith("http")
       ? hotel.image
       : hotel.image
-        ? `http://localhost:5000/uploads/${hotel.image}`
+        ? `${API_URL}/uploads/${hotel.image}`
         : fallbackImg;
+
+  // ========================================
+  // SAFE VALUES
+  // ========================================
+
+  const hotelName = hotel.name || "Hotel";
+  const location = hotel.location || "Location unavailable";
+  const description =
+    hotel.description ||
+    "Enjoy a comfortable stay with excellent service and convenient facilities.";
+
+  const price = hotel.price ?? 0;
+  const rooms = hotel.rooms ?? 0;
+  const rating = hotel.rating ?? 0;
 
   return (
     <div className="details-container">
-
       <div className="details-card">
+        {/* =====================================
+            HOTEL IMAGE
+        ===================================== */}
 
-        {/* Hotel Image */}
         <div className="details-image-wrapper">
           <img
             src={hotelImage}
-            alt={hotel.name}
+            alt={hotelName}
             className="details-image"
             onError={(e) => {
               e.currentTarget.src = fallbackImg;
             }}
           />
 
-          <div className="details-image-badge">
-            🏨 Available
-          </div>
+          <div className="details-image-badge">✓ Available</div>
         </div>
 
-        {/* Hotel Information */}
+        {/* =====================================
+            HOTEL INFORMATION
+        ===================================== */}
+
         <div className="details-content">
+          <span className="details-label">HOTEL DETAILS</span>
 
-          <span className="details-label">
-            HOTEL DETAILS
-          </span>
+          <h1>{hotelName}</h1>
 
-          <h1>{hotel.name}</h1>
+          <div className="details-location">📍 {location}</div>
 
-          <div className="details-location">
-            📍 {hotel.location}
+          {/* Rating */}
+
+          <div className="details-rating">
+            <span className="stars">
+              {"★".repeat(Math.min(5, Math.max(0, Math.round(rating))))}
+            </span>
+
+            <span className="rating-number">
+              {rating > 0 ? `${rating}/5` : "No rating yet"}
+            </span>
           </div>
 
-          <p className="details-description">
-            {hotel.description}
-          </p>
+          {/* Description */}
 
-          {/* Hotel Information */}
+          <p className="details-description">{description}</p>
+
+          {/* =====================================
+              HOTEL INFORMATION
+          ===================================== */}
+
           <div className="hotel-info-row">
-
             <div className="info-item">
-              <span>💰</span>
+              <span className="info-icon">💰</span>
+
               <div>
                 <small>Price</small>
-                <strong>ETB {hotel.price}</strong>
+
+                <strong>ETB {Number(price).toLocaleString()}</strong>
+
                 <small>per night</small>
               </div>
             </div>
 
             <div className="info-item">
-              <span>🛏️</span>
+              <span className="info-icon">🛏️</span>
+
               <div>
                 <small>Rooms</small>
-                <strong>{hotel.rooms}</strong>
-                <small>available</small>
+
+                <strong>{rooms}</strong>
+
+                <small>
+                  {Number(rooms) === 1 ? "room available" : "rooms available"}
+                </small>
               </div>
             </div>
 
+            <div className="info-item">
+              <span className="info-icon">⭐</span>
+
+              <div>
+                <small>Rating</small>
+
+                <strong>{rating > 0 ? rating : "N/A"}</strong>
+
+                <small>guest rating</small>
+              </div>
+            </div>
           </div>
 
-          {/* Login Message */}
-          {showLoginMessage && (
-            <div className="login-warning">
+          {/* =====================================
+              BOOKING BUTTON
+          ===================================== */}
 
-              <div className="warning-icon">
-                ⚠️
-              </div>
-
-              <div className="warning-content">
-                <strong>Login Required</strong>
-
-                <p>
-                  Please login to your account before booking
-                  this hotel.
-                </p>
-
-                <button
-                  onClick={() => navigate("/login")}
-                >
-                  Login Now →
-                </button>
-              </div>
-
-            </div>
-          )}
-
-          {/* Book Button */}
-          <button
-            className="book-now-btn"
-            onClick={handleBooking}
-          >
+          <button className="book-now-btn" onClick={handleBooking}>
             <span>🏨</span>
-            Book Now
+            Book This Hotel
             <span className="book-arrow">→</span>
           </button>
 
-          {/* Back Button */}
+          {/* =====================================
+              BACK BUTTON
+          ===================================== */}
+
           <button
             className="back-hotels-btn"
             onClick={() => navigate("/hotels")}
           >
             ← Back to Hotels
           </button>
-
         </div>
       </div>
     </div>

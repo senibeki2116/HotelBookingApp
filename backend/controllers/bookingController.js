@@ -6,8 +6,13 @@ const Booking = require("../models/Booking");
 // ==========================
 exports.createBooking = async (req, res) => {
   try {
-    const { hotelId, checkIn, checkOut, guests } = req.body;
+    const { hotelId, checkIn, checkOut, guests, rooms } = req.body;
+
     const userId = req.user?._id || req.user?.id;
+
+    // ==========================
+    // Authentication
+    // ==========================
 
     if (!userId) {
       return res.status(401).json({
@@ -15,7 +20,60 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    // Check if hotel exists
+    // ==========================
+    // Validation
+    // ==========================
+
+    if (!hotelId || !checkIn || !checkOut) {
+      return res.status(400).json({
+        message: "Hotel, check-in date and check-out date are required.",
+      });
+    }
+
+    const guestCount = Number(guests);
+    const roomCount = Number(rooms);
+
+    if (!Number.isInteger(guestCount) || guestCount < 1) {
+      return res.status(400).json({
+        message: "Guests must be at least 1.",
+      });
+    }
+
+    if (!Number.isInteger(roomCount) || roomCount < 1) {
+      return res.status(400).json({
+        message: "Rooms must be at least 1.",
+      });
+    }
+
+    // ==========================
+    // Dates
+    // ==========================
+
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+
+    if (Number.isNaN(checkInDate.getTime())) {
+      return res.status(400).json({
+        message: "Invalid check-in date.",
+      });
+    }
+
+    if (Number.isNaN(checkOutDate.getTime())) {
+      return res.status(400).json({
+        message: "Invalid check-out date.",
+      });
+    }
+
+    if (checkOutDate <= checkInDate) {
+      return res.status(400).json({
+        message: "Check-out date must be after check-in date.",
+      });
+    }
+
+    // ==========================
+    // Find Hotel
+    // ==========================
+
     const hotel = await Hotel.findById(hotelId);
 
     if (!hotel) {
@@ -24,27 +82,83 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    // Create booking
+    // ==========================
+    // Check Available Rooms
+    // ==========================
+
+    const availableRooms = Number(hotel.rooms) || 0;
+
+    if (roomCount > availableRooms) {
+      return res.status(400).json({
+        message: `Only ${availableRooms} room${
+          availableRooms === 1 ? "" : "s"
+        } available.`,
+      });
+    }
+
+    // ==========================
+    // Calculate Nights
+    // ==========================
+
+    const millisecondsPerDay = 1000 * 60 * 60 * 24;
+
+    const nights = Math.ceil((checkOutDate - checkInDate) / millisecondsPerDay);
+
+    if (nights < 1) {
+      return res.status(400).json({
+        message: "Booking must be at least one night.",
+      });
+    }
+
+    // ==========================
+    // Calculate Price
+    // ==========================
+
+    const pricePerNight = Number(hotel.price) || 0;
+
+    const totalPrice = pricePerNight * nights * roomCount;
+
+    // ==========================
+    // Create Booking
+    // ==========================
+
     const booking = await Booking.create({
       user: userId,
       hotel: hotelId,
-      checkIn,
-      checkOut,
-      guests,
-      totalPrice: hotel.price * guests,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      guests: guestCount,
+      rooms: roomCount,
+      totalPrice,
+      status: "confirmed",
     });
 
+    // ==========================
+    // Response
+    // ==========================
+
     res.status(201).json({
-      message: "Booking created",
+      message: "Booking created successfully",
+
       booking,
+
+      summary: {
+        hotel: hotel.name,
+        pricePerNight,
+        nights,
+        guests: guestCount,
+        rooms: roomCount,
+        totalPrice,
+      },
     });
   } catch (error) {
+    console.error("Create booking error:", error);
+
     res.status(500).json({
-      message: error.message,
+      message: error.message || "Unable to create booking.",
     });
   }
 };
-
 // ==========================
 // Get Logged-in User Bookings
 // ==========================

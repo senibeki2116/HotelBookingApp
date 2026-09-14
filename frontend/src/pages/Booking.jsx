@@ -1,124 +1,108 @@
-import { useState, useContext, useEffect } from "react";
+import { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { AuthContext } from "../context/AuthContext";
-import API from "../api/axios";
 import "./Booking.css";
 
+const API_URL = "http://localhost:5000";
+
 function Booking() {
-  const { id, hotelId } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
   const { token } = useContext(AuthContext);
 
-  const selectedHotelId = id || hotelId;
-
   const [hotel, setHotel] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [bookingLoading, setBookingLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  const [formData, setFormData] = useState({
-    checkIn: "",
-    checkOut: "",
-    guests: 1,
-    rooms: 1,
-  });
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [guests, setGuests] = useState(1);
+  const [rooms, setRooms] = useState(1);
+
+  const [error, setError] = useState("");
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
-    if (selectedHotelId) {
-      fetchHotel();
-    } else {
-      setError("Hotel ID is missing.");
-      setLoading(false);
-    }
-  }, [selectedHotelId]);
+    const fetchHotel = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/hotels/${id}`);
 
-  const fetchHotel = async () => {
-    try {
-      setLoading(true);
-      setError("");
+        setHotel(response.data);
+      } catch (err) {
+        console.error(err);
+        setError("Unable to load hotel information.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      const response = await axios.get(
-        `http://localhost:5000/api/hotels/${selectedHotelId}`,
-      );
-
-      setHotel(response.data);
-    } catch (err) {
-      console.error(err);
-      setError("Unable to load hotel information.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    setError("");
-    setSuccess("");
-  };
+    fetchHotel();
+  }, [id]);
 
   const calculateNights = () => {
-    if (!formData.checkIn || !formData.checkOut) {
-      return 0;
-    }
+    if (!checkIn || !checkOut) return 0;
 
-    const start = new Date(formData.checkIn);
-    const end = new Date(formData.checkOut);
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
 
     const difference = end - start;
-    const nights = Math.ceil(difference / (1000 * 60 * 60 * 24));
 
-    return nights > 0 ? nights : 0;
+    return Math.ceil(difference / (1000 * 60 * 60 * 24));
   };
 
   const nights = calculateNights();
 
-  const pricePerNight = Number(hotel?.price || hotel?.pricePerNight || 0);
+  const pricePerNight = Number(hotel?.price) || 0;
 
-  const totalPrice =
-    nights > 0
-      ? pricePerNight * nights * Number(formData.rooms)
-      : pricePerNight * Number(formData.rooms);
+  const totalPrice = pricePerNight * nights * Number(rooms);
+
+  const getImageUrl = (image) => {
+    if (!image) {
+      return "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
+    }
+
+    if (image.startsWith("http")) {
+      return image;
+    }
+
+    if (image.startsWith("/uploads/")) {
+      return `${API_URL}${image}`;
+    }
+
+    if (image.startsWith("uploads/")) {
+      return `${API_URL}/${image}`;
+    }
+
+    return `${API_URL}/uploads/${image}`;
+  };
 
   const handleBooking = async (e) => {
     e.preventDefault();
 
     setError("");
-    setSuccess("");
 
-    // User must be logged in
     if (!token) {
       navigate("/login");
       return;
     }
 
-    // Validate dates
-    if (!formData.checkIn || !formData.checkOut) {
-      setError("Please select check-in and check-out dates.");
+    if (!checkIn || !checkOut) {
+      setError("Please select your check-in and check-out dates.");
       return;
     }
 
-    if (new Date(formData.checkOut) <= new Date(formData.checkIn)) {
+    if (new Date(checkOut) <= new Date(checkIn)) {
       setError("Check-out date must be after check-in date.");
       return;
     }
 
-    // Validate guests
-    if (Number(formData.guests) < 1) {
-      setError("At least one guest is required.");
+    if (nights < 1) {
+      setError("Your stay must be at least one night.");
       return;
     }
 
-    // Validate rooms
-    if (Number(formData.rooms) < 1) {
-      setError("At least one room is required.");
+    if (Number(rooms) > Number(hotel?.rooms || 0)) {
+      setError(`Only ${hotel?.rooms || 0} rooms are available.`);
       return;
     }
 
@@ -126,28 +110,29 @@ function Booking() {
       setBookingLoading(true);
 
       const bookingData = {
-        hotelId: selectedHotelId,
-        checkIn: formData.checkIn,
-        checkOut: formData.checkOut,
-        guests: Number(formData.guests),
-        rooms: Number(formData.rooms),
-        totalPrice: totalPrice,
+        hotelId: id,
+        checkIn,
+        checkOut,
+        guests: Number(guests),
+        rooms: Number(rooms),
       };
 
-      await API.post("/bookings", bookingData);
+      const response = await axios.post(
+        `${API_URL}/api/bookings`,
+        bookingData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
-      setSuccess("Your booking has been created successfully!");
-
-      // IMPORTANT:
-      // Your App.jsx uses /my-bookings
-      setTimeout(() => {
-        navigate("/my-bookings");
-      }, 1500);
+      navigate(`/booking-confirmation/${response.data.booking._id}`);
     } catch (err) {
       console.error(err);
 
       setError(
-        err.response?.data?.message || "Booking failed. Please try again.",
+        err.response?.data?.message || "Unable to complete your booking.",
       );
     } finally {
       setBookingLoading(false);
@@ -156,24 +141,27 @@ function Booking() {
 
   if (loading) {
     return (
-      <div className="booking-loading">
-        <div className="spinner"></div>
-        <p>Loading hotel information...</p>
+      <div className="booking-loading-screen">
+        <div className="booking-spinner"></div>
+        <h2>Loading hotel...</h2>
+        <p>Please wait a moment.</p>
       </div>
     );
   }
 
-  if (error && !hotel) {
+  if (!hotel) {
     return (
-      <div className="booking-error-page">
-        <div className="error-box">
+      <div className="booking-error-screen">
+        <div className="booking-error-box">
           <div className="error-icon">!</div>
 
           <h2>Hotel Not Found</h2>
 
-          <p>{error}</p>
+          <p>We couldn't find the hotel you're looking for.</p>
 
-          <button onClick={() => navigate("/hotels")}>Back to Hotels</button>
+          <Link to="/hotels" className="return-hotels-btn">
+            Return to Hotels
+          </Link>
         </div>
       </div>
     );
@@ -181,358 +169,279 @@ function Booking() {
 
   return (
     <div className="booking-page">
-      {/* ================= NAVBAR ================= */}
-      <nav className="booking-navbar">
-        <div className="booking-logo">
-          <Link to="/hotels">
-            <span className="logo-icon">✦</span>
-            StayLux
-          </Link>
+      {/* TOP BAR */}
+      <div className="booking-topbar">
+        <Link to={`/hotels/${id}`} className="back-hotel-link">
+          <span>←</span>
+          Back to hotel
+        </Link>
+
+        <div className="secure-label">🔒 Secure reservation</div>
+      </div>
+
+      {/* HEADER */}
+      <div className="booking-header">
+        <div>
+          <span className="booking-eyebrow">RESERVATION</span>
+
+          <h1>Complete your booking</h1>
+
+          <p>Choose your dates and tell us about your stay.</p>
         </div>
 
-        <div className="booking-nav-links">
-          <Link to="/hotels">Hotels</Link>
-
-          {/* FIXED */}
-          <Link to="/my-bookings">My Bookings</Link>
-
-          <Link to="/">Home</Link>
+        <div className="booking-step">
+          <span className="step-circle">1</span>
+          Reservation details
         </div>
+      </div>
 
-        <button className="nav-back-btn" onClick={() => navigate("/hotels")}>
-          ← Back
-        </button>
-      </nav>
+      {/* MAIN */}
+      <div className="booking-layout">
+        {/* HOTEL CARD */}
+        <div className="hotel-card">
+          <div className="hotel-photo-wrapper">
+            <img
+              src={getImageUrl(hotel.image)}
+              alt={hotel.name}
+              className="hotel-photo"
+              onError={(e) => {
+                e.currentTarget.src =
+                  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
+              }}
+            />
 
-      {/* ================= MAIN ================= */}
-      <main className="booking-container">
-        {/* PAGE HEADER */}
-        <div className="booking-header">
-          <div>
-            <span className="booking-label">RESERVATION</span>
-
-            <h1>Complete Your Booking</h1>
-
-            <p>Reserve your room and get ready for a comfortable stay.</p>
-          </div>
-
-          <div className="secure-box">
-            <span>🔒</span>
-
-            <div>
-              <strong>Secure Booking</strong>
-
-              <small>Your information is protected</small>
+            <div className="rating-badge">
+              <span>★</span>
+              {hotel.rating || 5}
             </div>
           </div>
-        </div>
 
-        {/* BOOKING LAYOUT */}
-        <div className="booking-layout">
-          {/* ================= LEFT SIDE ================= */}
-          <section className="hotel-summary">
-            <div className="hotel-image-wrapper">
-              {hotel?.image ? (
-                <img
-                  src={
-                    hotel.image.startsWith("http")
-                      ? hotel.image
-                      : `http://localhost:5000/${hotel.image}`
-                  }
-                  alt={hotel.name}
-                />
-              ) : hotel?.imageUrl ? (
-                <img src={hotel.imageUrl} alt={hotel.name} />
-              ) : (
-                <div className="hotel-placeholder">🏨</div>
-              )}
+          <div className="hotel-card-content">
+            <span className="hotel-category">HOTEL</span>
 
-              <span className="popular-badge">★ Popular</span>
-            </div>
+            <h2>{hotel.name}</h2>
 
-            <div className="hotel-info">
-              <div className="rating-row">
-                <span className="stars">★★★★★</span>
+            <p className="hotel-location">📍 {hotel.location}</p>
 
-                <span className="rating-text">Excellent hotel</span>
-              </div>
+            <div className="hotel-divider"></div>
 
-              <h2>{hotel?.name || "Hotel"}</h2>
+            <div className="hotel-info-row">
+              <div className="info-icon">🛏</div>
 
-              <p className="location">
-                📍 {hotel?.location || hotel?.city || "Ethiopia"}
-              </p>
-
-              <div className="hotel-features">
-                <div>
-                  <span>✓</span>
-                  Free Wi-Fi
-                </div>
-
-                <div>
-                  <span>✓</span>
-                  Comfortable Rooms
-                </div>
-
-                <div>
-                  <span>✓</span>
-                  24/7 Support
-                </div>
-
-                <div>
-                  <span>✓</span>
-                  Best Price
-                </div>
-              </div>
-
-              {hotel?.description && (
-                <div className="hotel-description">
-                  <h3>About this hotel</h3>
-
-                  <p>{hotel.description}</p>
-                </div>
-              )}
-
-              <button
-                className="return-hotels"
-                onClick={() => navigate("/hotels")}
-              >
-                ← Browse Other Hotels
-              </button>
-            </div>
-          </section>
-
-          {/* ================= RIGHT SIDE ================= */}
-          <section className="booking-card">
-            <div className="card-header">
               <div>
-                <span className="small-title">YOUR RESERVATION</span>
+                <small>Available rooms</small>
 
-                <h2>Book Your Stay</h2>
-              </div>
-
-              <div className="price-display">
-                <strong>${pricePerNight}</strong>
-
-                <span>/ night</span>
+                <strong>{hotel.rooms || 0} rooms</strong>
               </div>
             </div>
 
-            <form onSubmit={handleBooking}>
-              {/* ================= DATES ================= */}
-              <div className="form-section">
-                <h3>📅 Select your dates</h3>
+            <div className="hotel-divider"></div>
 
-                <div className="date-grid">
-                  <div className="input-group">
-                    <label htmlFor="checkIn">Check In</label>
+            <div className="nightly-price">
+              <small>Price per night</small>
+
+              <div>
+                <strong>ETB {pricePerNight.toLocaleString()}</strong>
+
+                <span>/ room</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* RESERVATION CARD */}
+        <div className="reservation-card">
+          <div className="reservation-title">
+            <h2>Reservation details</h2>
+
+            <p>Select your dates, guests and rooms.</p>
+          </div>
+
+          {error && (
+            <div className="booking-message booking-error">
+              <span>!</span>
+              <p>{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleBooking}>
+            {/* DATES */}
+            <div className="form-section">
+              <div className="section-heading">
+                <span className="section-number">01</span>
+
+                <div>
+                  <h3>Stay dates</h3>
+
+                  <p>When will you be staying?</p>
+                </div>
+              </div>
+
+              <div className="date-fields">
+                <div className="input-group">
+                  <label>CHECK-IN</label>
+
+                  <div className="input-wrapper">
+                    <span className="input-icon">📅</span>
 
                     <input
-                      id="checkIn"
                       type="date"
-                      name="checkIn"
-                      value={formData.checkIn}
-                      onChange={handleChange}
+                      value={checkIn}
                       min={new Date().toISOString().split("T")[0]}
-                      required
+                      onChange={(e) => setCheckIn(e.target.value)}
                     />
                   </div>
+                </div>
 
-                  <div className="input-group">
-                    <label htmlFor="checkOut">Check Out</label>
+                <div className="date-arrow">→</div>
+
+                <div className="input-group">
+                  <label>CHECK-OUT</label>
+
+                  <div className="input-wrapper">
+                    <span className="input-icon">📅</span>
 
                     <input
-                      id="checkOut"
                       type="date"
-                      name="checkOut"
-                      value={formData.checkOut}
-                      onChange={handleChange}
-                      min={
-                        formData.checkIn ||
-                        new Date().toISOString().split("T")[0]
-                      }
-                      required
+                      value={checkOut}
+                      min={checkIn || new Date().toISOString().split("T")[0]}
+                      onChange={(e) => setCheckOut(e.target.value)}
                     />
                   </div>
                 </div>
-
-                {nights > 0 && (
-                  <div className="night-info">
-                    ✓ {nights} night
-                    {nights > 1 ? "s" : ""} selected
-                  </div>
-                )}
               </div>
 
-              {/* ================= GUESTS ================= */}
-              <div className="form-section">
-                <h3>👥 Guests & Rooms</h3>
+              {nights > 0 && (
+                <div className="stay-duration">
+                  🌙
+                  <span>Your stay:</span>
+                  <strong>
+                    {nights} {nights === 1 ? "night" : "nights"}
+                  </strong>
+                </div>
+              )}
+            </div>
 
-                <div className="guest-grid">
-                  <div className="input-group">
-                    <label htmlFor="guests">Guests</label>
+            {/* GUESTS & ROOMS */}
+            <div className="form-section">
+              <div className="section-heading">
+                <span className="section-number">02</span>
 
-                    <select
-                      id="guests"
-                      name="guests"
-                      value={formData.guests}
-                      onChange={handleChange}
-                    >
-                      <option value="1">1 Guest</option>
+                <div>
+                  <h3>Guests & rooms</h3>
 
-                      <option value="2">2 Guests</option>
-
-                      <option value="3">3 Guests</option>
-
-                      <option value="4">4 Guests</option>
-
-                      <option value="5">5 Guests</option>
-
-                      <option value="6">6 Guests</option>
-
-                      <option value="7">7 Guests</option>
-
-                      <option value="8">8 Guests</option>
-                    </select>
-                  </div>
-
-                  <div className="input-group">
-                    <label htmlFor="rooms">Rooms</label>
-
-                    <select
-                      id="rooms"
-                      name="rooms"
-                      value={formData.rooms}
-                      onChange={handleChange}
-                    >
-                      <option value="1">1 Room</option>
-
-                      <option value="2">2 Rooms</option>
-
-                      <option value="3">3 Rooms</option>
-
-                      <option value="4">4 Rooms</option>
-
-                      <option value="5">5 Rooms</option>
-                    </select>
-                  </div>
+                  <p>Tell us who is staying.</p>
                 </div>
               </div>
 
-              {/* ================= ERROR ================= */}
-              {error && (
-                <div className="booking-alert error-alert">
-                  <span>⚠</span>
-                  {error}
-                </div>
-              )}
+              <div className="guest-room-fields">
+                <div className="input-group">
+                  <label>GUESTS</label>
 
-              {/* ================= SUCCESS ================= */}
-              {success && (
-                <div className="booking-alert success-alert">
-                  <span>✓</span>
-                  {success}
-                </div>
-              )}
+                  <div className="input-wrapper">
+                    <span className="input-icon">👥</span>
 
-              {/* ================= PRICE ================= */}
-              <div className="price-summary">
-                <div className="price-line">
-                  <span>
-                    ${pricePerNight} × {nights || 1} night
-                    {(nights || 1) > 1 ? "s" : ""}
-                  </span>
-
-                  <strong>${pricePerNight * (nights || 1)}</strong>
+                    <select
+                      value={guests}
+                      onChange={(e) => setGuests(e.target.value)}
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((number) => (
+                        <option key={number} value={number}>
+                          {number} {number === 1 ? "Guest" : "Guests"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="price-line">
-                  <span>Rooms</span>
+                <div className="input-group">
+                  <label>ROOMS</label>
 
-                  <strong>× {formData.rooms}</strong>
+                  <div className="input-wrapper">
+                    <span className="input-icon">🛏</span>
+
+                    <select
+                      value={rooms}
+                      onChange={(e) => setRooms(e.target.value)}
+                    >
+                      {Array.from(
+                        {
+                          length: Math.min(Number(hotel.rooms) || 1, 8),
+                        },
+                        (_, index) => index + 1,
+                      ).map((number) => (
+                        <option key={number} value={number}>
+                          {number} {number === 1 ? "Room" : "Rooms"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+              </div>
+            </div>
 
-                <div className="divider"></div>
+            {/* PRICE SUMMARY */}
+            <div className="price-summary">
+              <div className="summary-heading">
+                <h3>Price summary</h3>
+              </div>
 
-                <div className="total-line">
+              <div className="price-row">
+                <span>
+                  ETB {pricePerNight.toLocaleString()} × {nights || 0}{" "}
+                  {nights === 1 ? "night" : "nights"}
+                </span>
+
+                <strong>ETB {(pricePerNight * nights).toLocaleString()}</strong>
+              </div>
+
+              <div className="price-row">
+                <span>
+                  {rooms} {rooms === 1 ? "room" : "rooms"}
+                </span>
+
+                <strong>ETB {totalPrice.toLocaleString()}</strong>
+              </div>
+
+              <div className="summary-line"></div>
+
+              <div className="total-row">
+                <div>
                   <span>Total</span>
 
-                  <strong>${totalPrice}</strong>
+                  <small>Includes your selected stay</small>
                 </div>
+
+                <strong>ETB {totalPrice.toLocaleString()}</strong>
               </div>
+            </div>
 
-              {/* ================= BOOK BUTTON ================= */}
-              <button
-                type="submit"
-                className="confirm-booking-btn"
-                disabled={bookingLoading}
-              >
-                {bookingLoading ? (
-                  <>
-                    <span className="button-spinner"></span>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    Confirm Booking
-                    <span>→</span>
-                  </>
-                )}
-              </button>
+            {/* BUTTON */}
+            <button
+              type="submit"
+              className="confirm-booking-button"
+              disabled={bookingLoading}
+            >
+              {bookingLoading ? (
+                <>
+                  <span className="button-loader"></span>
+                  Booking...
+                </>
+              ) : (
+                <>
+                  Confirm booking
+                  <span>→</span>
+                </>
+              )}
+            </button>
 
-              <p className="booking-note">
-                🔒 You won't be charged until your booking is confirmed.
-              </p>
-            </form>
-          </section>
+            <div className="booking-security">
+              🔒
+              <p>Your reservation is securely processed.</p>
+            </div>
+          </form>
         </div>
-
-        {/* ================= BENEFITS ================= */}
-        <section className="booking-benefits">
-          <div className="benefit">
-            <span>🛡️</span>
-
-            <div>
-              <strong>Secure Reservation</strong>
-
-              <p>Your booking information is safe.</p>
-            </div>
-          </div>
-
-          <div className="benefit">
-            <span>💰</span>
-
-            <div>
-              <strong>Best Price Guarantee</strong>
-
-              <p>Get the best available hotel prices.</p>
-            </div>
-          </div>
-
-          <div className="benefit">
-            <span>📞</span>
-
-            <div>
-              <strong>24/7 Support</strong>
-
-              <p>We're here whenever you need us.</p>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      {/* ================= FOOTER ================= */}
-      <footer className="booking-footer">
-        <p>© 2026 StayLux Hotel Booking System</p>
-
-        <div>
-          <span>Secure</span>
-          <span>•</span>
-          <span>Reliable</span>
-          <span>•</span>
-          <span>Easy Booking</span>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 }
