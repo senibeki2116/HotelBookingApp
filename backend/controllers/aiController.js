@@ -23,13 +23,14 @@ const client = new OpenAI({
 
 exports.recommendHotels = async (req, res) => {
   try {
-    const { preferences } = req.body;
+    // Frontend sends "prompt"
+    const { prompt } = req.body;
 
     // ------------------------------------
     // Validate user request
     // ------------------------------------
 
-    if (!preferences || !preferences.trim()) {
+    if (!prompt || !prompt.trim()) {
       return res.status(400).json({
         message: "Please describe what kind of hotel you are looking for.",
       });
@@ -41,7 +42,7 @@ exports.recommendHotels = async (req, res) => {
 
     const hotels = await Hotel.find().lean();
 
-    if (!hotels.length) {
+    if (!hotels || hotels.length === 0) {
       return res.status(404).json({
         message: "There are no hotels available right now.",
       });
@@ -53,27 +54,28 @@ exports.recommendHotels = async (req, res) => {
 
     const hotelData = hotels.map((hotel) => ({
       id: String(hotel._id),
-      name: hotel.name,
-      location: hotel.location,
-      description: hotel.description,
-      price: hotel.price,
-      rooms: hotel.rooms,
+      name: hotel.name || hotel.hotelName || "Hotel",
+      location: hotel.location || hotel.city || "",
+      description: hotel.description || "",
+      price: hotel.price || hotel.pricePerNight || 0,
+      rating: hotel.rating || 0,
+      rooms: hotel.rooms || [],
     }));
 
     // ------------------------------------
     // AI PROMPT
     // ------------------------------------
 
-    const prompt = `
+    const aiPrompt = `
 You are an AI hotel recommendation assistant
 for a hotel booking website.
 
 The user said:
 
-"${preferences}"
+"${prompt}"
 
 Here are the REAL hotels currently available
-in our database:
+in our MongoDB database:
 
 ${JSON.stringify(hotelData, null, 2)}
 
@@ -82,27 +84,38 @@ from this list.
 
 IMPORTANT RULES:
 
-1. Only recommend hotels that appear in the provided list.
+1. Only recommend hotels from the provided list.
 2. Never invent a hotel.
-3. Never invent a price.
-4. Consider the user's location preference.
-5. Consider their budget if they mention one.
-6. Consider number of guests or rooms if mentioned.
-7. Consider words such as cheap, luxury, comfortable,
-   family, romantic, quiet, business, etc.
-8. If several hotels match, recommend up to 3.
-9. Give a short reason for each recommendation.
-10. If the user's request does not provide enough
-    information, still make the best recommendation possible.
+3. Never invent a hotel ID.
+4. Never invent a price.
+5. Consider the user's preferred location.
+6. Consider their budget if they mention one.
+7. Consider number of guests or rooms if mentioned.
+8. Consider preferences such as:
+   - cheap
+   - budget
+   - luxury
+   - comfortable
+   - family
+   - romantic
+   - quiet
+   - business
+   - lake
+   - beach
+   - premium
+9. Recommend up to 3 hotels.
+10. Give a short reason for every recommendation.
+11. If there is not an exact match, choose the closest available hotels.
+12. Return ONLY valid JSON.
 
-Return ONLY valid JSON in this exact format:
+Return exactly this structure:
 
 {
-  "message": "A short friendly explanation of the recommendations.",
+  "message": "A short friendly explanation.",
   "recommendations": [
     {
-      "hotelId": "hotel MongoDB id",
-      "reason": "Why this hotel matches the user's request"
+      "hotelId": "MongoDB hotel ID",
+      "reason": "Why this hotel matches the user's request."
     }
   ]
 }
@@ -114,12 +127,12 @@ Return ONLY valid JSON in this exact format:
 
     const response = await client.responses.create({
       model: "gpt-5.6-luna",
-      input: prompt,
+      input: aiPrompt,
     });
 
     const output = response.output_text;
 
-    console.log("AI response received.");
+    console.log("✅ AI response received.");
 
     // ------------------------------------
     // PARSE AI RESPONSE
@@ -139,7 +152,7 @@ Return ONLY valid JSON in this exact format:
     }
 
     // ------------------------------------
-    // VERIFY AI RECOMMENDATIONS
+    // VERIFY RECOMMENDATIONS
     // ------------------------------------
 
     const recommendations = Array.isArray(result.recommendations)
@@ -172,7 +185,7 @@ Return ONLY valid JSON in this exact format:
     // SEND RESULT TO FRONTEND
     // ------------------------------------
 
-    res.json({
+    return res.json({
       message:
         result.message ||
         "Here are the hotels that best match your preferences.",
@@ -196,7 +209,7 @@ Return ONLY valid JSON in this exact format:
     // GENERAL ERROR
     // ------------------------------------
 
-    res.status(500).json({
+    return res.status(500).json({
       message:
         error?.message || "Unable to generate hotel recommendations right now.",
     });

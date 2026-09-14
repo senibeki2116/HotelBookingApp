@@ -16,7 +16,7 @@ import AdminRoute from "./components/AdminRoute";
 
 import ManageHotels from "./pages/ManageHotels";
 import AdminHotels from "./pages/AdminHotels";
-import AddHotel from "./pages/AddHotel";
+import AddHotel from "./pages/admin/AddHotel";
 import EditHotel from "./pages/EditHotel";
 import AdminBooking from "./pages/AdminBooking";
 import AdminUsers from "./pages/AdminUsers";
