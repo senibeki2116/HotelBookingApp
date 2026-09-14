@@ -2,6 +2,7 @@ import { useState, useContext, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { AuthContext } from "../context/AuthContext";
+import API from "../api/axios";
 import "./Booking.css";
 
 function Booking() {
@@ -25,7 +26,12 @@ function Booking() {
   });
 
   useEffect(() => {
-    fetchHotel();
+    if (selectedHotelId) {
+      fetchHotel();
+    } else {
+      setError("Hotel ID is missing.");
+      setLoading(false);
+    }
   }, [selectedHotelId]);
 
   const fetchHotel = async () => {
@@ -87,11 +93,13 @@ function Booking() {
     setError("");
     setSuccess("");
 
+    // User must be logged in
     if (!token) {
       navigate("/login");
       return;
     }
 
+    // Validate dates
     if (!formData.checkIn || !formData.checkOut) {
       setError("Please select check-in and check-out dates.");
       return;
@@ -102,11 +110,13 @@ function Booking() {
       return;
     }
 
+    // Validate guests
     if (Number(formData.guests) < 1) {
       setError("At least one guest is required.");
       return;
     }
 
+    // Validate rooms
     if (Number(formData.rooms) < 1) {
       setError("At least one room is required.");
       return;
@@ -124,16 +134,14 @@ function Booking() {
         totalPrice: totalPrice,
       };
 
-      await axios.post("http://localhost:5000/api/bookings", bookingData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await API.post("/bookings", bookingData);
 
       setSuccess("Your booking has been created successfully!");
 
+      // IMPORTANT:
+      // Your App.jsx uses /my-bookings
       setTimeout(() => {
-        navigate("/bookings");
+        navigate("/my-bookings");
       }, 1500);
     } catch (err) {
       console.error(err);
@@ -160,7 +168,9 @@ function Booking() {
       <div className="booking-error-page">
         <div className="error-box">
           <div className="error-icon">!</div>
+
           <h2>Hotel Not Found</h2>
+
           <p>{error}</p>
 
           <button onClick={() => navigate("/hotels")}>Back to Hotels</button>
@@ -171,7 +181,7 @@ function Booking() {
 
   return (
     <div className="booking-page">
-      {/* NAVBAR */}
+      {/* ================= NAVBAR ================= */}
       <nav className="booking-navbar">
         <div className="booking-logo">
           <Link to="/hotels">
@@ -182,7 +192,10 @@ function Booking() {
 
         <div className="booking-nav-links">
           <Link to="/hotels">Hotels</Link>
-          <Link to="/bookings">My Bookings</Link>
+
+          {/* FIXED */}
+          <Link to="/my-bookings">My Bookings</Link>
+
           <Link to="/">Home</Link>
         </div>
 
@@ -191,27 +204,32 @@ function Booking() {
         </button>
       </nav>
 
-      {/* MAIN CONTENT */}
+      {/* ================= MAIN ================= */}
       <main className="booking-container">
         {/* PAGE HEADER */}
         <div className="booking-header">
           <div>
             <span className="booking-label">RESERVATION</span>
+
             <h1>Complete Your Booking</h1>
+
             <p>Reserve your room and get ready for a comfortable stay.</p>
           </div>
 
           <div className="secure-box">
             <span>🔒</span>
+
             <div>
               <strong>Secure Booking</strong>
+
               <small>Your information is protected</small>
             </div>
           </div>
         </div>
 
+        {/* BOOKING LAYOUT */}
         <div className="booking-layout">
-          {/* LEFT SIDE */}
+          {/* ================= LEFT SIDE ================= */}
           <section className="hotel-summary">
             <div className="hotel-image-wrapper">
               {hotel?.image ? (
@@ -235,6 +253,7 @@ function Booking() {
             <div className="hotel-info">
               <div className="rating-row">
                 <span className="stars">★★★★★</span>
+
                 <span className="rating-text">Excellent hotel</span>
               </div>
 
@@ -269,6 +288,7 @@ function Booking() {
               {hotel?.description && (
                 <div className="hotel-description">
                   <h3>About this hotel</h3>
+
                   <p>{hotel.description}</p>
                 </div>
               )}
@@ -282,7 +302,7 @@ function Booking() {
             </div>
           </section>
 
-          {/* RIGHT SIDE - BOOKING FORM */}
+          {/* ================= RIGHT SIDE ================= */}
           <section className="booking-card">
             <div className="card-header">
               <div>
@@ -293,12 +313,13 @@ function Booking() {
 
               <div className="price-display">
                 <strong>${pricePerNight}</strong>
+
                 <span>/ night</span>
               </div>
             </div>
 
             <form onSubmit={handleBooking}>
-              {/* DATES */}
+              {/* ================= DATES ================= */}
               <div className="form-section">
                 <h3>📅 Select your dates</h3>
 
@@ -337,12 +358,13 @@ function Booking() {
 
                 {nights > 0 && (
                   <div className="night-info">
-                    ✓ {nights} night{nights > 1 ? "s" : ""} selected
+                    ✓ {nights} night
+                    {nights > 1 ? "s" : ""} selected
                   </div>
                 )}
               </div>
 
-              {/* GUESTS */}
+              {/* ================= GUESTS ================= */}
               <div className="form-section">
                 <h3>👥 Guests & Rooms</h3>
 
@@ -357,12 +379,19 @@ function Booking() {
                       onChange={handleChange}
                     >
                       <option value="1">1 Guest</option>
+
                       <option value="2">2 Guests</option>
+
                       <option value="3">3 Guests</option>
+
                       <option value="4">4 Guests</option>
+
                       <option value="5">5 Guests</option>
+
                       <option value="6">6 Guests</option>
+
                       <option value="7">7 Guests</option>
+
                       <option value="8">8 Guests</option>
                     </select>
                   </div>
@@ -377,16 +406,20 @@ function Booking() {
                       onChange={handleChange}
                     >
                       <option value="1">1 Room</option>
+
                       <option value="2">2 Rooms</option>
+
                       <option value="3">3 Rooms</option>
+
                       <option value="4">4 Rooms</option>
+
                       <option value="5">5 Rooms</option>
                     </select>
                   </div>
                 </div>
               </div>
 
-              {/* ERROR */}
+              {/* ================= ERROR ================= */}
               {error && (
                 <div className="booking-alert error-alert">
                   <span>⚠</span>
@@ -394,7 +427,7 @@ function Booking() {
                 </div>
               )}
 
-              {/* SUCCESS */}
+              {/* ================= SUCCESS ================= */}
               {success && (
                 <div className="booking-alert success-alert">
                   <span>✓</span>
@@ -402,7 +435,7 @@ function Booking() {
                 </div>
               )}
 
-              {/* PRICE */}
+              {/* ================= PRICE ================= */}
               <div className="price-summary">
                 <div className="price-line">
                   <span>
@@ -428,7 +461,7 @@ function Booking() {
                 </div>
               </div>
 
-              {/* BOOK BUTTON */}
+              {/* ================= BOOK BUTTON ================= */}
               <button
                 type="submit"
                 className="confirm-booking-btn"
@@ -454,35 +487,41 @@ function Booking() {
           </section>
         </div>
 
-        {/* BENEFITS */}
+        {/* ================= BENEFITS ================= */}
         <section className="booking-benefits">
           <div className="benefit">
             <span>🛡️</span>
+
             <div>
               <strong>Secure Reservation</strong>
+
               <p>Your booking information is safe.</p>
             </div>
           </div>
 
           <div className="benefit">
             <span>💰</span>
+
             <div>
               <strong>Best Price Guarantee</strong>
+
               <p>Get the best available hotel prices.</p>
             </div>
           </div>
 
           <div className="benefit">
             <span>📞</span>
+
             <div>
               <strong>24/7 Support</strong>
+
               <p>We're here whenever you need us.</p>
             </div>
           </div>
         </section>
       </main>
 
-      {/* FOOTER */}
+      {/* ================= FOOTER ================= */}
       <footer className="booking-footer">
         <p>© 2026 StayLux Hotel Booking System</p>
 

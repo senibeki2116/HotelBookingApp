@@ -1,27 +1,51 @@
 import { createContext, useState } from "react";
 
-const normalizeToken = (token) => {
-  if (!token || token === "null" || token === "undefined") return null;
-  return token.replace(/^Bearer\s+/i, "").trim();
-};
-
 export const AuthContext = createContext();
+
+const normalizeToken = (token) => {
+  if (!token || token === "null" || token === "undefined") {
+    return null;
+  }
+
+  let cleanToken = token;
+
+  try {
+    const parsed = JSON.parse(token);
+
+    if (typeof parsed === "string") {
+      cleanToken = parsed;
+    }
+  } catch {
+    // Already a normal string
+  }
+
+  cleanToken = cleanToken.replace(/^Bearer\s+/i, "").trim();
+
+  return cleanToken || null;
+};
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("user")) || null;
+      const savedUser = localStorage.getItem("user");
+      return savedUser ? JSON.parse(savedUser) : null;
     } catch {
       return null;
     }
   });
 
-  const [token, setToken] = useState(
-    normalizeToken(localStorage.getItem("token")) || null,
-  );
+  const [token, setToken] = useState(() => {
+    return normalizeToken(localStorage.getItem("token"));
+  });
 
   const login = (userData, tokenValue) => {
     const cleanToken = normalizeToken(tokenValue);
+
+    if (!cleanToken) {
+      console.error("Login failed: no valid token received.");
+      return false;
+    }
+
     const preparedUser = {
       ...userData,
       _id: userData?._id || userData?.id,
@@ -32,7 +56,13 @@ const AuthProvider = ({ children }) => {
     setToken(cleanToken);
 
     localStorage.setItem("user", JSON.stringify(preparedUser));
+
     localStorage.setItem("token", cleanToken);
+
+    console.log("Login successful");
+    console.log("Token saved:", cleanToken);
+
+    return true;
   };
 
   const logout = () => {
