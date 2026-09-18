@@ -1705,3 +1705,80 @@ button:focus-visible {
     flex-direction: column;
   }
 }
+/* =========================================
+   TRANSPARENT WISHLIST & PROFILE BUTTONS
+   ========================================= */
+
+.transparent-icon-button {
+  position: relative;
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+
+  background: transparent;
+
+  color: #fff;
+  cursor: pointer;
+
+  transition: all 0.25s ease;
+}
+
+.transparent-icon-button svg {
+  width: 20px;
+  height: 20px;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.transparent-icon-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
+}
+
+.wishlist-nav-button:hover {
+  color: #ff6b81;
+}
+
+.profile-nav-button:hover {
+  color: #ffd166;
+}
+
+/* Wishlist number */
+
+.wishlist-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+
+  min-width: 18px;
+  height: 18px;
+
+  padding: 2px 5px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #e63946;
+  color: white;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  border: 2px solid white;
+}

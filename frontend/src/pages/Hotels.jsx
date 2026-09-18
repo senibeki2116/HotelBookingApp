@@ -27,6 +27,9 @@ function Hotels() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // VIEW ALL HOTELS
+  const [showAllHotels, setShowAllHotels] = useState(false);
+
   // AI Finder
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResults, setAiResults] = useState([]);
@@ -98,19 +101,14 @@ function Hotels() {
 
     const image = String(hotel.image).trim();
 
-    // External URL
     if (image.startsWith("http://") || image.startsWith("https://")) {
       return image;
     }
 
-    // Backend path
-    // Example: /uploads/hotel.jpg
     if (image.startsWith("/")) {
       return `${API_URL}${image}`;
     }
 
-    // Filename
-    // Example: hotel.jpg
     return `${API_URL}/uploads/${image}`;
   };
 
@@ -208,6 +206,21 @@ function Hotels() {
   };
 
   // ========================================
+  // VIEW ALL HOTELS
+  // ========================================
+
+  const handleViewAllHotels = () => {
+    setShowAllHotels(true);
+
+    setTimeout(() => {
+      document.getElementById("hotels")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
+  };
+
+  // ========================================
   // AI RECOMMENDATION
   // ========================================
 
@@ -225,11 +238,9 @@ function Hotels() {
 
       const response = await fetch(`${API_URL}/api/ai/recommend`, {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           prompt: aiPrompt,
         }),
@@ -263,7 +274,11 @@ function Hotels() {
     setAiError("");
   };
 
-  const displayHotels = hotels.slice(0, 6);
+  // ========================================
+  // DISPLAY HOTELS
+  // ========================================
+
+  const displayHotels = showAllHotels ? hotels : hotels.slice(0, 6);
 
   return (
     <div className="hotel-home">
@@ -272,6 +287,7 @@ function Hotels() {
       <header className="main-navbar">
         <div className="nav-container">
           <button
+            type="button"
             className="brand"
             onClick={() =>
               window.scrollTo({
@@ -290,6 +306,7 @@ function Hotels() {
 
           <nav className="desktop-nav">
             <button
+              type="button"
               onClick={() =>
                 window.scrollTo({
                   top: 0,
@@ -300,46 +317,85 @@ function Hotels() {
               Home
             </button>
 
-            <button onClick={scrollToHotels}>Hotels</button>
+            <button type="button" onClick={scrollToHotels}>
+              Hotels
+            </button>
 
-            <button onClick={scrollToDestinations}>Destinations</button>
+            <button type="button" onClick={scrollToDestinations}>
+              Destinations
+            </button>
 
-            <button onClick={scrollToAbout}>About</button>
+            <button type="button" onClick={scrollToAbout}>
+              About
+            </button>
 
-            <button onClick={() => navigate("/bookings")}>My Bookings</button>
+            <button type="button" onClick={() => navigate("/bookings")}>
+              My Bookings
+            </button>
           </nav>
 
           {/* ================= LOGIN / LOGOUT ================= */}
 
-          <div className="nav-actions">
-            {localStorage.getItem("token") ? (
-              <button
-                className="login-link"
-                onClick={() => {
-                  localStorage.removeItem("token");
-                  window.location.reload();
-                }}
-              >
-                Sign Out
-              </button>
-            ) : (
-              <>
-                <button
-                  className="login-link"
-                  onClick={() => navigate("/login")}
-                >
-                  Sign In
-                </button>
+          {/* WISHLIST BUTTON */}
+          <button
+            type="button"
+            className="transparent-icon-button wishlist-nav-button"
+            onClick={() => navigate("/wishlist")}
+            title="Wishlist"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
 
-                <button
-                  className="register-button"
-                  onClick={() => navigate("/register")}
-                >
-                  Register
-                </button>
-              </>
+            {favorites.length > 0 && (
+              <span className="wishlist-count">{favorites.length}</span>
             )}
-          </div>
+          </button>
+
+          {/* PROFILE BUTTON */}
+          <button
+            type="button"
+            className="transparent-icon-button profile-nav-button"
+            onClick={() => navigate("/profile")}
+            title="My Profile"
+          >
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c0-4.2 3.6-7 8-7s8 2.8 8 7" />
+            </svg>
+          </button>
+
+          {/* Sign In / Sign Out */}
+          {localStorage.getItem("token") ? (
+            <button
+              type="button"
+              className="login-link"
+              onClick={() => {
+                localStorage.removeItem("token");
+                window.location.reload();
+              }}
+            >
+              Sign Out
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="login-link"
+                onClick={() => navigate("/login")}
+              >
+                Sign In
+              </button>
+
+              <button
+                type="button"
+                className="register-button"
+                onClick={() => navigate("/register")}
+              >
+                Register
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -368,12 +424,17 @@ function Hotels() {
           </p>
 
           <div className="hero-buttons">
-            <button className="primary-hero-button" onClick={scrollToHotels}>
+            <button
+              type="button"
+              className="primary-hero-button"
+              onClick={scrollToHotels}
+            >
               Explore Hotels
               <span>→</span>
             </button>
 
             <button
+              type="button"
               className="secondary-hero-button"
               onClick={() =>
                 document.getElementById("ai-finder")?.scrollIntoView({
@@ -386,7 +447,7 @@ function Hotels() {
           </div>
         </div>
 
-        {/* BOOKING BAR */}
+        {/* ================= BOOKING BAR ================= */}
 
         <div className="booking-bar">
           <div className="booking-field">
@@ -431,7 +492,11 @@ function Hotels() {
             </div>
           </div>
 
-          <button className="booking-search-button" onClick={scrollToHotels}>
+          <button
+            type="button"
+            className="booking-search-button"
+            onClick={scrollToHotels}
+          >
             Search
             <span>→</span>
           </button>
@@ -519,6 +584,7 @@ function Hotels() {
               />
 
               <button
+                type="button"
                 className="ai-find-button"
                 onClick={handleAIRecommend}
                 disabled={aiLoading}
@@ -541,6 +607,7 @@ function Hotels() {
               <span>Try:</span>
 
               <button
+                type="button"
                 onClick={() =>
                   useExamplePrompt(
                     "I need a cheap hotel in Addis Ababa for 2 people",
@@ -551,6 +618,7 @@ function Hotels() {
               </button>
 
               <button
+                type="button"
                 onClick={() =>
                   useExamplePrompt("I want a luxury hotel in Addis Ababa")
                 }
@@ -559,6 +627,7 @@ function Hotels() {
               </button>
 
               <button
+                type="button"
                 onClick={() =>
                   useExamplePrompt("Find a family friendly hotel in Bahir Dar")
                 }
@@ -643,13 +712,38 @@ function Hotels() {
               </p>
             </div>
 
-            <button
-              className="view-all-button"
-              onClick={() => navigate("/hotels")}
-            >
-              View All Hotels
-              <span>→</span>
-            </button>
+            {/* FIXED VIEW ALL BUTTON */}
+
+            {!showAllHotels && hotels.length > 6 && (
+              <button
+                type="button"
+                className="view-all-button"
+                onClick={handleViewAllHotels}
+              >
+                View All Hotels
+                <span>→</span>
+              </button>
+            )}
+
+            {showAllHotels && hotels.length > 6 && (
+              <button
+                type="button"
+                className="view-all-button"
+                onClick={() => {
+                  setShowAllHotels(false);
+
+                  setTimeout(() => {
+                    document.getElementById("hotels")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }, 100);
+                }}
+              >
+                Show Less
+                <span>↑</span>
+              </button>
+            )}
           </div>
 
           {loading && (
@@ -684,7 +778,7 @@ function Hotels() {
             <div className="hotel-grid">
               {displayHotels.map((hotel, index) => (
                 <HotelCard
-                  key={hotel?._id || index}
+                  key={hotel?._id || hotel?.id || index}
                   hotel={hotel}
                   getImage={getImage}
                   getRating={getRating}
@@ -721,7 +815,7 @@ function Hotels() {
               HotelBooking.
             </p>
 
-            <button onClick={scrollToHotels}>
+            <button type="button" onClick={scrollToHotels}>
               Explore Our Hotels
               <span>→</span>
             </button>
@@ -859,6 +953,7 @@ function Hotels() {
         <div className="footer-container">
           <div className="footer-brand">
             <button
+              type="button"
               className="brand footer-brand-logo"
               onClick={() =>
                 window.scrollTo({
@@ -871,6 +966,7 @@ function Hotels() {
 
               <span>
                 <strong>Hotel</strong>
+
                 <em>Booking</em>
               </span>
             </button>
@@ -885,21 +981,33 @@ function Hotels() {
           <div className="footer-column">
             <h4>Explore</h4>
 
-            <button onClick={scrollToHotels}>Hotels</button>
+            <button type="button" onClick={scrollToHotels}>
+              Hotels
+            </button>
 
-            <button onClick={scrollToDestinations}>Destinations</button>
+            <button type="button" onClick={scrollToDestinations}>
+              Destinations
+            </button>
 
-            <button onClick={scrollToAbout}>About Us</button>
+            <button type="button" onClick={scrollToAbout}>
+              About Us
+            </button>
           </div>
 
           <div className="footer-column">
             <h4>Account</h4>
 
-            <button onClick={() => navigate("/login")}>Sign In</button>
+            <button type="button" onClick={() => navigate("/login")}>
+              Sign In
+            </button>
 
-            <button onClick={() => navigate("/register")}>Register</button>
+            <button type="button" onClick={() => navigate("/register")}>
+              Register
+            </button>
 
-            <button onClick={() => navigate("/bookings")}>My Bookings</button>
+            <button type="button" onClick={() => navigate("/bookings")}>
+              My Bookings
+            </button>
           </div>
 
           <div className="footer-column">
@@ -1018,8 +1126,6 @@ function HotelCard({
           </div>
 
           <div className="hotel-actions">
-            {/* DETAILS BUTTON */}
-
             <button
               type="button"
               className="details-button"
@@ -1027,8 +1133,6 @@ function HotelCard({
             >
               Details
             </button>
-
-            {/* BOOK BUTTON */}
 
             <button
               type="button"
