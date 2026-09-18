@@ -24,6 +24,11 @@ function HotelDetails() {
         setLoading(true);
         setError("");
 
+        if (!id) {
+          setError("Hotel ID is missing.");
+          return;
+        }
+
         const response = await axios.get(`${API_URL}/api/hotels/${id}`);
 
         setHotel(response.data);
@@ -36,10 +41,43 @@ function HotelDetails() {
       }
     };
 
-    if (id) {
-      fetchHotel();
-    }
+    fetchHotel();
   }, [id]);
+
+  // ========================================
+  // GET HOTEL ID
+  // ========================================
+
+  const getHotelId = () => {
+    return hotel?._id || hotel?.id || id;
+  };
+
+  // ========================================
+  // GET HOTEL IMAGE
+  // ========================================
+
+  const getHotelImage = (image) => {
+    if (!image) {
+      return fallbackImg;
+    }
+
+    const imageUrl = String(image).trim();
+
+    // External image
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+      return imageUrl;
+    }
+
+    // Backend path such as:
+    // /uploads/hotel.jpg
+    if (imageUrl.startsWith("/")) {
+      return `${API_URL}${imageUrl}`;
+    }
+
+    // Filename such as:
+    // hotel.jpg
+    return `${API_URL}/uploads/${imageUrl}`;
+  };
 
   // ========================================
   // BOOK NOW
@@ -60,12 +98,22 @@ function HotelDetails() {
       return;
     }
 
-    if (!hotel?._id) {
+    const hotelId = getHotelId();
+
+    if (!hotelId) {
       alert("Hotel information is unavailable.");
       return;
     }
 
-    navigate(`/booking/hotel/${hotel._id}`);
+    navigate(`/booking/hotel/${hotelId}`);
+  };
+
+  // ========================================
+  // GO BACK
+  // ========================================
+
+  const handleBack = () => {
+    navigate("/hotels");
   };
 
   // ========================================
@@ -76,14 +124,16 @@ function HotelDetails() {
     return (
       <div className="details-loading">
         <div className="loading-spinner"></div>
+
         <h3>Loading hotel...</h3>
+
         <p>Please wait while we get the hotel details.</p>
       </div>
     );
   }
 
   // ========================================
-  // ERROR
+  // ERROR / NOT FOUND
   // ========================================
 
   if (error || !hotel) {
@@ -95,7 +145,7 @@ function HotelDetails() {
 
         <p>{error || "We couldn't find the hotel you're looking for."}</p>
 
-        <button className="back-hotels-btn" onClick={() => navigate("/hotels")}>
+        <button className="back-hotels-btn" onClick={handleBack}>
           ← Back to Hotels
         </button>
       </div>
@@ -103,29 +153,30 @@ function HotelDetails() {
   }
 
   // ========================================
-  // HOTEL IMAGE
+  // SAFE HOTEL VALUES
   // ========================================
 
-  const hotelImage =
-    hotel.image && hotel.image.startsWith("http")
-      ? hotel.image
-      : hotel.image
-        ? `${API_URL}/uploads/${hotel.image}`
-        : fallbackImg;
+  const hotelName = hotel.name || hotel.hotelName || "Hotel";
 
-  // ========================================
-  // SAFE VALUES
-  // ========================================
+  const location = hotel.location || hotel.city || "Location unavailable";
 
-  const hotelName = hotel.name || "Hotel";
-  const location = hotel.location || "Location unavailable";
   const description =
     hotel.description ||
     "Enjoy a comfortable stay with excellent service and convenient facilities.";
 
-  const price = hotel.price ?? 0;
-  const rooms = hotel.rooms ?? 0;
-  const rating = hotel.rating ?? 0;
+  const price = Number(hotel.price ?? 0);
+
+  const rooms = Number(hotel.rooms ?? 0);
+
+  const rating = Number(hotel.rating ?? 0);
+
+  const reviews = Number(hotel.reviews ?? 0);
+
+  const hotelImage = getHotelImage(hotel.image);
+
+  // ========================================
+  // RENDER
+  // ========================================
 
   return (
     <div className="details-container">
@@ -139,8 +190,11 @@ function HotelDetails() {
             src={hotelImage}
             alt={hotelName}
             className="details-image"
-            onError={(e) => {
-              e.currentTarget.src = fallbackImg;
+            onError={(event) => {
+              console.error("Hotel image failed:", hotelImage);
+
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = fallbackImg;
             }}
           />
 
@@ -156,21 +210,38 @@ function HotelDetails() {
 
           <h1>{hotelName}</h1>
 
+          {/* LOCATION */}
+
           <div className="details-location">📍 {location}</div>
 
-          {/* Rating */}
+          {/* =====================================
+              RATING
+          ===================================== */}
 
           <div className="details-rating">
             <span className="stars">
-              {"★".repeat(Math.min(5, Math.max(0, Math.round(rating))))}
+              {"★★★★★".split("").map((star, index) => (
+                <span
+                  key={index}
+                  className={index < Math.round(rating) ? "filled" : ""}
+                >
+                  {star}
+                </span>
+              ))}
             </span>
 
             <span className="rating-number">
-              {rating > 0 ? `${rating}/5` : "No rating yet"}
+              {rating > 0 ? `${rating.toFixed(1)}/5` : "No rating yet"}
             </span>
+
+            {reviews > 0 && (
+              <span className="reviews-count">({reviews} reviews)</span>
+            )}
           </div>
 
-          {/* Description */}
+          {/* =====================================
+              DESCRIPTION
+          ===================================== */}
 
           <p className="details-description">{description}</p>
 
@@ -179,17 +250,21 @@ function HotelDetails() {
           ===================================== */}
 
           <div className="hotel-info-row">
+            {/* PRICE */}
+
             <div className="info-item">
               <span className="info-icon">💰</span>
 
               <div>
                 <small>Price</small>
 
-                <strong>ETB {Number(price).toLocaleString()}</strong>
+                <strong>ETB {price.toLocaleString()}</strong>
 
                 <small>per night</small>
               </div>
             </div>
+
+            {/* ROOMS */}
 
             <div className="info-item">
               <span className="info-icon">🛏️</span>
@@ -200,10 +275,12 @@ function HotelDetails() {
                 <strong>{rooms}</strong>
 
                 <small>
-                  {Number(rooms) === 1 ? "room available" : "rooms available"}
+                  {rooms === 1 ? "room available" : "rooms available"}
                 </small>
               </div>
             </div>
+
+            {/* RATING */}
 
             <div className="info-item">
               <span className="info-icon">⭐</span>
@@ -211,7 +288,7 @@ function HotelDetails() {
               <div>
                 <small>Rating</small>
 
-                <strong>{rating > 0 ? rating : "N/A"}</strong>
+                <strong>{rating > 0 ? rating.toFixed(1) : "N/A"}</strong>
 
                 <small>guest rating</small>
               </div>
@@ -222,7 +299,11 @@ function HotelDetails() {
               BOOKING BUTTON
           ===================================== */}
 
-          <button className="book-now-btn" onClick={handleBooking}>
+          <button
+            className="book-now-btn"
+            onClick={handleBooking}
+            type="button"
+          >
             <span>🏨</span>
             Book This Hotel
             <span className="book-arrow">→</span>
@@ -234,7 +315,8 @@ function HotelDetails() {
 
           <button
             className="back-hotels-btn"
-            onClick={() => navigate("/hotels")}
+            onClick={handleBack}
+            type="button"
           >
             ← Back to Hotels
           </button>

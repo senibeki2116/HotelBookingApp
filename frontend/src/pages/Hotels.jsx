@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 
+const API_URL = "http://localhost:5000";
+
 const FALLBACK_HERO =
   "https://images.unsplash.com/photo-1601918774946-25832a4be0d6?auto=format&fit=crop&w=2200&q=90";
 
@@ -13,6 +15,7 @@ function Hotels() {
   const navigate = useNavigate();
 
   const [hotels, setHotels] = useState([]);
+
   const [favorites, setFavorites] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("favoriteHotels") || "[]");
@@ -29,6 +32,10 @@ function Hotels() {
   const [aiResults, setAiResults] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
+
+  // ========================================
+  // FETCH HOTELS
+  // ========================================
 
   useEffect(() => {
     const loadHotels = async () => {
@@ -58,9 +65,17 @@ function Hotels() {
     loadHotels();
   }, []);
 
+  // ========================================
+  // SAVE FAVORITES
+  // ========================================
+
   useEffect(() => {
     localStorage.setItem("favoriteHotels", JSON.stringify(favorites));
   }, [favorites]);
+
+  // ========================================
+  // FAVORITE
+  // ========================================
 
   const toggleFavorite = (id) => {
     if (!id) return;
@@ -72,48 +87,107 @@ function Hotels() {
     );
   };
 
+  // ========================================
+  // HOTEL IMAGE
+  // ========================================
+
   const getImage = (hotel) => {
-    if (!hotel?.image) return FALLBACK_HOTEL;
+    if (!hotel?.image) {
+      return FALLBACK_HOTEL;
+    }
 
-    const image = String(hotel.image);
+    const image = String(hotel.image).trim();
 
-    if (image.startsWith("http")) {
+    // External URL
+    if (image.startsWith("http://") || image.startsWith("https://")) {
       return image;
     }
 
+    // Backend path
+    // Example: /uploads/hotel.jpg
     if (image.startsWith("/")) {
-      return `http://localhost:5000${image}`;
+      return `${API_URL}${image}`;
     }
 
-    return `http://localhost:5000/uploads/${image}`;
+    // Filename
+    // Example: hotel.jpg
+    return `${API_URL}/uploads/${image}`;
   };
+
+  // ========================================
+  // SAFE VALUES
+  // ========================================
 
   const getRating = (hotel) => {
     const rating = Number(hotel?.rating ?? 4.8);
-
     return rating.toFixed(1);
   };
 
-  const getReviews = (hotel) => hotel?.reviews ?? 0;
+  const getReviews = (hotel) => {
+    return hotel?.reviews ?? 0;
+  };
 
-  const getPrice = (hotel) => hotel?.price ?? 0;
+  const getPrice = (hotel) => {
+    return hotel?.price ?? 0;
+  };
 
-  const getLocation = (hotel) => hotel?.location || hotel?.city || "Ethiopia";
+  const getLocation = (hotel) => {
+    return hotel?.location || hotel?.city || "Ethiopia";
+  };
 
-  const getHotelName = (hotel) =>
-    hotel?.name || hotel?.hotelName || "Luxury Hotel";
+  const getHotelName = (hotel) => {
+    return hotel?.name || hotel?.hotelName || "Luxury Hotel";
+  };
+
+  // ========================================
+  // HOTEL ID
+  // ========================================
+
+  const getHotelId = (hotel) => {
+    return hotel?._id || hotel?.id;
+  };
+
+  // ========================================
+  // VIEW HOTEL DETAILS
+  // ========================================
 
   const handleDetails = (hotel) => {
-    if (!hotel?._id) return;
+    const hotelId = getHotelId(hotel);
 
-    navigate(`/hotels/${hotel._id}`);
+    if (!hotelId) {
+      console.error("Hotel ID is missing:", hotel);
+
+      alert("Unable to open hotel details because the hotel ID is missing.");
+
+      return;
+    }
+
+    console.log("Opening hotel details:", hotelId);
+
+    navigate(`/hotels/${hotelId}`);
   };
+
+  // ========================================
+  // BOOK HOTEL
+  // ========================================
 
   const handleBook = (hotel) => {
-    if (!hotel?._id) return;
+    const hotelId = getHotelId(hotel);
 
-    navigate(`/booking/hotel/${hotel._id}`);
+    if (!hotelId) {
+      console.error("Hotel ID is missing:", hotel);
+
+      alert("Unable to book this hotel because the hotel ID is missing.");
+
+      return;
+    }
+
+    navigate(`/booking/hotel/${hotelId}`);
   };
+
+  // ========================================
+  // NAVIGATION
+  // ========================================
 
   const scrollToHotels = () => {
     document.getElementById("hotels")?.scrollIntoView({
@@ -133,9 +207,14 @@ function Hotels() {
     });
   };
 
+  // ========================================
+  // AI RECOMMENDATION
+  // ========================================
+
   const handleAIRecommend = async () => {
     if (!aiPrompt.trim()) {
       setAiError("Please tell us what kind of hotel you're looking for.");
+
       return;
     }
 
@@ -144,11 +223,13 @@ function Hotels() {
       setAiError("");
       setAiResults([]);
 
-      const response = await fetch("http://localhost:5000/api/ai/recommend", {
+      const response = await fetch(`${API_URL}/api/ai/recommend`, {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           prompt: aiPrompt,
         }),
@@ -187,11 +268,17 @@ function Hotels() {
   return (
     <div className="hotel-home">
       {/* ================= NAVBAR ================= */}
+
       <header className="main-navbar">
         <div className="nav-container">
           <button
             className="brand"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            onClick={() =>
+              window.scrollTo({
+                top: 0,
+                behavior: "smooth",
+              })
+            }
           >
             <span className="brand-icon">H</span>
 
@@ -203,7 +290,12 @@ function Hotels() {
 
           <nav className="desktop-nav">
             <button
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              onClick={() =>
+                window.scrollTo({
+                  top: 0,
+                  behavior: "smooth",
+                })
+              }
             >
               Home
             </button>
@@ -217,22 +309,42 @@ function Hotels() {
             <button onClick={() => navigate("/bookings")}>My Bookings</button>
           </nav>
 
-          <div className="nav-actions">
-            <button className="login-link" onClick={() => navigate("/login")}>
-              Sign In
-            </button>
+          {/* ================= LOGIN / LOGOUT ================= */}
 
-            <button
-              className="register-button"
-              onClick={() => navigate("/register")}
-            >
-              Register
-            </button>
+          <div className="nav-actions">
+            {localStorage.getItem("token") ? (
+              <button
+                className="login-link"
+                onClick={() => {
+                  localStorage.removeItem("token");
+                  window.location.reload();
+                }}
+              >
+                Sign Out
+              </button>
+            ) : (
+              <>
+                <button
+                  className="login-link"
+                  onClick={() => navigate("/login")}
+                >
+                  Sign In
+                </button>
+
+                <button
+                  className="register-button"
+                  onClick={() => navigate("/register")}
+                >
+                  Register
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       {/* ================= HERO ================= */}
+
       <section className="hero-section">
         <img className="hero-image" src={FALLBACK_HERO} alt="Luxury hotel" />
 
@@ -264,9 +376,9 @@ function Hotels() {
             <button
               className="secondary-hero-button"
               onClick={() =>
-                document
-                  .getElementById("ai-finder")
-                  ?.scrollIntoView({ behavior: "smooth" })
+                document.getElementById("ai-finder")?.scrollIntoView({
+                  behavior: "smooth",
+                })
               }
             >
               ✨ Find with AI
@@ -275,6 +387,7 @@ function Hotels() {
         </div>
 
         {/* BOOKING BAR */}
+
         <div className="booking-bar">
           <div className="booking-field">
             <div className="booking-icon">⌖</div>
@@ -326,10 +439,12 @@ function Hotels() {
       </section>
 
       {/* ================= TRUST BAR ================= */}
+
       <section className="trust-section">
         <div className="trust-container">
           <div className="trust-item">
             <span>✦</span>
+
             <div>
               <strong>Best Price</strong>
               <small>Guaranteed</small>
@@ -338,6 +453,7 @@ function Hotels() {
 
           <div className="trust-item">
             <span>★</span>
+
             <div>
               <strong>Trusted Reviews</strong>
               <small>From real guests</small>
@@ -346,6 +462,7 @@ function Hotels() {
 
           <div className="trust-item">
             <span>✓</span>
+
             <div>
               <strong>Easy Booking</strong>
               <small>Fast & secure</small>
@@ -354,6 +471,7 @@ function Hotels() {
 
           <div className="trust-item">
             <span>24</span>
+
             <div>
               <strong>24/7 Support</strong>
               <small>Always here for you</small>
@@ -363,6 +481,7 @@ function Hotels() {
       </section>
 
       {/* ================= AI FINDER ================= */}
+
       <section id="ai-finder" className="ai-section">
         <div className="ai-container">
           <div className="ai-heading">
@@ -386,6 +505,7 @@ function Hotels() {
 
               <div>
                 <strong>AI Hotel Finder</strong>
+
                 <span>Personalized recommendations</span>
               </div>
             </div>
@@ -506,6 +626,7 @@ function Hotels() {
       </section>
 
       {/* ================= HOTELS ================= */}
+
       <section id="hotels" className="hotels-section">
         <div className="section-container">
           <div className="section-header">
@@ -534,6 +655,7 @@ function Hotels() {
           {loading && (
             <div className="hotel-loading">
               <div className="loading-spinner"></div>
+
               <p>Finding beautiful places to stay...</p>
             </div>
           )}
@@ -541,7 +663,9 @@ function Hotels() {
           {!loading && error && (
             <div className="hotel-error">
               <div>!</div>
+
               <h3>Unable to load hotels</h3>
+
               <p>{error}</p>
             </div>
           )}
@@ -549,7 +673,9 @@ function Hotels() {
           {!loading && !error && displayHotels.length === 0 && (
             <div className="hotel-empty">
               <div>⌂</div>
+
               <h3>No hotels available yet</h3>
+
               <p>Hotels will appear here once they are added to the system.</p>
             </div>
           )}
@@ -578,6 +704,7 @@ function Hotels() {
       </section>
 
       {/* ================= OFFER ================= */}
+
       <section className="offer-section">
         <div className="offer-container">
           <div className="offer-content">
@@ -602,9 +729,12 @@ function Hotels() {
 
           <div className="offer-decoration">
             <div className="offer-circle"></div>
+
             <div className="offer-card-small">
               <span>✦</span>
+
               <strong>Beautiful stays</strong>
+
               <small>Made for memorable moments</small>
             </div>
           </div>
@@ -612,6 +742,7 @@ function Hotels() {
       </section>
 
       {/* ================= DESTINATIONS ================= */}
+
       <section id="destinations" className="destinations-section">
         <div className="section-container">
           <div className="section-header centered">
@@ -653,6 +784,7 @@ function Hotels() {
       </section>
 
       {/* ================= ABOUT ================= */}
+
       <section id="about" className="about-section">
         <div className="about-container">
           <div className="about-image-wrapper">
@@ -663,7 +795,9 @@ function Hotels() {
 
             <div className="about-stat">
               <strong>4.9</strong>
+
               <span>Guest rating</span>
+
               <div>★★★★★</div>
             </div>
           </div>
@@ -687,24 +821,30 @@ function Hotels() {
             <div className="about-features">
               <div>
                 <span>✓</span>
+
                 <div>
                   <strong>Verified stays</strong>
+
                   <small>Quality places you can trust.</small>
                 </div>
               </div>
 
               <div>
                 <span>✓</span>
+
                 <div>
                   <strong>Simple booking</strong>
+
                   <small>Book your stay in just a few clicks.</small>
                 </div>
               </div>
 
               <div>
                 <span>✓</span>
+
                 <div>
                   <strong>Smart recommendations</strong>
+
                   <small>Let AI help you find your match.</small>
                 </div>
               </div>
@@ -714,12 +854,18 @@ function Hotels() {
       </section>
 
       {/* ================= FOOTER ================= */}
+
       <footer className="hotel-footer">
         <div className="footer-container">
           <div className="footer-brand">
             <button
               className="brand footer-brand-logo"
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              onClick={() =>
+                window.scrollTo({
+                  top: 0,
+                  behavior: "smooth",
+                })
+              }
             >
               <span className="brand-icon">H</span>
 
@@ -740,7 +886,9 @@ function Hotels() {
             <h4>Explore</h4>
 
             <button onClick={scrollToHotels}>Hotels</button>
+
             <button onClick={scrollToDestinations}>Destinations</button>
+
             <button onClick={scrollToAbout}>About Us</button>
           </div>
 
@@ -775,7 +923,9 @@ function Hotels() {
   );
 }
 
-/* ================= HOTEL CARD ================= */
+// =====================================================
+// HOTEL CARD
+// =====================================================
 
 function HotelCard({
   hotel,
@@ -792,6 +942,7 @@ function HotelCard({
   aiReason,
 }) {
   const hotelId = hotel?._id || hotel?.id;
+
   const isFavorite = favorites.includes(hotelId);
 
   const rating = Number(getRating(hotel));
@@ -803,6 +954,7 @@ function HotelCard({
           src={getImage(hotel)}
           alt={getHotelName(hotel)}
           onError={(event) => {
+            event.currentTarget.onerror = null;
             event.currentTarget.src = FALLBACK_HOTEL;
           }}
         />
@@ -810,6 +962,7 @@ function HotelCard({
         <div className="hotel-image-gradient"></div>
 
         <button
+          type="button"
           className={`favorite-button ${isFavorite ? "active" : ""}`}
           onClick={() => toggleFavorite(hotelId)}
           aria-label="Favorite hotel"
@@ -852,6 +1005,7 @@ function HotelCard({
         {aiReason && (
           <div className="ai-reason">
             <span>✦</span>
+
             {aiReason}
           </div>
         )}
@@ -859,18 +1013,28 @@ function HotelCard({
         <div className="hotel-card-bottom">
           <div className="hotel-price">
             <strong>${getPrice(hotel)}</strong>
+
             <span>/ night</span>
           </div>
 
           <div className="hotel-actions">
+            {/* DETAILS BUTTON */}
+
             <button
+              type="button"
               className="details-button"
               onClick={() => handleDetails(hotel)}
             >
               Details
             </button>
 
-            <button className="book-button" onClick={() => handleBook(hotel)}>
+            {/* BOOK BUTTON */}
+
+            <button
+              type="button"
+              className="book-button"
+              onClick={() => handleBook(hotel)}
+            >
               Book Now
               <span>→</span>
             </button>
@@ -881,17 +1045,20 @@ function HotelCard({
   );
 }
 
-/* ================= DESTINATION CARD ================= */
+// =====================================================
+// DESTINATION CARD
+// =====================================================
 
 function DestinationCard({ image, name, subtitle, onClick }) {
   return (
-    <button className="destination-card" onClick={onClick}>
+    <button type="button" className="destination-card" onClick={onClick}>
       <img src={image} alt={name} />
 
       <div className="destination-overlay"></div>
 
       <div className="destination-content">
         <span>{subtitle}</span>
+
         <h3>{name}</h3>
 
         <div className="destination-arrow">Explore →</div>
