@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
+import EditProfile from "./pages/EditProfile";
 
 import Hotels from "./pages/Hotels";
 import HotelDetails from "./pages/HotelDetails";
@@ -84,12 +85,7 @@ function App() {
           }
         />
 
-        {/* 
-          Compatibility route.
-
-          If an old link somewhere in the project
-          still uses /bookings, it will now work too.
-        */}
+        {/* Compatibility route */}
         <Route
           path="/bookings"
           element={
@@ -103,11 +99,22 @@ function App() {
             PROFILE
         ========================================= */}
 
+        {/* Profile */}
         <Route
           path="/profile"
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Edit Profile */}
+        <Route
+          path="/profile/edit"
+          element={
+            <ProtectedRoute>
+              <EditProfile />
             </ProtectedRoute>
           }
         />
