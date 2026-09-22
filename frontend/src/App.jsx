@@ -16,6 +16,7 @@ import MyBookings from "./pages/MyBookings";
 // ================= ADMIN PAGES =================
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminRoute from "./components/AdminRoute";
+import HotelAdminRoute from "./components/HotelAdminRoute";
 import HotelAdminDashboard from "./pages/HotelAdminDashboard";
 
 import ManageHotels from "./pages/ManageHotels";
@@ -71,9 +72,18 @@ function App() {
         <Route
           path="/admin/hotel-dashboard"
           element={
-            <ProtectedRoute>
+            <HotelAdminRoute>
               <HotelAdminDashboard />
-            </ProtectedRoute>
+            </HotelAdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/hotel-dashbord"
+          element={
+            <HotelAdminRoute>
+              <HotelAdminDashboard />
+            </HotelAdminRoute>
           }
         />
 
@@ -90,9 +100,9 @@ function App() {
         <Route
           path="/admin/hotel-bookings"
           element={
-            <ProtectedRoute>
+            <HotelAdminRoute>
               <HotelAdminBookings />
-            </ProtectedRoute>
+            </HotelAdminRoute>
           }
         />
 

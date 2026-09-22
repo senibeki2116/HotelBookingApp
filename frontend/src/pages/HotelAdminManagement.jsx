@@ -224,6 +224,11 @@ function HotelAdminManagement() {
 
       const adminId = editingAdmin?._id || editingAdmin?.id;
 
+      if (editingAdmin && !adminId) {
+        setError("Unable to identify the selected hotel administrator.");
+        return;
+      }
+
       if (editingAdmin) {
         await API.put(`/users/hotel-admins/${adminId}`, {
           name: formData.name,
@@ -633,11 +638,15 @@ function HotelAdminManagement() {
                 </thead>
 
                 <tbody>
-                  {filteredAdmins.map((admin) => {
+                  {filteredAdmins.map((admin, index) => {
                     const hotel = getHotel(admin);
+                    const adminKey =
+                      admin._id ||
+                      admin.id ||
+                      `${admin.email || "admin"}-${index}`;
 
                     return (
-                      <tr key={admin._id}>
+                      <tr key={adminKey}>
                         {/* ADMIN */}
 
                         <td>
