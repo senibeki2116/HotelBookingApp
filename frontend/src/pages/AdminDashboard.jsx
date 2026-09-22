@@ -5,6 +5,10 @@ import { useNavigate } from "react-router-dom";
 function AdminDashboard() {
   const navigate = useNavigate();
 
+  // Get logged-in user from localStorage
+  const user = JSON.parse(localStorage.getItem("user"));
+  const adminName = user?.name || "Admin";
+
   return (
     <div className="admin-dashboard">
       {/* ================= HEADER ================= */}
@@ -15,21 +19,22 @@ function AdminDashboard() {
           <h1>Admin Dashboard</h1>
 
           <p>
-            Welcome back, Yanet 👋
+            Welcome back, {adminName} 👋
             <br />
             <span>Here's what's happening with your hotel system today.</span>
           </p>
         </div>
 
+        {/* ================= ADMIN PROFILE ================= */}
         <div className="admin-profile">
-          <div className="profile-avatar">Y</div>
-
-          <div className="profile-info">
-            <strong>Yanet</strong>
-            <span>Administrator</span>
+          <div className="profile-avatar">
+            {adminName.charAt(0).toUpperCase()}
           </div>
 
-          <div className="profile-dot"></div>
+          <div className="profile-info">
+            <strong>{adminName}</strong>
+            <span>Administrator</span>
+          </div>
         </div>
       </header>
 
@@ -185,6 +190,32 @@ function AdminDashboard() {
                   onClick={() => navigate("/admin/reports")}
                 >
                   View Reports
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ================= HOTEL ADMIN MANAGEMENT ================= */}
+          <div className="management-card hotel-admin-management">
+            <div className="management-icon">👨‍💼</div>
+
+            <div className="management-content">
+              <span className="card-number">05</span>
+
+              <h3>Hotel Admin Management</h3>
+
+              <p>
+                Create Hotel Admin accounts and assign administrators to
+                individual hotels.
+              </p>
+
+              <div className="management-buttons">
+                <button
+                  className="primary-btn"
+                  onClick={() => navigate("/admin/hotel-admins")}
+                >
+                  Manage Hotel Admins
                   <span>→</span>
                 </button>
               </div>
