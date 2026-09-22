@@ -32,9 +32,17 @@ const hotelSchema = new mongoose.Schema(
       required: true,
     },
 
+    // The user who created the hotel
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+
+    // The hotel administrator responsible for this hotel
+    hotelAdmin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
   },
   {

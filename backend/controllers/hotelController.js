@@ -1,6 +1,9 @@
 const Hotel = require("../models/Hotel");
+const User = require("../models/user");
 
-// Create Hotel
+// =====================================================
+// CREATE HOTEL
+// =====================================================
 exports.createHotel = async (req, res) => {
   try {
     const hotel = await Hotel.create({
@@ -26,19 +29,53 @@ exports.createHotel = async (req, res) => {
   }
 };
 
-// Get All Hotels
+// =====================================================
+// GET ALL HOTELS
+// =====================================================
 exports.getHotels = async (req, res) => {
   try {
-    const hotels = await Hotel.find();
+    const hotels = await Hotel.find()
+      .populate("createdBy", "name email role")
+      .populate("hotelAdmin", "name email role");
 
     res.json(hotels);
   } catch (error) {
+    console.error("Get hotels error:", error);
+
     res.status(500).json({
       message: error.message,
     });
   }
 };
-// Update Hotel
+
+// =====================================================
+// GET SINGLE HOTEL
+// =====================================================
+exports.getHotelById = async (req, res) => {
+  try {
+    const hotel = await Hotel.findById(req.params.id)
+      .populate("createdBy", "name email role")
+      .populate("hotelAdmin", "name email role");
+
+    if (!hotel) {
+      return res.status(404).json({
+        message: "Hotel not found",
+      });
+    }
+
+    res.json(hotel);
+  } catch (error) {
+    console.error("Get hotel error:", error);
+
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// =====================================================
+// UPDATE HOTEL
+// =====================================================
 exports.updateHotel = async (req, res) => {
   try {
     const hotel = await Hotel.findById(req.params.id);
@@ -51,6 +88,7 @@ exports.updateHotel = async (req, res) => {
 
     const isOwner =
       hotel.createdBy && hotel.createdBy.toString() === req.user._id.toString();
+
     const isAdmin = req.user.role === "admin";
 
     if (!isOwner && !isAdmin) {
@@ -62,17 +100,25 @@ exports.updateHotel = async (req, res) => {
     const updatedHotel = await Hotel.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { returnDocument: "after", runValidators: true },
+      {
+        new: true,
+        runValidators: true,
+      },
     );
 
     res.json(updatedHotel);
   } catch (error) {
+    console.error("Update hotel error:", error);
+
     res.status(500).json({
       message: error.message,
     });
   }
 };
-// Delete Hotel
+
+// =====================================================
+// DELETE HOTEL
+// =====================================================
 exports.deleteHotel = async (req, res) => {
   try {
     const hotel = await Hotel.findById(req.params.id);
@@ -85,6 +131,7 @@ exports.deleteHotel = async (req, res) => {
 
     const isOwner =
       hotel.createdBy && hotel.createdBy.toString() === req.user._id.toString();
+
     const isAdmin = req.user.role === "admin";
 
     if (!isOwner && !isAdmin) {
@@ -99,14 +146,29 @@ exports.deleteHotel = async (req, res) => {
       message: "Hotel deleted successfully",
     });
   } catch (error) {
+    console.error("Delete hotel error:", error);
+
     res.status(500).json({
       message: error.message,
     });
   }
 };
-// Get Single Hotel
-exports.getHotelById = async (req, res) => {
+
+// =====================================================
+// ASSIGN HOTEL ADMIN
+// =====================================================
+exports.assignHotelAdmin = async (req, res) => {
   try {
+    const { hotelAdminId } = req.body;
+
+    // Check hotel admin ID
+    if (!hotelAdminId) {
+      return res.status(400).json({
+        message: "Hotel Admin ID is required",
+      });
+    }
+
+    // Find hotel
     const hotel = await Hotel.findById(req.params.id);
 
     if (!hotel) {
@@ -115,8 +177,39 @@ exports.getHotelById = async (req, res) => {
       });
     }
 
-    res.json(hotel);
+    // Find user
+    const hotelAdmin = await User.findById(hotelAdminId);
+
+    if (!hotelAdmin) {
+      return res.status(404).json({
+        message: "Hotel Admin user not found",
+      });
+    }
+
+    // Make sure the user has hoteladmin role
+    if (hotelAdmin.role !== "hoteladmin") {
+      return res.status(400).json({
+        message: "Selected user is not a hotel admin",
+      });
+    }
+
+    // Assign admin to hotel
+    hotel.hotelAdmin = hotelAdmin._id;
+
+    await hotel.save();
+
+    // Return updated hotel with admin information
+    const updatedHotel = await Hotel.findById(hotel._id)
+      .populate("createdBy", "name email role")
+      .populate("hotelAdmin", "name email role");
+
+    res.json({
+      message: "Hotel Admin assigned successfully",
+      hotel: updatedHotel,
+    });
   } catch (error) {
+    console.error("Assign hotel admin error:", error);
+
     res.status(500).json({
       message: error.message,
     });
