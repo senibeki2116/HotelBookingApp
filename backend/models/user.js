@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
@@ -6,12 +5,15 @@ const userSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     email: {
       type: String,
       required: true,
       unique: true,
+      trim: true,
+      lowercase: true,
     },
 
     password: {
@@ -21,22 +23,29 @@ const userSchema = new mongoose.Schema(
 
     token: {
       type: String,
+      default: null,
     },
 
     // User roles:
-    // user      = normal customer
-    // admin     = super admin
+    // user       = normal customer
+    // admin      = super admin
     // hoteladmin = administrator for one specific hotel
     role: {
       type: String,
       enum: ["user", "admin", "hoteladmin"],
       default: "user",
     },
+
+    // Used to activate/deactivate an account
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-module.exports = mongoose.model("User", userSchema);
-
+// Prevent Mongoose OverwriteModelError
+module.exports = mongoose.models.User || mongoose.model("User", userSchema);

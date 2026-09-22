@@ -6,21 +6,43 @@ const {
   register,
   login,
   createHotelAdmin,
+  getHotelAdmins,
+  updateHotelAdmin,
+  deleteHotelAdmin,
 } = require("../controllers/authController");
 
 const { protect } = require("../middleware/authMiddleware");
-
 const admin = require("../middleware/adminMiddleware");
 
-// Public routes
+// ==========================================
+// PUBLIC ROUTES
+// ==========================================
+
 router.post("/register", register);
 
 router.post("/login", login);
 
-// Super Admin creates Hotel Admin
+// ==========================================
+// HOTEL ADMIN MANAGEMENT
+// SUPER ADMIN ONLY
+// ==========================================
+
+// Create hotel admin
 router.post("/create-hotel-admin", protect, admin, createHotelAdmin);
 
-// Protected profile route
+// Get all hotel admins
+router.get("/hotel-admins", protect, admin, getHotelAdmins);
+
+// Update hotel admin
+router.put("/hotel-admins/:id", protect, admin, updateHotelAdmin);
+
+// Delete hotel admin
+router.delete("/hotel-admins/:id", protect, admin, deleteHotelAdmin);
+
+// ==========================================
+// PROFILE
+// ==========================================
+
 router.get("/profile", protect, (req, res) => {
   res.json({
     message: "Protected route success",

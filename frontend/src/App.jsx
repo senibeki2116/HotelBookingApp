@@ -16,6 +16,7 @@ import MyBookings from "./pages/MyBookings";
 // ================= ADMIN PAGES =================
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminRoute from "./components/AdminRoute";
+import HotelAdminDashboard from "./pages/HotelAdminDashboard";
 
 import ManageHotels from "./pages/ManageHotels";
 import AdminHotels from "./pages/AdminHotels";
@@ -24,6 +25,9 @@ import EditHotel from "./pages/EditHotel";
 import AdminBooking from "./pages/AdminBooking";
 import AdminUsers from "./pages/AdminUsers";
 import AdminReports from "./pages/AdminReports";
+
+// ⭐ HOTEL ADMIN MANAGEMENT
+import HotelAdminManagement from "./pages/HotelAdminManagement";
 
 // ================= COMPONENTS =================
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -63,6 +67,16 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin/hotel-dashboard"
+          element={
+            <ProtectedRoute>
+              <HotelAdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Wishlist */}
         <Route
           path="/wishlist"
           element={
@@ -243,6 +257,19 @@ function App() {
           element={
             <AdminRoute>
               <AdminReports />
+            </AdminRoute>
+          }
+        />
+
+        {/* =========================================
+            HOTEL ADMIN MANAGEMENT
+        ========================================= */}
+
+        <Route
+          path="/admin/hotel-admins"
+          element={
+            <AdminRoute>
+              <HotelAdminManagement />
             </AdminRoute>
           }
         />

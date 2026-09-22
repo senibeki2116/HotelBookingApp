@@ -3,6 +3,7 @@ const User = require("../models/user");
 
 // =====================================================
 // CREATE HOTEL
+// SUPER ADMIN ONLY
 // =====================================================
 exports.createHotel = async (req, res) => {
   try {
@@ -31,6 +32,7 @@ exports.createHotel = async (req, res) => {
 
 // =====================================================
 // GET ALL HOTELS
+// PUBLIC
 // =====================================================
 exports.getHotels = async (req, res) => {
   try {
@@ -50,6 +52,7 @@ exports.getHotels = async (req, res) => {
 
 // =====================================================
 // GET SINGLE HOTEL
+// PUBLIC
 // =====================================================
 exports.getHotelById = async (req, res) => {
   try {
@@ -75,6 +78,7 @@ exports.getHotelById = async (req, res) => {
 
 // =====================================================
 // UPDATE HOTEL
+// SUPER ADMIN ONLY
 // =====================================================
 exports.updateHotel = async (req, res) => {
   try {
@@ -83,17 +87,6 @@ exports.updateHotel = async (req, res) => {
     if (!hotel) {
       return res.status(404).json({
         message: "Hotel not found",
-      });
-    }
-
-    const isOwner =
-      hotel.createdBy && hotel.createdBy.toString() === req.user._id.toString();
-
-    const isAdmin = req.user.role === "admin";
-
-    if (!isOwner && !isAdmin) {
-      return res.status(403).json({
-        message: "Not authorized",
       });
     }
 
@@ -118,6 +111,7 @@ exports.updateHotel = async (req, res) => {
 
 // =====================================================
 // DELETE HOTEL
+// SUPER ADMIN ONLY
 // =====================================================
 exports.deleteHotel = async (req, res) => {
   try {
@@ -126,17 +120,6 @@ exports.deleteHotel = async (req, res) => {
     if (!hotel) {
       return res.status(404).json({
         message: "Hotel not found",
-      });
-    }
-
-    const isOwner =
-      hotel.createdBy && hotel.createdBy.toString() === req.user._id.toString();
-
-    const isAdmin = req.user.role === "admin";
-
-    if (!isOwner && !isAdmin) {
-      return res.status(403).json({
-        message: "Not authorized",
       });
     }
 
@@ -156,19 +139,18 @@ exports.deleteHotel = async (req, res) => {
 
 // =====================================================
 // ASSIGN HOTEL ADMIN
+// SUPER ADMIN ONLY
 // =====================================================
 exports.assignHotelAdmin = async (req, res) => {
   try {
     const { hotelAdminId } = req.body;
 
-    // Check hotel admin ID
     if (!hotelAdminId) {
       return res.status(400).json({
         message: "Hotel Admin ID is required",
       });
     }
 
-    // Find hotel
     const hotel = await Hotel.findById(req.params.id);
 
     if (!hotel) {
@@ -177,7 +159,6 @@ exports.assignHotelAdmin = async (req, res) => {
       });
     }
 
-    // Find user
     const hotelAdmin = await User.findById(hotelAdminId);
 
     if (!hotelAdmin) {
@@ -186,19 +167,29 @@ exports.assignHotelAdmin = async (req, res) => {
       });
     }
 
-    // Make sure the user has hoteladmin role
     if (hotelAdmin.role !== "hoteladmin") {
       return res.status(400).json({
         message: "Selected user is not a hotel admin",
       });
     }
 
-    // Assign admin to hotel
+    // Prevent one hotel admin from being assigned
+    // to multiple hotels.
+    const existingAssignment = await Hotel.findOne({
+      hotelAdmin: hotelAdmin._id,
+      _id: { $ne: hotel._id },
+    });
+
+    if (existingAssignment) {
+      return res.status(400).json({
+        message: "This hotel admin is already assigned to another hotel",
+      });
+    }
+
     hotel.hotelAdmin = hotelAdmin._id;
 
     await hotel.save();
 
-    // Return updated hotel with admin information
     const updatedHotel = await Hotel.findById(hotel._id)
       .populate("createdBy", "name email role")
       .populate("hotelAdmin", "name email role");
@@ -209,6 +200,99 @@ exports.assignHotelAdmin = async (req, res) => {
     });
   } catch (error) {
     console.error("Assign hotel admin error:", error);
+
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// =====================================================
+// GET MY ASSIGNED HOTEL
+// HOTEL ADMIN
+// =====================================================
+exports.getMyHotel = async (req, res) => {
+  try {
+    console.log("=================================");
+    console.log("GET MY HOTEL");
+    console.log("USER:", req.user);
+    console.log("USER ID:", req.user?._id);
+    console.log("USER ROLE:", req.user?.role);
+
+    const hotel = await Hotel.findOne({
+      hotelAdmin: req.user._id,
+    })
+      .populate("createdBy", "name email role")
+      .populate("hotelAdmin", "name email role");
+
+    console.log("FOUND HOTEL:", hotel);
+
+    if (!hotel) {
+      return res.status(404).json({
+        message: "No hotel is assigned to this hotel admin",
+      });
+    }
+
+    res.json(hotel);
+  } catch (error) {
+    console.error("GET MY HOTEL ERROR:", error);
+
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// =====================================================
+// UPDATE MY ASSIGNED HOTEL
+// HOTEL ADMIN
+// =====================================================
+exports.updateMyHotel = async (req, res) => {
+  try {
+    const hotel = await Hotel.findOne({
+      hotelAdmin: req.user._id,
+    });
+
+    if (!hotel) {
+      return res.status(404).json({
+        message: "No hotel is assigned to this hotel admin",
+      });
+    }
+
+    // Hotel admin cannot change ownership fields.
+    const allowedUpdates = {
+      name: req.body.name,
+      location: req.body.location,
+      description: req.body.description,
+      price: req.body.price,
+      image: req.body.image,
+      rooms: req.body.rooms,
+    };
+
+    // Remove undefined values
+    Object.keys(allowedUpdates).forEach((key) => {
+      if (allowedUpdates[key] === undefined) {
+        delete allowedUpdates[key];
+      }
+    });
+
+    const updatedHotel = await Hotel.findByIdAndUpdate(
+      hotel._id,
+      allowedUpdates,
+      {
+        new: true,
+        runValidators: true,
+      },
+    )
+      .populate("createdBy", "name email role")
+      .populate("hotelAdmin", "name email role");
+
+    res.json({
+      message: "Your hotel updated successfully",
+      hotel: updatedHotel,
+    });
+  } catch (error) {
+    console.error("Update my hotel error:", error);
 
     res.status(500).json({
       message: error.message,
