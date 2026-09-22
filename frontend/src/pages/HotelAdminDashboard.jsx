@@ -1,30 +1,33 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import "./HotelAdminDashboard.css";
 
-function HotelAdminDashboard() {
+const HotelAdminDashboard = () => {
+  const navigate = useNavigate();
+
   const [hotel, setHotel] = useState(null);
-
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const [editing, setEditing] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
     location: "",
     description: "",
     price: "",
-    rooms: "",
     image: "",
+    rooms: "",
   });
 
-  // ==========================================
-  // GET ASSIGNED HOTEL
-  // ==========================================
+  // ==========================
+  // Get My Hotel
+  // ==========================
   const fetchMyHotel = async () => {
     try {
       setLoading(true);
+      setError("");
 
       const response = await API.get("/hotels/my-hotel");
 
@@ -35,14 +38,15 @@ function HotelAdminDashboard() {
         location: response.data.location || "",
         description: response.data.description || "",
         price: response.data.price || "",
-        rooms: response.data.rooms || "",
         image: response.data.image || "",
+        rooms: response.data.rooms || "",
       });
     } catch (error) {
-      console.error("Get my hotel error:", error);
+      console.error("GET MY HOTEL ERROR:", error);
 
-      alert(
-        error.response?.data?.message || "Failed to load your assigned hotel",
+      setError(
+        error.response?.data?.message ||
+          "Unable to load your hotel information.",
       );
     } finally {
       setLoading(false);
@@ -53,213 +57,286 @@ function HotelAdminDashboard() {
     fetchMyHotel();
   }, []);
 
-  // ==========================================
-  // HANDLE INPUT
-  // ==========================================
+  // ==========================
+  // Input Change
+  // ==========================
   const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
-
-  // ==========================================
-  // START EDIT
-  // ==========================================
-  const handleEdit = () => {
-    setEditing(true);
-  };
-
-  // ==========================================
-  // CANCEL EDIT
-  // ==========================================
-  const handleCancel = () => {
-    if (!hotel) return;
-
     setFormData({
-      name: hotel.name || "",
-      location: hotel.location || "",
-      description: hotel.description || "",
-      price: hotel.price || "",
-      rooms: hotel.rooms || "",
-      image: hotel.image || "",
+      ...formData,
+      [e.target.name]: e.target.value,
     });
-
-    setEditing(false);
   };
 
-  // ==========================================
-  // SAVE HOTEL
-  // ==========================================
-  const handleSave = async (e) => {
+  // ==========================
+  // Update Hotel
+  // ==========================
+  const handleUpdate = async (e) => {
     e.preventDefault();
 
     try {
-      setSaving(true);
-
       const response = await API.put("/hotels/my-hotel", {
         name: formData.name,
         location: formData.location,
         description: formData.description,
         price: Number(formData.price),
-        rooms: Number(formData.rooms),
         image: formData.image,
+        rooms: Number(formData.rooms),
       });
 
-      setHotel(response.data.hotel);
+      setHotel(response.data.hotel || response.data);
 
-      setEditing(false);
+      setShowEdit(false);
 
-      alert("Hotel updated successfully.");
+      alert("Hotel information updated successfully.");
     } catch (error) {
-      console.error("Update hotel error:", error);
+      console.error("UPDATE HOTEL ERROR:", error);
 
-      alert(error.response?.data?.message || "Failed to update hotel");
-    } finally {
-      setSaving(false);
+      alert(
+        error.response?.data?.message || "Unable to update hotel information.",
+      );
     }
   };
 
-  // ==========================================
-  // IMAGE URL
-  // ==========================================
-  const getImage = (image) => {
-    if (!image) {
-      return "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200";
-    }
+  // ==========================
+  // Logout
+  // ==========================
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
 
-    if (image.startsWith("http://") || image.startsWith("https://")) {
-      return image;
-    }
-
-    if (image.startsWith("/")) {
-      return `http://localhost:5000${image}`;
-    }
-
-    return `http://localhost:5000/uploads/${image}`;
+    navigate("/login");
   };
 
-  // ==========================================
-  // LOADING
-  // ==========================================
+  // ==========================
+  // Loading
+  // ==========================
   if (loading) {
     return (
-      <div className="hotel-admin-dashboard">
-        <div className="dashboard-loading">
-          <h2>Loading your hotel...</h2>
-          <p>Please wait.</p>
-        </div>
+      <div className="hotel-admin-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading your hotel...</p>
       </div>
     );
   }
 
-  // ==========================================
-  // NO HOTEL
-  // ==========================================
-  if (!hotel) {
+  // ==========================
+  // Error
+  // ==========================
+  if (error) {
     return (
-      <div className="hotel-admin-dashboard">
-        <div className="no-hotel-card">
-          <h2>No Hotel Assigned</h2>
+      <div className="hotel-admin-error">
+        <h2>Unable to load hotel</h2>
+        <p>{error}</p>
 
-          <p>
-            Your account is a Hotel Admin, but no hotel has been assigned to you
-            yet.
-          </p>
-        </div>
+        <button onClick={fetchMyHotel}>Try Again</button>
       </div>
     );
   }
 
   return (
-    <div className="hotel-admin-dashboard">
-      {/* ========================================
-          HEADER
-      ======================================== */}
-      <div className="dashboard-header">
-        <div>
-          <h1>Hotel Admin Dashboard</h1>
+    <div className="hotel-admin-layout">
+      {/* ==========================
+          SIDEBAR
+      ========================== */}
+      <aside className="hotel-admin-sidebar">
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-icon">🏨</div>
 
-          <p>Manage your assigned hotel information.</p>
+          <div>
+            <h2>Hotel Admin</h2>
+            <span>Management Panel</span>
+          </div>
         </div>
 
-        {!editing && (
-          <button className="edit-hotel-button" onClick={handleEdit}>
-            ✏️ Edit Hotel
+        <div className="sidebar-menu">
+          {/* Dashboard */}
+          <button
+            className="sidebar-item active"
+            onClick={() => navigate("/admin/hotel-dashboard")}
+          >
+            <span className="sidebar-icon">🏠</span>
+            <span>Dashboard</span>
           </button>
-        )}
-      </div>
 
-      {/* ========================================
-          HOTEL INFORMATION
-      ======================================== */}
-      {!editing ? (
-        <div className="hotel-dashboard-content">
-          {/* IMAGE */}
-          <div className="hotel-image-card">
-            <img
-              src={getImage(hotel.image)}
-              alt={hotel.name}
-              onError={(e) => {
-                e.target.src =
-                  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200";
-              }}
-            />
-          </div>
+          {/* Bookings */}
+          <button
+            className="sidebar-item"
+            onClick={() => navigate("/admin/hotel-bookings")}
+          >
+            <span className="sidebar-icon">📅</span>
+            <span>Bookings</span>
+          </button>
 
-          {/* DETAILS */}
-          <div className="hotel-details-card">
-            <div className="hotel-title-section">
-              <h2>{hotel.name}</h2>
-
-              <span className="assigned-badge">Assigned to you</span>
-            </div>
-
-            <div className="hotel-info-grid">
-              <div className="info-item">
-                <span className="info-label">📍 Location</span>
-
-                <strong>{hotel.location}</strong>
-              </div>
-
-              <div className="info-item">
-                <span className="info-label">💰 Price</span>
-
-                <strong>{hotel.price} per night</strong>
-              </div>
-
-              <div className="info-item">
-                <span className="info-label">🛏️ Rooms</span>
-
-                <strong>{hotel.rooms}</strong>
-              </div>
-
-              <div className="info-item">
-                <span className="info-label">👤 Administrator</span>
-
-                <strong>{hotel.hotelAdmin?.name || "You"}</strong>
-              </div>
-            </div>
-
-            <div className="description-section">
-              <h3>Description</h3>
-
-              <p>{hotel.description || "No description available."}</p>
-            </div>
-          </div>
+          {/* View Website */}
+          <button className="sidebar-item" onClick={() => navigate("/")}>
+            <span className="sidebar-icon">🌐</span>
+            <span>View Website</span>
+          </button>
         </div>
-      ) : (
-        /* ========================================
-           EDIT FORM
-        ======================================== */
-        <div className="edit-hotel-card">
-          <h2>Edit Hotel Information</h2>
 
-          <form onSubmit={handleSave}>
-            <div className="edit-form-grid">
-              {/* NAME */}
+        <div className="sidebar-bottom">
+          {/* Logout */}
+          <button className="sidebar-item logout-item" onClick={handleLogout}>
+            <span className="sidebar-icon">🚪</span>
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* ==========================
+          MAIN CONTENT
+      ========================== */}
+      <main className="hotel-admin-main">
+        {/* Header */}
+        <header className="hotel-admin-header">
+          <div>
+            <h1>Dashboard</h1>
+
+            <p>Manage your hotel and view your hotel activity.</p>
+          </div>
+
+          <div className="admin-welcome">
+            <span>Welcome,</span>
+            <strong>{hotel?.hotelAdmin?.name || "Hotel Admin"} 👋</strong>
+          </div>
+        </header>
+
+        {/* ==========================
+            STATS
+        ========================== */}
+        <section className="hotel-stats">
+          <div className="stat-card">
+            <div className="stat-icon">🏨</div>
+
+            <div>
+              <span>Hotel</span>
+              <strong>{hotel?.name || "My Hotel"}</strong>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">🚪</div>
+
+            <div>
+              <span>Total Rooms</span>
+              <strong>{hotel?.rooms || 0}</strong>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">💰</div>
+
+            <div>
+              <span>Price / Night</span>
+              <strong>${hotel?.price || 0}</strong>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon">📍</div>
+
+            <div>
+              <span>Location</span>
+              <strong>{hotel?.location || "-"}</strong>
+            </div>
+          </div>
+        </section>
+
+        {/* ==========================
+            HOTEL SECTION
+        ========================== */}
+        <section className="hotel-section">
+          <div className="section-header">
+            <div>
+              <h2>My Hotel</h2>
+
+              <p>Manage information about your assigned hotel.</p>
+            </div>
+
+            <button
+              className="edit-hotel-btn"
+              onClick={() => setShowEdit(true)}
+            >
+              ✏️ Edit Hotel
+            </button>
+          </div>
+
+          {/* Hotel Card */}
+          <div className="hotel-admin-card">
+            <div className="hotel-image-container">
+              <img
+                src={
+                  hotel?.image ||
+                  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200"
+                }
+                alt={hotel?.name || "Hotel"}
+                onError={(e) => {
+                  e.currentTarget.src =
+                    "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200";
+                }}
+              />
+            </div>
+
+            <div className="hotel-card-content">
+              <h2>{hotel?.name}</h2>
+
+              <p className="hotel-location">📍 {hotel?.location}</p>
+
+              <p className="hotel-description">{hotel?.description}</p>
+
+              <div className="hotel-details">
+                <div>
+                  <span>Price</span>
+                  <strong>${hotel?.price} / night</strong>
+                </div>
+
+                <div>
+                  <span>Rooms</span>
+                  <strong>{hotel?.rooms}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Booking Button */}
+          <div className="quick-booking-section">
+            <div>
+              <h3>Manage Your Bookings</h3>
+
+              <p>View and manage bookings made for your hotel.</p>
+            </div>
+
+            <button
+              className="view-bookings-btn"
+              onClick={() => navigate("/admin/hotel-bookings")}
+            >
+              View Bookings →
+            </button>
+          </div>
+        </section>
+      </main>
+
+      {/* ==========================
+          EDIT MODAL
+      ========================== */}
+      {showEdit && (
+        <div className="hotel-modal-overlay">
+          <div className="hotel-modal">
+            <div className="modal-header">
+              <div>
+                <h2>Edit Hotel</h2>
+                <p>Update your hotel information.</p>
+              </div>
+
+              <button
+                className="modal-close"
+                onClick={() => setShowEdit(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdate}>
               <div className="form-group">
                 <label>Hotel Name</label>
 
@@ -272,7 +349,6 @@ function HotelAdminDashboard() {
                 />
               </div>
 
-              {/* LOCATION */}
               <div className="form-group">
                 <label>Location</label>
 
@@ -285,79 +361,77 @@ function HotelAdminDashboard() {
                 />
               </div>
 
-              {/* PRICE */}
               <div className="form-group">
-                <label>Price per Night</label>
-
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleChange}
-                  min="0"
-                  required
-                />
-              </div>
-
-              {/* ROOMS */}
-              <div className="form-group">
-                <label>Number of Rooms</label>
-
-                <input
-                  type="number"
-                  name="rooms"
-                  value={formData.rooms}
-                  onChange={handleChange}
-                  min="1"
-                  required
-                />
-              </div>
-
-              {/* IMAGE */}
-              <div className="form-group full-width">
-                <label>Hotel Image</label>
-
-                <input
-                  type="text"
-                  name="image"
-                  value={formData.image}
-                  onChange={handleChange}
-                  placeholder="Image URL or filename"
-                />
-              </div>
-
-              {/* DESCRIPTION */}
-              <div className="form-group full-width">
                 <label>Description</label>
 
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  rows="5"
+                  rows="4"
                   required
                 />
               </div>
-            </div>
 
-            <div className="edit-form-actions">
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={handleCancel}
-              >
-                Cancel
-              </button>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Price per Night</label>
 
-              <button type="submit" className="save-button" disabled={saving}>
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </form>
+                  <input
+                    type="number"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleChange}
+                    min="0"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Rooms</label>
+
+                  <input
+                    type="number"
+                    name="rooms"
+                    value={formData.rooms}
+                    onChange={handleChange}
+                    min="1"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Image URL</label>
+
+                <input
+                  type="text"
+                  name="image"
+                  value={formData.image}
+                  onChange={handleChange}
+                  placeholder="https://example.com/hotel.jpg"
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => setShowEdit(false)}
+                >
+                  Cancel
+                </button>
+
+                <button type="submit" className="save-btn">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
   );
-}
+};
 
 export default HotelAdminDashboard;

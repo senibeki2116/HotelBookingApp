@@ -1,0 +1,441 @@
+/* ==========================
+   HOTEL ADMIN SIDEBAR
+========================== */
+
+.hotel-admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f5f7fb;
+}
+
+.hotel-admin-sidebar {
+  width: 250px;
+  min-height: 100vh;
+  background: #111827;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 25px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-logo-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.sidebar-logo h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.sidebar-logo span {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.sidebar-menu {
+  padding: 20px 12px;
+  flex: 1;
+}
+
+.sidebar-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #d1d5db;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 15px;
+  margin-bottom: 7px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: left;
+  transition: 0.2s ease;
+}
+
+.sidebar-item:hover {
+  background: #1f2937;
+  color: white;
+}
+
+.sidebar-item.active {
+  background: #2563eb;
+  color: white;
+}
+
+.sidebar-icon {
+  width: 22px;
+  text-align: center;
+  font-size: 18px;
+}
+
+.sidebar-bottom {
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.logout-item:hover {
+  background: #7f1d1d;
+}
+
+/* ==========================
+   MAIN CONTENT
+========================== */
+
+.hotel-admin-main {
+  margin-left: 250px;
+  flex: 1;
+  padding: 30px;
+  min-width: 0;
+}
+
+.hotel-admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.hotel-admin-header h1 {
+  margin: 0 0 6px;
+  font-size: 30px;
+  color: #111827;
+}
+
+.hotel-admin-header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.admin-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.admin-welcome span {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.admin-welcome strong {
+  font-size: 15px;
+  color: #111827;
+}
+
+/* ==========================
+   BOOKING ERROR
+========================== */
+
+.booking-error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+/* ==========================
+   BOOKING STATS
+========================== */
+
+.booking-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 30px;
+}
+
+.booking-stat-card {
+  background: white;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.05);
+}
+
+.booking-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.booking-stat-card span {
+  display: block;
+  color: #6b7280;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.booking-stat-card strong {
+  display: block;
+  color: #111827;
+  font-size: 22px;
+}
+
+/* ==========================
+   BOOKINGS SECTION
+========================== */
+
+.bookings-section {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.05);
+}
+
+.bookings-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.bookings-section-header h2 {
+  margin: 0 0 5px;
+  color: #111827;
+}
+
+.bookings-section-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.refresh-bookings-btn {
+  border: none;
+  background: #2563eb;
+  color: white;
+  padding: 10px 17px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.refresh-bookings-btn:hover {
+  background: #1d4ed8;
+}
+
+.refresh-bookings-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================
+   TABLE
+========================== */
+
+.bookings-table-container {
+  overflow-x: auto;
+}
+
+.bookings-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1050px;
+}
+
+.bookings-table th {
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 14px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.bookings-table td {
+  padding: 16px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #374151;
+  font-size: 14px;
+}
+
+.bookings-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+/* ==========================
+   GUEST
+========================== */
+
+.guest-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guest-avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* ==========================
+   STATUS
+========================== */
+
+.booking-status {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.booking-status.confirmed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.booking-status.cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.booking-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* ==========================
+   EMPTY STATE
+========================== */
+
+.empty-bookings {
+  text-align: center;
+  padding: 70px 20px;
+}
+
+.empty-icon {
+  font-size: 55px;
+  margin-bottom: 15px;
+}
+
+.empty-bookings h3 {
+  margin: 0 0 8px;
+  color: #111827;
+}
+
+.empty-bookings p {
+  margin: 0;
+  color: #6b7280;
+}
+
+/* ==========================
+   LOADING
+========================== */
+
+.hotel-bookings-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fb;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: bookingSpin 0.8s linear infinite;
+}
+
+@keyframes bookingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================
+   RESPONSIVE
+========================== */
+
+@media (max-width: 1000px) {
+  .booking-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .hotel-admin-sidebar {
+    width: 70px;
+  }
+
+  .sidebar-logo {
+    justify-content: center;
+    padding: 20px 10px;
+  }
+
+  .sidebar-logo > div:last-child,
+  .sidebar-item span:last-child {
+    display: none;
+  }
+
+  .sidebar-item {
+    justify-content: center;
+    padding: 13px 8px;
+  }
+
+  .hotel-admin-main {
+    margin-left: 70px;
+    padding: 20px;
+  }
+
+  .hotel-admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .admin-welcome {
+    align-items: flex-start;
+  }
+
+  .booking-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .bookings-section {
+    padding: 15px;
+  }
+}

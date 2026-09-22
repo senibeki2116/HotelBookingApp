@@ -25,6 +25,7 @@ import EditHotel from "./pages/EditHotel";
 import AdminBooking from "./pages/AdminBooking";
 import AdminUsers from "./pages/AdminUsers";
 import AdminReports from "./pages/AdminReports";
+import HotelAdminBookings from "./pages/HotelAdminBookings";
 
 // ⭐ HOTEL ADMIN MANAGEMENT
 import HotelAdminManagement from "./pages/HotelAdminManagement";
@@ -82,6 +83,15 @@ function App() {
           element={
             <ProtectedRoute>
               <Wishlist />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/hotel-bookings"
+          element={
+            <ProtectedRoute>
+              <HotelAdminBookings />
             </ProtectedRoute>
           }
         />

@@ -252,3 +252,42 @@ exports.getAllBookings = async (req, res) => {
     });
   }
 };
+// ==========================
+// Get Bookings for Hotel Admin's Hotel
+// ==========================
+exports.getMyHotelBookings = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Authentication required",
+      });
+    }
+
+    const hotel = await Hotel.findOne({
+      hotelAdmin: userId,
+    });
+
+    if (!hotel) {
+      return res.status(404).json({
+        message: "No hotel is assigned to this hotel admin",
+      });
+    }
+
+    const bookings = await Booking.find({
+      hotel: hotel._id,
+    })
+      .populate("user", "name email")
+      .populate("hotel", "name location price image")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(bookings);
+  } catch (error) {
+    console.error("Get hotel admin bookings error:", error);
+
+    res.status(500).json({
+      message: error.message || "Unable to get hotel bookings",
+    });
+  }
+};
