@@ -219,14 +219,14 @@ const getHotelAdmins = async (req, res) => {
         }).select("name location");
 
         return {
-          id: admin._id,
+          _id: admin._id,
           name: admin.name,
           email: admin.email,
           role: admin.role,
 
           hotel: hotel
             ? {
-                id: hotel._id,
+                _id: hotel._id,
                 name: hotel.name,
                 location: hotel.location,
               }
