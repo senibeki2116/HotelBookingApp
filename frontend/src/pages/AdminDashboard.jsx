@@ -11,14 +11,13 @@ function AdminDashboard() {
 
   const [hotels, setHotels] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [users, setUsers] = useState([]);
   const [hotelAdmins, setHotelAdmins] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   /* ================================
-     LOAD REAL DASHBOARD DATA
+     LOAD DASHBOARD DATA
   ================================= */
 
   useEffect(() => {
@@ -27,56 +26,56 @@ function AdminDashboard() {
         setLoading(true);
         setError("");
 
-        const [hotelsRes, bookingsRes, usersRes, adminsRes] = await Promise.all(
-          [
-            API.get("/hotels"),
-            API.get("/bookings"),
-            API.get("/users/hotel-admins"),
-            API.get("/users/hotel-admins"),
-          ],
-        );
+        /*
+          These are the endpoints that currently exist
+          in your backend.
+        */
+        const [hotelsRes, bookingsRes, adminsRes] = await Promise.all([
+          API.get("/hotels"),
+          API.get("/bookings"),
+          API.get("/users/hotel-admins"),
+        ]);
+
+        /* ============================
+           HOTELS
+        ============================ */
 
         const hotelData = Array.isArray(hotelsRes.data)
           ? hotelsRes.data
           : hotelsRes.data?.hotels || [];
 
+        /* ============================
+           BOOKINGS
+        ============================ */
+
         const bookingData = Array.isArray(bookingsRes.data)
           ? bookingsRes.data
           : bookingsRes.data?.bookings || [];
 
+        /* ============================
+           HOTEL ADMINS
+        ============================ */
+
         const adminData = Array.isArray(adminsRes.data)
           ? adminsRes.data
-          : adminsRes.data?.hotelAdmins || [];
+          : adminsRes.data?.hotelAdmins || adminsRes.data?.admins || [];
 
         setHotels(hotelData);
         setBookings(bookingData);
         setHotelAdmins(adminData);
-
-        /*
-          We don't currently have a dedicated admin users endpoint
-          in the information available here.
-
-          Count regular users from the hotel-admin response if your
-          backend returns them, otherwise use 0.
-        */
-        try {
-          const usersRes = await API.get("/users");
-
-          const userData = Array.isArray(usersRes.data)
-            ? usersRes.data
-            : usersRes.data?.users || [];
-
-          setUsers(userData);
-        } catch {
-          setUsers([]);
-        }
       } catch (err) {
         console.error("Dashboard loading error:", err);
 
-        setError(
-          err.response?.data?.message ||
-            "Unable to load dashboard information.",
-        );
+        if (err.response?.status === 401) {
+          setError("Your session has expired. Please sign in again.");
+        } else if (err.response?.status === 403) {
+          setError("You do not have permission to access the admin dashboard.");
+        } else {
+          setError(
+            err.response?.data?.message ||
+              "Unable to load dashboard information.",
+          );
+        }
       } finally {
         setLoading(false);
       }
@@ -90,9 +89,17 @@ function AdminDashboard() {
   ================================= */
 
   const totalHotels = hotels.length;
+
   const totalBookings = bookings.length;
 
-  const totalUsers = users.filter((item) => item.role === "user").length;
+  /*
+    There is currently no GET /api/users endpoint
+    in your backend.
+
+    Therefore we don't make a request to /users here.
+    We use 0 until a dedicated users endpoint is added.
+  */
+  const totalUsers = 0;
 
   const totalHotelAdmins = hotelAdmins.length;
 
@@ -121,7 +128,13 @@ function AdminDashboard() {
   const formatDate = (date) => {
     if (!date) return "-";
 
-    return new Date(date).toLocaleDateString("en-US", {
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "-";
+    }
+
+    return parsedDate.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -133,15 +146,21 @@ function AdminDashboard() {
   };
 
   const getGuestName = (booking) => {
-    if (booking.user?.name) return booking.user.name;
+    if (booking.user?.name) {
+      return booking.user.name;
+    }
 
-    if (booking.user?.email) return booking.user.email;
+    if (booking.user?.email) {
+      return booking.user.email;
+    }
 
     return "Guest";
   };
 
   const getHotelName = (booking) => {
-    if (booking.hotel?.name) return booking.hotel.name;
+    if (booking.hotel?.name) {
+      return booking.hotel.name;
+    }
 
     return "Hotel";
   };
@@ -177,7 +196,7 @@ function AdminDashboard() {
      REFRESH
   ================================= */
 
-  const refreshDashboard = async () => {
+  const refreshDashboard = () => {
     window.location.reload();
   };
 

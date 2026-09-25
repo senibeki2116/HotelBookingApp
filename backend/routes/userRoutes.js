@@ -2,6 +2,10 @@ const express = require("express");
 
 const router = express.Router();
 
+// =====================================================
+// CONTROLLERS
+// =====================================================
+
 const {
   register,
   login,
@@ -11,21 +15,26 @@ const {
   deleteHotelAdmin,
 } = require("../controllers/authController");
 
+// =====================================================
+// MIDDLEWARE
+// =====================================================
+
 const { protect } = require("../middleware/authMiddleware");
 const admin = require("../middleware/adminMiddleware");
 
-// ==========================================
+// =====================================================
 // PUBLIC ROUTES
-// ==========================================
+// =====================================================
 
+// Register normal user
 router.post("/register", register);
 
+// Login
 router.post("/login", login);
 
-// ==========================================
-// HOTEL ADMIN MANAGEMENT
+// =====================================================
 // SUPER ADMIN ONLY
-// ==========================================
+// =====================================================
 
 // Create hotel admin
 router.post("/create-hotel-admin", protect, admin, createHotelAdmin);
@@ -39,9 +48,9 @@ router.put("/hotel-admins/:id", protect, admin, updateHotelAdmin);
 // Delete hotel admin
 router.delete("/hotel-admins/:id", protect, admin, deleteHotelAdmin);
 
-// ==========================================
+// =====================================================
 // PROFILE
-// ==========================================
+// =====================================================
 
 router.get("/profile", protect, (req, res) => {
   res.json({

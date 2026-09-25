@@ -1,72 +1,66 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 
+// =====================================================
+// PROTECT ROUTES
+// =====================================================
 const protect = async (req, res, next) => {
-  const authHeader = (req.headers.authorization || "").trim();
-  const rawToken = authHeader.toLowerCase().startsWith("bearer ")
-    ? authHeader.split(/\s+/).slice(1).join(" ").trim()
-    : authHeader;
-
-  if (!rawToken) {
-    return res.status(401).json({
-      message: "No token provided",
-    });
-  }
-
   try {
-    const decoded = jwt.verify(rawToken, process.env.JWT_SECRET);
+    const authHeader = req.headers.authorization || "";
 
-    let user = await User.findById(decoded.id).select("-password");
+    console.log("Authorization header:", authHeader ? "Present" : "Missing");
 
-    if (!user) {
-      user = {
-        _id: decoded.id,
-        id: decoded.id,
-        role: decoded.role || "user",
-        email: decoded.email || "",
-        name: decoded.name || "",
-      };
-    } else {
-      user = user.toObject ? user.toObject() : user;
-      user._id = user._id || decoded.id;
-      user.id = user.id || String(user._id || decoded.id);
-      user.role = user.role || decoded.role || "user";
+    // Check Bearer token
+    if (!authHeader.toLowerCase().startsWith("bearer ")) {
+      return res.status(401).json({
+        message: "No token provided",
+      });
     }
 
-    req.user = user;
-    req.user._id = req.user._id || decoded.id;
-    req.user.id = req.user.id || String(req.user._id || decoded.id);
-    return next();
+    // Get token
+    const token = authHeader.substring(7).trim();
+
+    if (!token) {
+      return res.status(401).json({
+        message: "No token provided",
+      });
+    }
+
+    // Verify JWT
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    console.log("JWT decoded:", decoded);
+
+    // Find current user in database
+    const user = await User.findById(decoded.id).select("-password");
+
+    if (!user) {
+      return res.status(401).json({
+        message: "User not found",
+      });
+    }
+
+    // Attach user to request
+    req.user = {
+      _id: user._id,
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+
+    console.log("Authenticated user:", req.user);
+
+    next();
   } catch (error) {
-    console.log("JWT ERROR:", error.message);
+    console.error("JWT ERROR:", error.message);
 
     return res.status(401).json({
-      message: "Invalid token",
+      message: "Invalid or expired token",
     });
   }
-};
-
-const adminOnly = (req, res, next) => {
-  const role = String((req.user && (req.user.role || req.user.userRole)) || "")
-    .trim()
-    .toLowerCase();
-
-  if (!req.user || role !== "admin") {
-    console.log("ADMIN CHECK FAILED", {
-      hasUser: !!req.user,
-      role,
-      user: req.user,
-    });
-
-    return res.status(403).json({
-      message: "Admin access only",
-    });
-  }
-
-  next();
 };
 
 module.exports = {
   protect,
-  adminOnly,
 };

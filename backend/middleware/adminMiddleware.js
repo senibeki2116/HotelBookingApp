@@ -1,17 +1,21 @@
-
 const admin = (req, res, next) => {
-  console.log("Admin user:", req.user);
+  console.log("========== ADMIN CHECK ==========");
+  console.log("User:", req.user);
+  console.log("Role:", req.user?.role);
+  console.log("=================================");
 
-  // Only the main admin (Super Admin) can access
-  // routes protected by this middleware.
-  if (req.user && req.user.role === "admin") {
-    next();
-  } else {
-    res.status(403).json({
-      message: "Super Admin access denied",
+  const role = String(req.user?.role || req.user?.userRole || "")
+    .trim()
+    .toLowerCase();
+
+  if (role !== "admin") {
+    return res.status(403).json({
+      message: "Admin access only",
+      currentRole: role || "no role",
     });
   }
+
+  next();
 };
 
 module.exports = admin;
-
