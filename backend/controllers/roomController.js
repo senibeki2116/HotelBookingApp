@@ -73,7 +73,20 @@ exports.createRoom = async (req, res) => {
       });
     }
 
-    const { roomNumber, roomType, price, status, description } = req.body;
+    const {
+      roomNumber,
+      roomType,
+      beds,
+      bedType,
+      capacity,
+      roomSize,
+      floor,
+      view,
+      price,
+      status,
+      amenities,
+      description,
+    } = req.body;
 
     // -------------------------------
     // VALIDATE ROOM NUMBER
@@ -112,6 +125,55 @@ exports.createRoom = async (req, res) => {
     }
 
     // -------------------------------
+    // VALIDATE BEDS
+    // -------------------------------
+
+    const roomBeds = Number(beds || 1);
+
+    if (Number.isNaN(roomBeds) || roomBeds < 1) {
+      return res.status(400).json({
+        message: "Number of beds must be at least 1",
+      });
+    }
+
+    // -------------------------------
+    // VALIDATE CAPACITY
+    // -------------------------------
+
+    const roomCapacity = Number(capacity || 2);
+
+    if (Number.isNaN(roomCapacity) || roomCapacity < 1) {
+      return res.status(400).json({
+        message: "Guest capacity must be at least 1",
+      });
+    }
+
+    // -------------------------------
+    // VALIDATE ROOM SIZE
+    // -------------------------------
+
+    const roomSizeValue =
+      roomSize === undefined || roomSize === "" ? 0 : Number(roomSize);
+
+    if (Number.isNaN(roomSizeValue) || roomSizeValue < 0) {
+      return res.status(400).json({
+        message: "Room size must be a valid number",
+      });
+    }
+
+    // -------------------------------
+    // VALIDATE FLOOR
+    // -------------------------------
+
+    const floorValue = floor === undefined || floor === "" ? 1 : Number(floor);
+
+    if (Number.isNaN(floorValue) || floorValue < 0) {
+      return res.status(400).json({
+        message: "Floor must be a valid number",
+      });
+    }
+
+    // -------------------------------
     // CHECK DUPLICATE ROOM
     // -------------------------------
 
@@ -127,6 +189,16 @@ exports.createRoom = async (req, res) => {
     }
 
     // -------------------------------
+    // CLEAN AMENITIES
+    // -------------------------------
+
+    const cleanAmenities = Array.isArray(amenities)
+      ? amenities.filter(
+          (amenity) => typeof amenity === "string" && amenity.trim() !== "",
+        )
+      : [];
+
+    // -------------------------------
     // CREATE ROOM
     // -------------------------------
 
@@ -134,8 +206,15 @@ exports.createRoom = async (req, res) => {
       hotel: req.hotelId,
       roomNumber: cleanRoomNumber,
       roomType: roomType || "Standard",
+      beds: roomBeds,
+      bedType: bedType || "Single",
+      capacity: roomCapacity,
+      roomSize: roomSizeValue,
+      floor: floorValue,
+      view: view || "City View",
       price: roomPrice,
       status: status || "available",
+      amenities: cleanAmenities,
       description: description || "",
     });
 
@@ -182,7 +261,20 @@ exports.updateRoom = async (req, res) => {
       });
     }
 
-    const { roomNumber, roomType, price, status, description } = req.body;
+    const {
+      roomNumber,
+      roomType,
+      beds,
+      bedType,
+      capacity,
+      roomSize,
+      floor,
+      view,
+      price,
+      status,
+      amenities,
+      description,
+    } = req.body;
 
     // -------------------------------
     // UPDATE ROOM NUMBER
@@ -225,6 +317,86 @@ exports.updateRoom = async (req, res) => {
     }
 
     // -------------------------------
+    // UPDATE NUMBER OF BEDS
+    // -------------------------------
+
+    if (beds !== undefined) {
+      const roomBeds = Number(beds);
+
+      if (Number.isNaN(roomBeds) || roomBeds < 1) {
+        return res.status(400).json({
+          message: "Number of beds must be at least 1",
+        });
+      }
+
+      room.beds = roomBeds;
+    }
+
+    // -------------------------------
+    // UPDATE BED TYPE
+    // -------------------------------
+
+    if (bedType !== undefined) {
+      room.bedType = bedType;
+    }
+
+    // -------------------------------
+    // UPDATE GUEST CAPACITY
+    // -------------------------------
+
+    if (capacity !== undefined) {
+      const roomCapacity = Number(capacity);
+
+      if (Number.isNaN(roomCapacity) || roomCapacity < 1) {
+        return res.status(400).json({
+          message: "Guest capacity must be at least 1",
+        });
+      }
+
+      room.capacity = roomCapacity;
+    }
+
+    // -------------------------------
+    // UPDATE ROOM SIZE
+    // -------------------------------
+
+    if (roomSize !== undefined) {
+      const roomSizeValue = Number(roomSize);
+
+      if (Number.isNaN(roomSizeValue) || roomSizeValue < 0) {
+        return res.status(400).json({
+          message: "Room size must be a valid number",
+        });
+      }
+
+      room.roomSize = roomSizeValue;
+    }
+
+    // -------------------------------
+    // UPDATE FLOOR
+    // -------------------------------
+
+    if (floor !== undefined) {
+      const floorValue = Number(floor);
+
+      if (Number.isNaN(floorValue) || floorValue < 0) {
+        return res.status(400).json({
+          message: "Floor must be a valid number",
+        });
+      }
+
+      room.floor = floorValue;
+    }
+
+    // -------------------------------
+    // UPDATE VIEW
+    // -------------------------------
+
+    if (view !== undefined) {
+      room.view = view;
+    }
+
+    // -------------------------------
     // UPDATE PRICE
     // -------------------------------
 
@@ -246,6 +418,18 @@ exports.updateRoom = async (req, res) => {
 
     if (status !== undefined) {
       room.status = status;
+    }
+
+    // -------------------------------
+    // UPDATE AMENITIES
+    // -------------------------------
+
+    if (amenities !== undefined) {
+      room.amenities = Array.isArray(amenities)
+        ? amenities.filter(
+            (amenity) => typeof amenity === "string" && amenity.trim() !== "",
+          )
+        : [];
     }
 
     // -------------------------------

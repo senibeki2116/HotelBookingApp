@@ -8,6 +8,17 @@ const API_URL = "http://localhost:5000";
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=85";
 
+const ROOM_AMENITIES = [
+  "Wi-Fi",
+  "TV",
+  "Air Conditioning",
+  "Mini Bar",
+  "Private Bathroom",
+  "Balcony",
+  "Room Service",
+  "Safe",
+];
+
 const getImage = (hotel) => {
   if (!hotel?.image) return FALLBACK_IMAGE;
 
@@ -96,8 +107,15 @@ export default function HotelAdminDashboard() {
   const [roomForm, setRoomForm] = useState({
     roomNumber: "",
     roomType: "Standard",
+    beds: 1,
+    bedType: "Single",
+    capacity: 2,
+    roomSize: "",
+    floor: 1,
+    view: "City View",
     price: "",
     status: "available",
+    amenities: [],
     description: "",
   });
 
@@ -108,6 +126,10 @@ export default function HotelAdminDashboard() {
       return null;
     }
   }, []);
+
+  // =========================================================
+  // FETCH HOTEL
+  // =========================================================
 
   const fetchHotel = async () => {
     try {
@@ -132,6 +154,10 @@ export default function HotelAdminDashboard() {
     }
   };
 
+  // =========================================================
+  // FETCH BOOKINGS
+  // =========================================================
+
   const fetchBookings = async () => {
     try {
       const response = await API.get("/bookings/my-hotel");
@@ -146,6 +172,10 @@ export default function HotelAdminDashboard() {
       setBookings([]);
     }
   };
+
+  // =========================================================
+  // FETCH ROOMS
+  // =========================================================
 
   const fetchRooms = async () => {
     try {
@@ -162,6 +192,10 @@ export default function HotelAdminDashboard() {
     }
   };
 
+  // =========================================================
+  // LOAD DASHBOARD
+  // =========================================================
+
   const loadDashboard = async () => {
     setLoading(true);
     setError("");
@@ -174,6 +208,10 @@ export default function HotelAdminDashboard() {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  // =========================================================
+  // BOOKING STATISTICS
+  // =========================================================
 
   const totalBookings = bookings.length;
 
@@ -211,6 +249,10 @@ export default function HotelAdminDashboard() {
     .filter((booking) => getBookingStatus(booking.status) === "confirmed")
     .reduce((total, booking) => total + Number(booking.totalPrice || 0), 0);
 
+  // =========================================================
+  // ROOM STATISTICS
+  // =========================================================
+
   const totalRooms = rooms.length || Number(hotel?.rooms || 0);
 
   const availableRooms = rooms.filter(
@@ -231,6 +273,38 @@ export default function HotelAdminDashboard() {
 
   const occupancyPercentage =
     totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+
+  // =========================================================
+  // NEW ROOM STATISTICS
+  // =========================================================
+
+  const totalBeds = rooms.reduce(
+    (total, room) => total + Number(room.beds || 0),
+    0,
+  );
+
+  const totalCapacity = rooms.reduce(
+    (total, room) => total + Number(room.capacity || 0),
+    0,
+  );
+
+  const availableBeds = rooms
+    .filter((room) => String(room.status).toLowerCase() === "available")
+    .reduce((total, room) => total + Number(room.beds || 0), 0);
+
+  const occupiedBeds = rooms
+    .filter((room) => String(room.status).toLowerCase() === "occupied")
+    .reduce((total, room) => total + Number(room.beds || 0), 0);
+
+  const averageRoomPrice =
+    rooms.length > 0
+      ? rooms.reduce((total, room) => total + Number(room.price || 0), 0) /
+        rooms.length
+      : 0;
+
+  // =========================================================
+  // HOTEL FORM
+  // =========================================================
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -270,6 +344,7 @@ export default function HotelAdminDashboard() {
       });
 
       setShowEditModal(false);
+
       showSuccess("Property updated successfully.");
     } catch (err) {
       console.error("UPDATE HOTEL ERROR:", err);
@@ -288,6 +363,10 @@ export default function HotelAdminDashboard() {
     }, 3500);
   };
 
+  // =========================================================
+  // ROOM FORM
+  // =========================================================
+
   const handleRoomChange = (event) => {
     const { name, value } = event.target;
 
@@ -297,19 +376,47 @@ export default function HotelAdminDashboard() {
     }));
   };
 
+  const handleAmenityChange = (amenity) => {
+    setRoomForm((previous) => {
+      const exists = previous.amenities.includes(amenity);
+
+      return {
+        ...previous,
+        amenities: exists
+          ? previous.amenities.filter((item) => item !== amenity)
+          : [...previous.amenities, amenity],
+      };
+    });
+  };
+
+  // =========================================================
+  // ADD ROOM
+  // =========================================================
+
   const openAddRoom = () => {
     setEditingRoom(null);
 
     setRoomForm({
       roomNumber: "",
       roomType: "Standard",
+      beds: 1,
+      bedType: "Single",
+      capacity: 2,
+      roomSize: "",
+      floor: 1,
+      view: "City View",
       price: hotel?.price || "",
       status: "available",
+      amenities: [],
       description: "",
     });
 
     setShowRoomModal(true);
   };
+
+  // =========================================================
+  // EDIT ROOM
+  // =========================================================
 
   const openEditRoom = (room) => {
     setEditingRoom(room);
@@ -317,13 +424,24 @@ export default function HotelAdminDashboard() {
     setRoomForm({
       roomNumber: room.roomNumber || "",
       roomType: room.roomType || "Standard",
+      beds: room.beds || 1,
+      bedType: room.bedType || "Single",
+      capacity: room.capacity || 2,
+      roomSize: room.roomSize || "",
+      floor: room.floor ?? 1,
+      view: room.view || "City View",
       price: room.price || "",
       status: room.status || "available",
+      amenities: Array.isArray(room.amenities) ? room.amenities : [],
       description: room.description || "",
     });
 
     setShowRoomModal(true);
   };
+
+  // =========================================================
+  // SAVE ROOM
+  // =========================================================
 
   const handleRoomSubmit = async (event) => {
     event.preventDefault();
@@ -336,8 +454,23 @@ export default function HotelAdminDashboard() {
       const payload = {
         roomNumber: roomForm.roomNumber,
         roomType: roomForm.roomType,
+
+        beds: Number(roomForm.beds),
+        bedType: roomForm.bedType,
+        capacity: Number(roomForm.capacity),
+
+        roomSize: roomForm.roomSize === "" ? 0 : Number(roomForm.roomSize),
+
+        floor: roomForm.floor === "" ? 1 : Number(roomForm.floor),
+
+        view: roomForm.view,
+
         price: Number(roomForm.price),
+
         status: roomForm.status,
+
+        amenities: roomForm.amenities,
+
         description: roomForm.description,
       };
 
@@ -364,6 +497,10 @@ export default function HotelAdminDashboard() {
     }
   };
 
+  // =========================================================
+  // DELETE ROOM
+  // =========================================================
+
   const handleDeleteRoom = async (roomId) => {
     if (!window.confirm("Are you sure you want to delete this room?")) {
       return;
@@ -385,6 +522,10 @@ export default function HotelAdminDashboard() {
     }
   };
 
+  // =========================================================
+  // LOGOUT
+  // =========================================================
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -392,23 +533,36 @@ export default function HotelAdminDashboard() {
     navigate("/login");
   };
 
+  // =========================================================
+  // LOADING
+  // =========================================================
+
   if (loading) {
     return (
       <div className="hotel-dashboard-loading">
         <div className="hotel-loading-spinner"></div>
+
         <strong>Loading dashboard</strong>
+
         <p>Preparing your property overview...</p>
       </div>
     );
   }
+
+  // =========================================================
+  // ERROR
+  // =========================================================
 
   if (error && !hotel) {
     return (
       <div className="hotel-dashboard-error">
         <div className="hotel-error-card">
           <div className="hotel-error-icon">!</div>
+
           <span className="hotel-error-label">DASHBOARD ERROR</span>
+
           <h2>Unable to load dashboard</h2>
+
           <p>{error}</p>
 
           <button onClick={loadDashboard}>Try Again</button>
@@ -423,7 +577,9 @@ export default function HotelAdminDashboard() {
 
   return (
     <div className="hotel-admin-dashboard">
-      {/* SIDEBAR */}
+      {/* =====================================================
+          SIDEBAR
+      ====================================================== */}
 
       <aside className="hotel-sidebar">
         <div className="hotel-brand">
@@ -460,7 +616,9 @@ export default function HotelAdminDashboard() {
             }
           >
             <span className="hotel-nav-icon">▤</span>
+
             <span>Rooms</span>
+
             {rooms.length > 0 && (
               <span className="hotel-nav-count">{rooms.length}</span>
             )}
@@ -471,6 +629,7 @@ export default function HotelAdminDashboard() {
             onClick={() => navigate("/admin/hotel-bookings")}
           >
             <span className="hotel-nav-icon">▦</span>
+
             <span>Reservations</span>
 
             {totalBookings > 0 && (
@@ -493,11 +652,13 @@ export default function HotelAdminDashboard() {
             }
           >
             <span className="hotel-nav-icon">◈</span>
+
             <span>Property Details</span>
           </button>
 
           <button className="hotel-nav-item" onClick={() => navigate("/")}>
             <span className="hotel-nav-icon">↗</span>
+
             <span>Visit Website</span>
           </button>
         </nav>
@@ -522,9 +683,13 @@ export default function HotelAdminDashboard() {
         </div>
       </aside>
 
-      {/* MAIN */}
+      {/* =====================================================
+          MAIN
+      ====================================================== */}
 
       <main className="hotel-dashboard-main">
+        {/* HEADER */}
+
         <header className="hotel-dashboard-header">
           <div>
             <span className="hotel-header-kicker">PROPERTY OVERVIEW</span>
@@ -556,12 +721,16 @@ export default function HotelAdminDashboard() {
           </div>
         </header>
 
+        {/* SUCCESS */}
+
         {success && (
           <div className="hotel-success-message">
             <span>✓</span>
             {success}
           </div>
         )}
+
+        {/* ERROR */}
 
         {error && hotel && (
           <div className="hotel-dashboard-alert">
@@ -570,7 +739,9 @@ export default function HotelAdminDashboard() {
           </div>
         )}
 
-        {/* PROPERTY HERO */}
+        {/* =====================================================
+            PROPERTY HERO
+        ====================================================== */}
 
         <section className="hotel-property-hero">
           <img
@@ -594,6 +765,7 @@ export default function HotelAdminDashboard() {
 
             <div className="hotel-hero-location">
               <span>⌖</span>
+
               {hotel?.location || "Location unavailable"}
             </div>
 
@@ -620,7 +792,7 @@ export default function HotelAdminDashboard() {
 
               <span>
                 <b>★</b>
-                Premium Stay
+                {totalBeds} Beds
               </span>
             </div>
 
@@ -633,7 +805,9 @@ export default function HotelAdminDashboard() {
           </div>
         </section>
 
-        {/* STATISTICS */}
+        {/* =====================================================
+            MAIN STATISTICS
+        ====================================================== */}
 
         <section className="hotel-statistics">
           <div className="hotel-stat-card blue-card">
@@ -641,7 +815,9 @@ export default function HotelAdminDashboard() {
 
             <div className="hotel-stat-content">
               <span>Total Bookings</span>
+
               <strong>{totalBookings}</strong>
+
               <small>All reservations</small>
             </div>
           </div>
@@ -651,7 +827,9 @@ export default function HotelAdminDashboard() {
 
             <div className="hotel-stat-content">
               <span>Active Bookings</span>
+
               <strong>{activeBookings}</strong>
+
               <small>Currently staying</small>
             </div>
           </div>
@@ -661,7 +839,9 @@ export default function HotelAdminDashboard() {
 
             <div className="hotel-stat-content">
               <span>Total Revenue</span>
+
               <strong>{formatCurrency(revenue)}</strong>
+
               <small>Confirmed bookings</small>
             </div>
           </div>
@@ -671,7 +851,9 @@ export default function HotelAdminDashboard() {
 
             <div className="hotel-stat-content">
               <span>Occupancy</span>
+
               <strong>{occupancyPercentage}%</strong>
+
               <small>
                 {occupiedRooms} of {totalRooms} occupied
               </small>
@@ -679,13 +861,62 @@ export default function HotelAdminDashboard() {
           </div>
         </section>
 
-        {/* OCCUPANCY + TODAY */}
+        {/* =====================================================
+            NEW ROOM INFORMATION STATISTICS
+        ====================================================== */}
+
+        <section className="hotel-room-statistics">
+          <div className="room-status-card">
+            <div className="room-status-icon available">🛏️</div>
+
+            <div>
+              <span>Total Beds</span>
+              <strong>{totalBeds}</strong>
+              <small>Across all rooms</small>
+            </div>
+          </div>
+
+          <div className="room-status-card">
+            <div className="room-status-icon occupied">👥</div>
+
+            <div>
+              <span>Guest Capacity</span>
+              <strong>{totalCapacity}</strong>
+              <small>Maximum guests</small>
+            </div>
+          </div>
+
+          <div className="room-status-card">
+            <div className="room-status-icon reserved">✓</div>
+
+            <div>
+              <span>Available Beds</span>
+              <strong>{availableBeds}</strong>
+              <small>In available rooms</small>
+            </div>
+          </div>
+
+          <div className="room-status-card">
+            <div className="room-status-icon maintenance">$</div>
+
+            <div>
+              <span>Average Room Price</span>
+              <strong>{formatCurrency(averageRoomPrice)}</strong>
+              <small>Per night</small>
+            </div>
+          </div>
+        </section>
+
+        {/* =====================================================
+            OCCUPANCY + TODAY
+        ====================================================== */}
 
         <section className="hotel-overview-grid">
           <div className="hotel-occupancy-card dashboard-white-card">
             <div className="dashboard-card-header">
               <div>
                 <span>ROOM PERFORMANCE</span>
+
                 <h3>Today's Occupancy</h3>
               </div>
 
@@ -725,6 +956,7 @@ export default function HotelAdminDashboard() {
             <div className="dashboard-card-header">
               <div>
                 <span>TODAY</span>
+
                 <h3>Daily Activity</h3>
               </div>
 
@@ -739,6 +971,7 @@ export default function HotelAdminDashboard() {
             <div className="today-activity-grid">
               <div className="activity-item">
                 <div className="activity-icon checkin">↓</div>
+
                 <div>
                   <strong>{todayCheckIns}</strong>
                   <span>Check-ins</span>
@@ -747,6 +980,7 @@ export default function HotelAdminDashboard() {
 
               <div className="activity-item">
                 <div className="activity-icon checkout">↑</div>
+
                 <div>
                   <strong>{todayCheckOuts}</strong>
                   <span>Check-outs</span>
@@ -755,6 +989,7 @@ export default function HotelAdminDashboard() {
 
               <div className="activity-item">
                 <div className="activity-icon confirmed">✓</div>
+
                 <div>
                   <strong>{confirmedBookings}</strong>
                   <span>Confirmed</span>
@@ -763,6 +998,7 @@ export default function HotelAdminDashboard() {
 
               <div className="activity-item">
                 <div className="activity-icon cancelled">×</div>
+
                 <div>
                   <strong>{cancelledBookings}</strong>
                   <span>Cancelled</span>
@@ -772,14 +1008,21 @@ export default function HotelAdminDashboard() {
           </div>
         </section>
 
-        {/* ROOM MANAGEMENT */}
+        {/* =====================================================
+            ROOM MANAGEMENT
+        ====================================================== */}
 
         <section className="hotel-room-management dashboard-white-card">
           <div className="dashboard-card-header room-header">
             <div>
               <span>ROOM MANAGEMENT</span>
+
               <h3>Manage Your Rooms</h3>
-              <p>Keep track of room availability, pricing and status.</p>
+
+              <p>
+                Manage beds, capacity, room details, amenities, pricing and
+                availability.
+              </p>
             </div>
 
             <button className="add-room-button" onClick={openAddRoom}>
@@ -795,7 +1038,8 @@ export default function HotelAdminDashboard() {
               <h4>No individual rooms yet</h4>
 
               <p>
-                Add your rooms to manage room numbers, prices and availability.
+                Add your rooms to manage room numbers, beds, capacity, prices
+                and availability.
               </p>
 
               <button onClick={openAddRoom}>+ Add Your First Room</button>
@@ -807,9 +1051,11 @@ export default function HotelAdminDashboard() {
                   <tr>
                     <th>ROOM</th>
                     <th>TYPE</th>
+                    <th>BEDS</th>
+                    <th>CAPACITY</th>
                     <th>PRICE / NIGHT</th>
                     <th>STATUS</th>
-                    <th>DESCRIPTION</th>
+                    <th>DETAILS</th>
                     <th>ACTIONS</th>
                   </tr>
                 </thead>
@@ -825,6 +1071,7 @@ export default function HotelAdminDashboard() {
                         <td>
                           <div className="room-number-cell">
                             <span>ROOM</span>
+
                             <strong>#{room.roomNumber}</strong>
                           </div>
                         </td>
@@ -836,6 +1083,22 @@ export default function HotelAdminDashboard() {
                         </td>
 
                         <td>
+                          <div className="room-bed-info">
+                            <strong>🛏️ {Number(room.beds || 1)}</strong>
+
+                            <span>{room.bedType || "Single"}</span>
+                          </div>
+                        </td>
+
+                        <td>
+                          <div className="room-capacity-info">
+                            <strong>👥 {Number(room.capacity || 2)}</strong>
+
+                            <span>Guests</span>
+                          </div>
+                        </td>
+
+                        <td>
                           <strong className="room-price">
                             {formatCurrency(room.price)}
                           </strong>
@@ -844,14 +1107,23 @@ export default function HotelAdminDashboard() {
                         <td>
                           <span className={`room-status ${status}`}>
                             <i></i>
+
                             {status}
                           </span>
                         </td>
 
                         <td>
-                          <span className="room-description">
-                            {room.description || "No description"}
-                          </span>
+                          <div className="room-details-cell">
+                            <span>
+                              {room.roomSize
+                                ? `${room.roomSize} m²`
+                                : "Size not set"}
+                            </span>
+
+                            <span>Floor {room.floor ?? 1}</span>
+
+                            <span>{room.view || "City View"}</span>
+                          </div>
                         </td>
 
                         <td>
@@ -882,13 +1154,16 @@ export default function HotelAdminDashboard() {
           )}
         </section>
 
-        {/* LOWER CONTENT */}
+        {/* =====================================================
+            LOWER CONTENT
+        ====================================================== */}
 
         <section className="hotel-dashboard-grid">
           <div className="hotel-reservations-card dashboard-white-card">
             <div className="dashboard-card-header">
               <div>
                 <span>BOOKING ACTIVITY</span>
+
                 <h3>Recent Reservations</h3>
               </div>
 
@@ -900,7 +1175,9 @@ export default function HotelAdminDashboard() {
             {displayedBookings.length === 0 ? (
               <div className="hotel-empty-reservations">
                 <div>▦</div>
+
                 <h4>No reservations yet</h4>
+
                 <p>Reservations for your hotel will appear here.</p>
               </div>
             ) : (
@@ -932,6 +1209,7 @@ export default function HotelAdminDashboard() {
 
                               <div>
                                 <strong>{guestName}</strong>
+
                                 <span>{getGuestEmail(booking)}</span>
                               </div>
                             </div>
@@ -970,10 +1248,13 @@ export default function HotelAdminDashboard() {
           </div>
 
           <div className="hotel-right-column">
+            {/* PROPERTY CARD */}
+
             <div className="hotel-property-card dashboard-white-card">
               <div className="dashboard-card-header">
                 <div>
                   <span>PROPERTY</span>
+
                   <h3>My Property</h3>
                 </div>
 
@@ -1003,6 +1284,10 @@ export default function HotelAdminDashboard() {
                 <div className="hotel-small-stats">
                   <span>▣ {totalRooms} Rooms</span>
 
+                  <span>🛏️ {totalBeds} Beds</span>
+
+                  <span>👥 {totalCapacity} Guests</span>
+
                   <span>
                     ${Number(hotel?.price || 0).toLocaleString()}
                     /night
@@ -1016,10 +1301,13 @@ export default function HotelAdminDashboard() {
               </div>
             </div>
 
+            {/* QUICK ACTIONS */}
+
             <div className="hotel-quick-card dashboard-white-card">
               <div className="dashboard-card-header">
                 <div>
                   <span>SHORTCUTS</span>
+
                   <h3>Quick Actions</h3>
                 </div>
               </div>
@@ -1027,25 +1315,33 @@ export default function HotelAdminDashboard() {
               <div className="hotel-quick-actions">
                 <button onClick={() => setShowEditModal(true)}>
                   <span className="quick-icon blue">▣</span>
+
                   <span>Edit Property</span>
+
                   <b>→</b>
                 </button>
 
                 <button onClick={openAddRoom}>
                   <span className="quick-icon orange">+</span>
+
                   <span>Add Room</span>
+
                   <b>→</b>
                 </button>
 
                 <button onClick={() => navigate("/admin/hotel-bookings")}>
                   <span className="quick-icon green">▦</span>
+
                   <span>Manage Bookings</span>
+
                   <b>→</b>
                 </button>
 
                 <button onClick={() => navigate("/")}>
                   <span className="quick-icon purple">★</span>
+
                   <span>View Website</span>
+
                   <b>→</b>
                 </button>
               </div>
@@ -1054,7 +1350,9 @@ export default function HotelAdminDashboard() {
         </section>
       </main>
 
-      {/* EDIT PROPERTY MODAL */}
+      {/* =====================================================
+          EDIT PROPERTY MODAL
+      ====================================================== */}
 
       {showEditModal && (
         <div
@@ -1069,7 +1367,9 @@ export default function HotelAdminDashboard() {
             <div className="hotel-modal-header">
               <div>
                 <span>PROPERTY MANAGEMENT</span>
+
                 <h2>Edit Your Property</h2>
+
                 <p>Update your hotel information and property details.</p>
               </div>
 
@@ -1085,6 +1385,7 @@ export default function HotelAdminDashboard() {
               <div className="hotel-form-grid">
                 <div className="hotel-form-group">
                   <label>Hotel Name</label>
+
                   <input
                     type="text"
                     name="name"
@@ -1096,6 +1397,7 @@ export default function HotelAdminDashboard() {
 
                 <div className="hotel-form-group">
                   <label>Location</label>
+
                   <input
                     type="text"
                     name="location"
@@ -1107,6 +1409,7 @@ export default function HotelAdminDashboard() {
 
                 <div className="hotel-form-group">
                   <label>Price Per Night</label>
+
                   <input
                     type="number"
                     name="price"
@@ -1119,6 +1422,7 @@ export default function HotelAdminDashboard() {
 
                 <div className="hotel-form-group">
                   <label>Total Rooms</label>
+
                   <input
                     type="number"
                     name="rooms"
@@ -1131,6 +1435,7 @@ export default function HotelAdminDashboard() {
 
                 <div className="hotel-form-group full">
                   <label>Hotel Image URL / File Name</label>
+
                   <input
                     type="text"
                     name="image"
@@ -1142,6 +1447,7 @@ export default function HotelAdminDashboard() {
 
                 <div className="hotel-form-group full">
                   <label>Description</label>
+
                   <textarea
                     name="description"
                     value={formData.description}
@@ -1174,7 +1480,9 @@ export default function HotelAdminDashboard() {
         </div>
       )}
 
-      {/* ROOM MODAL */}
+      {/* =====================================================
+          ADD / EDIT ROOM MODAL
+      ====================================================== */}
 
       {showRoomModal && (
         <div
@@ -1194,8 +1502,8 @@ export default function HotelAdminDashboard() {
 
                 <p>
                   {editingRoom
-                    ? "Update the room information below."
-                    : "Create a new room for your hotel."}
+                    ? "Update all room information below."
+                    : "Add detailed information about your new room."}
                 </p>
               </div>
 
@@ -1208,74 +1516,279 @@ export default function HotelAdminDashboard() {
             </div>
 
             <form onSubmit={handleRoomSubmit}>
-              <div className="hotel-form-grid">
-                <div className="hotel-form-group">
-                  <label>Room Number</label>
-                  <input
-                    type="text"
-                    name="roomNumber"
-                    value={roomForm.roomNumber}
-                    onChange={handleRoomChange}
-                    placeholder="Example: 101"
-                    required
-                  />
+              {/* ROOM BASIC INFORMATION */}
+
+              <div className="room-form-section">
+                <div className="room-form-section-title">
+                  <span>01</span>
+
+                  <div>
+                    <strong>Room Information</strong>
+
+                    <small>Basic information about the room</small>
+                  </div>
                 </div>
 
-                <div className="hotel-form-group">
-                  <label>Room Type</label>
+                <div className="hotel-form-grid">
+                  <div className="hotel-form-group">
+                    <label>Room Number</label>
 
-                  <select
-                    name="roomType"
-                    value={roomForm.roomType}
-                    onChange={handleRoomChange}
-                  >
-                    <option value="Standard">Standard</option>
-                    <option value="Deluxe">Deluxe</option>
-                    <option value="Suite">Suite</option>
-                    <option value="Family">Family</option>
-                  </select>
-                </div>
+                    <input
+                      type="text"
+                      name="roomNumber"
+                      value={roomForm.roomNumber}
+                      onChange={handleRoomChange}
+                      placeholder="Example: 101"
+                      required
+                    />
+                  </div>
 
-                <div className="hotel-form-group">
-                  <label>Price Per Night</label>
+                  <div className="hotel-form-group">
+                    <label>Room Type</label>
 
-                  <input
-                    type="number"
-                    name="price"
-                    value={roomForm.price}
-                    onChange={handleRoomChange}
-                    min="0"
-                    required
-                  />
-                </div>
+                    <select
+                      name="roomType"
+                      value={roomForm.roomType}
+                      onChange={handleRoomChange}
+                    >
+                      <option value="Standard">Standard</option>
 
-                <div className="hotel-form-group">
-                  <label>Status</label>
+                      <option value="Deluxe">Deluxe</option>
 
-                  <select
-                    name="status"
-                    value={roomForm.status}
-                    onChange={handleRoomChange}
-                  >
-                    <option value="available">Available</option>
-                    <option value="occupied">Occupied</option>
-                    <option value="reserved">Reserved</option>
-                    <option value="maintenance">Maintenance</option>
-                  </select>
-                </div>
+                      <option value="Suite">Suite</option>
 
-                <div className="hotel-form-group full">
-                  <label>Description</label>
+                      <option value="Family">Family</option>
+                    </select>
+                  </div>
 
-                  <textarea
-                    name="description"
-                    value={roomForm.description}
-                    onChange={handleRoomChange}
-                    rows="4"
-                    placeholder="King bed, balcony, city view..."
-                  />
+                  <div className="hotel-form-group">
+                    <label>Floor</label>
+
+                    <input
+                      type="number"
+                      name="floor"
+                      value={roomForm.floor}
+                      onChange={handleRoomChange}
+                      min="0"
+                      placeholder="Example: 2"
+                    />
+                  </div>
+
+                  <div className="hotel-form-group">
+                    <label>Room Size (m²)</label>
+
+                    <input
+                      type="number"
+                      name="roomSize"
+                      value={roomForm.roomSize}
+                      onChange={handleRoomChange}
+                      min="0"
+                      step="0.1"
+                      placeholder="Example: 35"
+                    />
+                  </div>
+
+                  <div className="hotel-form-group">
+                    <label>Room View</label>
+
+                    <select
+                      name="view"
+                      value={roomForm.view}
+                      onChange={handleRoomChange}
+                    >
+                      <option value="City View">City View</option>
+
+                      <option value="Garden View">Garden View</option>
+
+                      <option value="Pool View">Pool View</option>
+
+                      <option value="Mountain View">Mountain View</option>
+
+                      <option value="No View">No View</option>
+                    </select>
+                  </div>
                 </div>
               </div>
+
+              {/* SLEEPING INFORMATION */}
+
+              <div className="room-form-section">
+                <div className="room-form-section-title">
+                  <span>02</span>
+
+                  <div>
+                    <strong>Sleeping & Capacity</strong>
+
+                    <small>
+                      Tell guests how many people the room can accommodate
+                    </small>
+                  </div>
+                </div>
+
+                <div className="hotel-form-grid">
+                  <div className="hotel-form-group">
+                    <label>Number of Beds</label>
+
+                    <input
+                      type="number"
+                      name="beds"
+                      value={roomForm.beds}
+                      onChange={handleRoomChange}
+                      min="1"
+                      required
+                    />
+                  </div>
+
+                  <div className="hotel-form-group">
+                    <label>Bed Type</label>
+
+                    <select
+                      name="bedType"
+                      value={roomForm.bedType}
+                      onChange={handleRoomChange}
+                    >
+                      <option value="Single">Single</option>
+
+                      <option value="Double">Double</option>
+
+                      <option value="Queen">Queen</option>
+
+                      <option value="King">King</option>
+                    </select>
+                  </div>
+
+                  <div className="hotel-form-group">
+                    <label>Guest Capacity</label>
+
+                    <input
+                      type="number"
+                      name="capacity"
+                      value={roomForm.capacity}
+                      onChange={handleRoomChange}
+                      min="1"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* PRICE AND STATUS */}
+
+              <div className="room-form-section">
+                <div className="room-form-section-title">
+                  <span>03</span>
+
+                  <div>
+                    <strong>Price & Availability</strong>
+
+                    <small>Set the room price and current availability</small>
+                  </div>
+                </div>
+
+                <div className="hotel-form-grid">
+                  <div className="hotel-form-group">
+                    <label>Price Per Night</label>
+
+                    <input
+                      type="number"
+                      name="price"
+                      value={roomForm.price}
+                      onChange={handleRoomChange}
+                      min="0"
+                      required
+                    />
+                  </div>
+
+                  <div className="hotel-form-group">
+                    <label>Status</label>
+
+                    <select
+                      name="status"
+                      value={roomForm.status}
+                      onChange={handleRoomChange}
+                    >
+                      <option value="available">Available</option>
+
+                      <option value="occupied">Occupied</option>
+
+                      <option value="reserved">Reserved</option>
+
+                      <option value="maintenance">Maintenance</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* AMENITIES */}
+
+              <div className="room-form-section">
+                <div className="room-form-section-title">
+                  <span>04</span>
+
+                  <div>
+                    <strong>Room Amenities</strong>
+
+                    <small>Select everything available in this room</small>
+                  </div>
+                </div>
+
+                <div className="room-amenities-grid">
+                  {ROOM_AMENITIES.map((amenity) => {
+                    const selected = roomForm.amenities.includes(amenity);
+
+                    return (
+                      <label
+                        key={amenity}
+                        className={`room-amenity-option ${
+                          selected ? "selected" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => handleAmenityChange(amenity)}
+                        />
+
+                        <span className="room-amenity-check">
+                          {selected ? "✓" : ""}
+                        </span>
+
+                        <span>{amenity}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* DESCRIPTION */}
+
+              <div className="room-form-section">
+                <div className="room-form-section-title">
+                  <span>05</span>
+
+                  <div>
+                    <strong>Room Description</strong>
+
+                    <small>Add additional information about the room</small>
+                  </div>
+                </div>
+
+                <div className="hotel-form-grid">
+                  <div className="hotel-form-group full">
+                    <label>Description</label>
+
+                    <textarea
+                      name="description"
+                      value={roomForm.description}
+                      onChange={handleRoomChange}
+                      rows="4"
+                      placeholder="Example: Spacious deluxe room with a queen bed, balcony and beautiful city view."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* MODAL BUTTONS */}
 
               <div className="hotel-modal-actions">
                 <button
