@@ -8,7 +8,7 @@ console.log(
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-
+const roomRoutes = require("./routes/roomRoutes");
 const connectDB = require("./config/db");
 
 // Routes
@@ -53,6 +53,7 @@ app.use("/api/hotels", hotelRoutes);
 app.use("/api/bookings", bookingRoutes);
 
 app.use("/api/admin", adminRoutes);
+app.use("/api/rooms", roomRoutes);
 
 app.use("/api/ai", aiRoutes);
 

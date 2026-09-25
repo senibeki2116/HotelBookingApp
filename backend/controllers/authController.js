@@ -1,14 +1,32 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
-const Hotel = require("../models/Hotel");
-const bcrypt = require("bcrypt");
 
 // =====================================================
-// REGISTER USER
+// CREATE TOKEN
 // =====================================================
-const register = async (req, res) => {
+
+const generateToken = (user) => {
+  return jwt.sign(
+    {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "7d",
+    },
+  );
+};
+
+// =====================================================
+// REGISTER NORMAL USER
+// =====================================================
+
+exports.register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -16,33 +34,31 @@ const register = async (req, res) => {
       });
     }
 
-    // Check existing user
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({
+      email: email.toLowerCase().trim(),
+    });
 
     if (existingUser) {
       return res.status(400).json({
-        message: "Email already exists",
+        message: "User already exists",
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // First registered user becomes super admin
-    const isFirstUser = (await User.countDocuments()) === 0;
-
     const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: isFirstUser ? "admin" : "user",
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password,
+      role: role || "user",
     });
 
-    res.status(201).json({
-      message: "User registered successfully",
+    const token = generateToken(user);
 
+    res.status(201).json({
+      message: "Registration successful",
+      token,
       user: {
         id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -52,59 +68,60 @@ const register = async (req, res) => {
     console.error("REGISTER ERROR:", error);
 
     res.status(500).json({
-      message: error.message,
+      message: error.message || "Registration failed",
     });
   }
 };
 
 // =====================================================
-// LOGIN USER
+// LOGIN
 // =====================================================
-const login = async (req, res) => {
+
+exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+    });
 
     if (!user) {
-      return res.status(404).json({
-        message: "User not found",
+      return res.status(401).json({
+        message: "Invalid email or password",
       });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Works with a normal string password.
+    // If your User model has a comparePassword method,
+    // use it automatically.
+    let passwordCorrect = false;
 
-    if (!isMatch) {
-      return res.status(400).json({
-        message: "Invalid password",
+    if (typeof user.comparePassword === "function") {
+      passwordCorrect = await user.comparePassword(password);
+    } else {
+      passwordCorrect = user.password === password;
+    }
+
+    if (!passwordCorrect) {
+      return res.status(401).json({
+        message: "Invalid email or password",
       });
     }
 
-    // Create JWT
-    const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role,
-        email: user.email,
-        name: user.name,
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "7d",
-      },
-    );
+    const token = generateToken(user);
 
-    console.log("LOGIN USER:", user);
-
-    res.json({
+    res.status(200).json({
       message: "Login successful",
-
       token,
-
       user: {
         id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -114,81 +131,50 @@ const login = async (req, res) => {
     console.error("LOGIN ERROR:", error);
 
     res.status(500).json({
-      message: error.message,
+      message: error.message || "Login failed",
     });
   }
 };
 
 // =====================================================
 // CREATE HOTEL ADMIN
+// SUPER ADMIN ONLY
 // =====================================================
-const createHotelAdmin = async (req, res) => {
-  try {
-    const { name, email, password, hotelId } = req.body;
 
-    // Validate required fields
+exports.createHotelAdmin = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
     if (!name || !email || !password) {
       return res.status(400).json({
         message: "Name, email and password are required",
       });
     }
 
-    // Check email
-    const existingUser = await User.findOne({ email });
+    const cleanEmail = email.toLowerCase().trim();
+
+    const existingUser = await User.findOne({
+      email: cleanEmail,
+    });
 
     if (existingUser) {
       return res.status(400).json({
-        message: "Email already exists",
+        message: "A user with this email already exists",
       });
     }
 
-    // If a hotel is selected, check it exists
-    if (hotelId) {
-      const hotel = await Hotel.findById(hotelId);
-
-      if (!hotel) {
-        return res.status(404).json({
-          message: "Hotel not found",
-        });
-      }
-
-      // Check whether hotel already has an admin
-      if (hotel.hotelAdmin) {
-        return res.status(400).json({
-          message: "This hotel is already assigned to another admin",
-        });
-      }
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create hotel admin
     const hotelAdmin = await User.create({
-      name,
-      email,
-      password: hashedPassword,
+      name: name.trim(),
+      email: cleanEmail,
+      password,
       role: "hoteladmin",
     });
 
-    // Assign hotel
-    if (hotelId) {
-      await Hotel.findByIdAndUpdate(
-        hotelId,
-        {
-          hotelAdmin: hotelAdmin._id,
-        },
-        {
-          new: true,
-        },
-      );
-    }
-
     res.status(201).json({
       message: "Hotel admin created successfully",
-
       user: {
         id: hotelAdmin._id,
+        _id: hotelAdmin._id,
         name: hotelAdmin.name,
         email: hotelAdmin.email,
         role: hotelAdmin.role,
@@ -198,224 +184,142 @@ const createHotelAdmin = async (req, res) => {
     console.error("CREATE HOTEL ADMIN ERROR:", error);
 
     res.status(500).json({
-      message: error.message,
+      message: error.message || "Unable to create hotel admin",
     });
   }
 };
 
 // =====================================================
 // GET ALL HOTEL ADMINS
+// SUPER ADMIN ONLY
 // =====================================================
-const getHotelAdmins = async (req, res) => {
+
+exports.getHotelAdmins = async (req, res) => {
   try {
-    const admins = await User.find({
+    const hotelAdmins = await User.find({
       role: "hoteladmin",
-    }).select("-password -token");
+    })
+      .select("-password")
+      .sort({ createdAt: -1 });
 
-    const result = await Promise.all(
-      admins.map(async (admin) => {
-        const hotel = await Hotel.findOne({
-          hotelAdmin: admin._id,
-        }).select("name location");
-
-        return {
-          _id: admin._id,
-          name: admin.name,
-          email: admin.email,
-          role: admin.role,
-
-          hotel: hotel
-            ? {
-                _id: hotel._id,
-                name: hotel.name,
-                location: hotel.location,
-              }
-            : null,
-        };
-      }),
-    );
-
-    res.json(result);
+    res.status(200).json(hotelAdmins);
   } catch (error) {
     console.error("GET HOTEL ADMINS ERROR:", error);
 
     res.status(500).json({
-      message: error.message,
+      message: error.message || "Unable to get hotel admins",
     });
   }
 };
 
 // =====================================================
 // UPDATE HOTEL ADMIN
+// SUPER ADMIN ONLY
 // =====================================================
-const updateHotelAdmin = async (req, res) => {
+
+exports.updateHotelAdmin = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { name, email, password } = req.body;
 
-    const { name, email, password, hotelId } = req.body;
-
-    // Find hotel admin
-    const adminUser = await User.findOne({
-      _id: id,
+    const hotelAdmin = await User.findOne({
+      _id: req.params.id,
       role: "hoteladmin",
     });
 
-    if (!adminUser) {
+    if (!hotelAdmin) {
       return res.status(404).json({
         message: "Hotel admin not found",
       });
     }
 
-    // ---------------------------------------------
-    // Update name
-    // ---------------------------------------------
-    if (name) {
-      adminUser.name = name;
+    if (name !== undefined) {
+      const cleanName = String(name).trim();
+
+      if (!cleanName) {
+        return res.status(400).json({
+          message: "Name is required",
+        });
+      }
+
+      hotelAdmin.name = cleanName;
     }
 
-    // ---------------------------------------------
-    // Update email
-    // ---------------------------------------------
-    if (email && email !== adminUser.email) {
-      const existingEmail = await User.findOne({
-        email,
-        _id: {
-          $ne: id,
-        },
+    if (email !== undefined) {
+      const cleanEmail = String(email).toLowerCase().trim();
+
+      if (!cleanEmail) {
+        return res.status(400).json({
+          message: "Email is required",
+        });
+      }
+
+      const existingUser = await User.findOne({
+        email: cleanEmail,
+        _id: { $ne: hotelAdmin._id },
       });
 
-      if (existingEmail) {
+      if (existingUser) {
         return res.status(400).json({
-          message: "Email already exists",
+          message: "Another user already uses this email",
         });
       }
 
-      adminUser.email = email;
+      hotelAdmin.email = cleanEmail;
     }
 
-    // ---------------------------------------------
-    // Update password
-    // ---------------------------------------------
-    if (password) {
-      adminUser.password = await bcrypt.hash(password, 10);
+    if (password !== undefined && password !== "") {
+      hotelAdmin.password = password;
     }
 
-    await adminUser.save();
+    await hotelAdmin.save();
 
-    // ---------------------------------------------
-    // Remove current hotel assignment
-    // ---------------------------------------------
-    await Hotel.updateMany(
-      {
-        hotelAdmin: adminUser._id,
-      },
-      {
-        $set: {
-          hotelAdmin: null,
-        },
-      },
-    );
-
-    // ---------------------------------------------
-    // Assign new hotel
-    // ---------------------------------------------
-    if (hotelId) {
-      const hotel = await Hotel.findById(hotelId);
-
-      if (!hotel) {
-        return res.status(404).json({
-          message: "Hotel not found",
-        });
-      }
-
-      // Check if another admin owns this hotel
-      if (
-        hotel.hotelAdmin &&
-        hotel.hotelAdmin.toString() !== adminUser._id.toString()
-      ) {
-        return res.status(400).json({
-          message: "This hotel is already assigned to another admin",
-        });
-      }
-
-      hotel.hotelAdmin = adminUser._id;
-
-      await hotel.save();
-    }
-
-    res.json({
+    res.status(200).json({
       message: "Hotel admin updated successfully",
-
       user: {
-        id: adminUser._id,
-        name: adminUser.name,
-        email: adminUser.email,
-        role: adminUser.role,
+        id: hotelAdmin._id,
+        _id: hotelAdmin._id,
+        name: hotelAdmin.name,
+        email: hotelAdmin.email,
+        role: hotelAdmin.role,
       },
     });
   } catch (error) {
     console.error("UPDATE HOTEL ADMIN ERROR:", error);
 
     res.status(500).json({
-      message: error.message,
+      message: error.message || "Unable to update hotel admin",
     });
   }
 };
 
 // =====================================================
 // DELETE HOTEL ADMIN
+// SUPER ADMIN ONLY
 // =====================================================
-const deleteHotelAdmin = async (req, res) => {
-  try {
-    const { id } = req.params;
 
-    // Find hotel admin
-    const adminUser = await User.findOne({
-      _id: id,
+exports.deleteHotelAdmin = async (req, res) => {
+  try {
+    const hotelAdmin = await User.findOne({
+      _id: req.params.id,
       role: "hoteladmin",
     });
 
-    if (!adminUser) {
+    if (!hotelAdmin) {
       return res.status(404).json({
         message: "Hotel admin not found",
       });
     }
 
-    // Remove hotel assignment
-    await Hotel.updateMany(
-      {
-        hotelAdmin: adminUser._id,
-      },
-      {
-        $set: {
-          hotelAdmin: null,
-        },
-      },
-    );
+    await hotelAdmin.deleteOne();
 
-    // Delete user
-    await User.findByIdAndDelete(adminUser._id);
-
-    res.json({
+    res.status(200).json({
       message: "Hotel admin deleted successfully",
     });
   } catch (error) {
     console.error("DELETE HOTEL ADMIN ERROR:", error);
 
     res.status(500).json({
-      message: error.message,
+      message: error.message || "Unable to delete hotel admin",
     });
   }
-};
-
-// =====================================================
-// EXPORTS
-// =====================================================
-module.exports = {
-  register,
-  login,
-  createHotelAdmin,
-  getHotelAdmins,
-  updateHotelAdmin,
-  deleteHotelAdmin,
 };

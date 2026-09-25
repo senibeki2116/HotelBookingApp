@@ -1,9 +1,10 @@
 const Hotel = require("../models/Hotel");
 const Booking = require("../models/Booking");
 
-// ==========================
-// Create Booking
-// ==========================
+// =========================================================
+// CREATE BOOKING
+// =========================================================
+
 exports.createBooking = async (req, res) => {
   try {
     const { hotelId, checkIn, checkOut, guests, rooms } = req.body;
@@ -152,35 +153,48 @@ exports.createBooking = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Create booking error:", error);
+    console.error("CREATE BOOKING ERROR:", error);
 
     res.status(500).json({
       message: error.message || "Unable to create booking.",
     });
   }
 };
-// ==========================
-// Get Logged-in User Bookings
-// ==========================
+
+// =========================================================
+// GET LOGGED-IN USER BOOKINGS
+// =========================================================
+
 exports.getMyBookings = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
 
+    if (!userId) {
+      return res.status(401).json({
+        message: "Authentication required",
+      });
+    }
+
     const bookings = await Booking.find({
       user: userId,
-    }).populate("hotel");
+    })
+      .populate("hotel")
+      .sort({ createdAt: -1 });
 
     res.status(200).json(bookings);
   } catch (error) {
+    console.error("GET MY BOOKINGS ERROR:", error);
+
     res.status(500).json({
       message: error.message,
     });
   }
 };
 
-// ==========================
-// Get Single Booking
-// ==========================
+// =========================================================
+// GET SINGLE BOOKING
+// =========================================================
+
 exports.getBookingById = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
@@ -195,15 +209,18 @@ exports.getBookingById = async (req, res) => {
 
     res.status(200).json(booking);
   } catch (error) {
+    console.error("GET BOOKING ERROR:", error);
+
     res.status(500).json({
       message: error.message,
     });
   }
 };
 
-// ==========================
-// Delete Booking
-// ==========================
+// =========================================================
+// DELETE BOOKING
+// =========================================================
+
 exports.deleteBooking = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
@@ -214,9 +231,9 @@ exports.deleteBooking = async (req, res) => {
       });
     }
 
-    // Check if the booking belongs to the logged-in user
     const userId = req.user?.id || req.user?._id;
-    if (booking.user.toString() !== userId.toString()) {
+
+    if (!userId || booking.user.toString() !== userId.toString()) {
       return res.status(401).json({
         message: "Not authorized",
       });
@@ -228,14 +245,18 @@ exports.deleteBooking = async (req, res) => {
       message: "Booking cancelled successfully",
     });
   } catch (error) {
+    console.error("DELETE BOOKING ERROR:", error);
+
     res.status(500).json({
       message: error.message,
     });
   }
 };
-// ==========================
-// Get All Bookings - Admin
-// ==========================
+
+// =========================================================
+// GET ALL BOOKINGS - SUPER ADMIN
+// =========================================================
+
 exports.getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find()
@@ -245,16 +266,18 @@ exports.getAllBookings = async (req, res) => {
 
     res.status(200).json(bookings);
   } catch (error) {
-    console.error("Get all bookings error:", error);
+    console.error("GET ALL BOOKINGS ERROR:", error);
 
     res.status(500).json({
       message: error.message,
     });
   }
 };
-// ==========================
-// Get Bookings for Hotel Admin's Hotel
-// ==========================
+
+// =========================================================
+// GET BOOKINGS FOR HOTEL ADMIN'S HOTEL
+// =========================================================
+
 exports.getMyHotelBookings = async (req, res) => {
   try {
     const userId = req.user?._id || req.user?.id;
@@ -284,7 +307,7 @@ exports.getMyHotelBookings = async (req, res) => {
 
     res.status(200).json(bookings);
   } catch (error) {
-    console.error("Get hotel admin bookings error:", error);
+    console.error("GET HOTEL ADMIN BOOKINGS ERROR:", error);
 
     res.status(500).json({
       message: error.message || "Unable to get hotel bookings",

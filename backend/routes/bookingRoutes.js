@@ -12,36 +12,25 @@ const {
 } = require("../controllers/bookingController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
+
 const hotelAdmin = require("../middleware/hotelAdminMiddleware");
 
-// ==========================
-// Create Booking
-// ==========================
+// Customer - create booking
 router.post("/", protect, createBooking);
 
-// ==========================
-// ADMIN - Get All Bookings
-// ==========================
+// Super Admin - all bookings
 router.get("/", protect, adminOnly, getAllBookings);
 
-// ==========================
-// Get My Bookings - Normal User
-// ==========================
+// Customer - my bookings
 router.get("/my", protect, getMyBookings);
 
-// ==========================
-// HOTEL ADMIN - Get Assigned Hotel Bookings
-// ==========================
+// Hotel Admin - my hotel bookings
 router.get("/my-hotel", protect, hotelAdmin, getMyHotelBookings);
 
-// ==========================
-// Get Single Booking
-// ==========================
+// Single booking
 router.get("/:id", protect, getBookingById);
 
-// ==========================
-// Delete Booking
-// ==========================
+// Delete booking
 router.delete("/:id", protect, deleteBooking);
 
 module.exports = router;

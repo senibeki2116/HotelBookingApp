@@ -4,6 +4,7 @@ const User = require("../models/user");
 // =====================================================
 // PROTECT ROUTES
 // =====================================================
+
 const protect = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || "";
@@ -32,7 +33,7 @@ const protect = async (req, res, next) => {
     console.log("JWT decoded:", decoded);
 
     // Find current user in database
-    const user = await User.findById(decoded.id).select("-password");
+    let user = await User.findById(decoded.id).select("-password");
 
     if (!user) {
       return res.status(401).json({
@@ -61,6 +62,31 @@ const protect = async (req, res, next) => {
   }
 };
 
+// =====================================================
+// SUPER ADMIN ONLY
+// =====================================================
+
+const adminOnly = (req, res, next) => {
+  const role = String(req.user?.role || "")
+    .trim()
+    .toLowerCase();
+
+  console.log("Admin role check:", role);
+
+  if (!req.user || role !== "admin") {
+    return res.status(403).json({
+      message: "Admin access only",
+    });
+  }
+
+  next();
+};
+
+// =====================================================
+// EXPORTS
+// =====================================================
+
 module.exports = {
   protect,
+  adminOnly,
 };
