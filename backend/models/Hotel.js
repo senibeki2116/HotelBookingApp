@@ -5,40 +5,46 @@ const hotelSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     location: {
       type: String,
       required: true,
+      trim: true,
     },
 
     description: {
       type: String,
       required: true,
+      trim: true,
     },
 
     price: {
       type: Number,
       required: true,
-    },
-
-    image: {
-      type: String,
-      required: true,
+      min: 0,
     },
 
     rooms: {
       type: Number,
       required: true,
+      min: 1,
     },
 
-    // The user who created the hotel
+    image: {
+      type: String,
+      default: "",
+    },
+
+    // User who originally created the hotel
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: true,
     },
 
-    // The hotel administrator responsible for this hotel
+    // Hotel admin responsible for this hotel
     hotelAdmin: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

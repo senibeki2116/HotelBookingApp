@@ -2853,3 +2853,228 @@
     width: 100%;
   }
 }
+/* =========================================================
+   CREATE HOTEL PAGE
+   ========================================================= */
+
+.hotel-create-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background:
+    radial-gradient(
+      circle at 85% 10%,
+      rgba(200, 168, 107, 0.18),
+      transparent 30%
+    ),
+    #f4f6f5;
+}
+
+.hotel-create-card {
+  width: min(880px, 100%);
+  padding: 48px;
+  border: 1px solid #e3e7e3;
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 25px 80px rgba(27, 40, 34, 0.11);
+}
+
+.hotel-create-icon {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 22px;
+  border-radius: 21px;
+  background: #f5ead6;
+  font-size: 31px;
+}
+
+.hotel-create-eyebrow {
+  color: #a27d45;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.hotel-create-card h1 {
+  margin: 10px 0 10px;
+  color: #18251f;
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -1.4px;
+}
+
+.hotel-create-card > p {
+  max-width: 680px;
+  margin: 0 0 32px;
+  color: #718078;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.hotel-create-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.hotel-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hotel-form-full {
+  grid-column: 1 / -1;
+}
+
+.hotel-create-grid label {
+  color: #26342d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hotel-create-grid input,
+.hotel-create-grid textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dfe5e0;
+  border-radius: 13px;
+  padding: 14px 16px;
+  outline: none;
+  background: #fbfcfb;
+  color: #1d2923;
+  font-family: inherit;
+  font-size: 13px;
+  transition: 0.2s ease;
+}
+
+.hotel-create-grid input:focus,
+.hotel-create-grid textarea:focus {
+  border-color: #c8a86b;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(200, 168, 107, 0.12);
+}
+
+.hotel-create-grid textarea {
+  resize: vertical;
+}
+
+.create-hotel-submit {
+  width: 100%;
+  height: 54px;
+  margin-top: 26px;
+  border: none;
+  border-radius: 14px;
+  background: #1e3028;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.create-hotel-submit:hover {
+  background: #29463a;
+  transform: translateY(-1px);
+}
+
+.create-hotel-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.create-hotel-logout {
+  display: block;
+  margin: 18px auto 0;
+  border: none;
+  background: transparent;
+  color: #7a8580;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.create-hotel-logout:hover {
+  color: #1e3028;
+}
+
+.hotel-create-error {
+  margin-bottom: 22px;
+  padding: 14px 16px;
+  border: 1px solid #f0cece;
+  border-radius: 12px;
+  background: #fff5f5;
+  color: #b23c3c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   EMPTY STATES
+   ========================================================= */
+
+.empty-state {
+  padding: 55px 30px;
+  border: 1px dashed #d9dfdb;
+  border-radius: 18px;
+  background: #fbfcfb;
+  text-align: center;
+}
+
+.empty-state > div {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  background: #f1f4f1;
+  color: #75817a;
+  font-size: 22px;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px;
+  color: #26332d;
+  font-size: 16px;
+}
+
+.empty-state p {
+  max-width: 450px;
+  margin: auto;
+  color: #7c8781;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* =========================================================
+   HOTEL CREATE RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 760px) {
+  .hotel-create-page {
+    padding: 20px;
+  }
+
+  .hotel-create-card {
+    padding: 30px 22px;
+    border-radius: 22px;
+  }
+
+  .hotel-create-card h1 {
+    font-size: 29px;
+  }
+
+  .hotel-create-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hotel-form-full {
+    grid-column: auto;
+  }
+}

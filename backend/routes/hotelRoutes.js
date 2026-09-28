@@ -1,60 +1,68 @@
 const express = require("express");
+
 const router = express.Router();
 
 const {
-  createHotel,
   getHotels,
   getHotelById,
-  updateHotel,
-  deleteHotel,
-  assignHotelAdmin,
+  createHotel,
   getMyHotel,
+  updateHotel,
   updateMyHotel,
+  deleteHotel,
 } = require("../controllers/hotelController");
 
 const { protect } = require("../middleware/authMiddleware");
-const admin = require("../middleware/adminMiddleware");
-const hotelAdmin = require("../middleware/hotelAdminMiddleware");
 
-// ===============================
+// ======================================================
+// ROLE MIDDLEWARE
+// ======================================================
+const adminOrHotelAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      message: "Not authenticated",
+    });
+  }
+
+  if (req.user.role !== "admin" && req.user.role !== "hoteladmin") {
+    return res.status(403).json({
+      message: "Admin or hotel admin access required",
+    });
+  }
+
+  next();
+};
+
+// ======================================================
 // PUBLIC ROUTES
-// ===============================
+// ======================================================
 
 // Get all hotels
 router.get("/", getHotels);
 
-// ===============================
-// HOTEL ADMIN ROUTES
-// IMPORTANT: These MUST be before /:id
-// ===============================
-
-// Get logged-in hotel admin's hotel
-router.get("/my-hotel", protect, hotelAdmin, getMyHotel);
-
-// Update logged-in hotel admin's hotel
-router.put("/my-hotel", protect, hotelAdmin, updateMyHotel);
-
-// ===============================
-// PUBLIC SINGLE HOTEL ROUTE
-// ===============================
-
-// Get hotel by ID
+// Get one hotel
 router.get("/:id", getHotelById);
 
-// ===============================
-// SUPER ADMIN ROUTES
-// ===============================
+// ======================================================
+// HOTEL ADMIN ROUTES
+// ======================================================
+
+// Get hotel belonging to logged-in hotel admin
+router.get("/my-hotel", protect, getMyHotel);
 
 // Create hotel
-router.post("/", protect, admin, createHotel);
+// ADMIN + HOTEL ADMIN
+router.post("/", protect, adminOrHotelAdmin, createHotel);
 
-// Update any hotel
-router.put("/:id", protect, admin, updateHotel);
+// Update my hotel
+router.put("/my-hotel", protect, adminOrHotelAdmin, updateMyHotel);
 
-// Delete hotel
-router.delete("/:id", protect, admin, deleteHotel);
+// ======================================================
+// GENERAL HOTEL MANAGEMENT
+// ======================================================
 
-// Assign hotel admin
-router.put("/:id/assign-admin", protect, admin, assignHotelAdmin);
+router.put("/:id", protect, adminOrHotelAdmin, updateHotel);
+
+router.delete("/:id", protect, adminOrHotelAdmin, deleteHotel);
 
 module.exports = router;
