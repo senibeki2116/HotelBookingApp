@@ -1,77 +1,60 @@
-import { createContext, useState } from "react";
+import { createContext, useEffect, useState } from "react";
 
 export const AuthContext = createContext();
 
-const normalizeToken = (token) => {
-  if (!token || token === "null" || token === "undefined") {
-    return null;
-  }
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  let cleanToken = token;
+  // Load saved login information
+  useEffect(() => {
+    const savedToken = localStorage.getItem("accessToken");
+    const savedUser = localStorage.getItem("user");
 
-  try {
-    const parsed = JSON.parse(token);
-
-    if (typeof parsed === "string") {
-      cleanToken = parsed;
-    }
-  } catch {
-    // Already a normal string
-  }
-
-  cleanToken = cleanToken.replace(/^Bearer\s+/i, "").trim();
-
-  return cleanToken || null;
-};
-
-const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    try {
-      const savedUser = localStorage.getItem("user");
-      return savedUser ? JSON.parse(savedUser) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [token, setToken] = useState(() => {
-    return normalizeToken(localStorage.getItem("token"));
-  });
-
-  const login = (userData, tokenValue) => {
-    const cleanToken = normalizeToken(tokenValue);
-
-    if (!cleanToken) {
-      console.error("Login failed: no valid token received.");
-      return false;
+    if (savedToken) {
+      setToken(savedToken);
     }
 
-    const preparedUser = {
-      ...userData,
-      _id: userData?._id || userData?.id,
-      id: userData?.id || userData?._id,
-    };
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (error) {
+        console.error("Invalid saved user:", error);
+        localStorage.removeItem("user");
+      }
+    }
 
-    setUser(preparedUser);
-    setToken(cleanToken);
+    setLoading(false);
+  }, []);
 
-    localStorage.setItem("user", JSON.stringify(preparedUser));
+  // Login
+  const login = (userData, userToken) => {
+    console.log("Login user:", userData);
+    console.log("Login token:", userToken);
 
-    localStorage.setItem("token", cleanToken);
+    if (!userToken) {
+      console.error("No token received from backend.");
+      return;
+    }
 
-    console.log("Login successful");
-    console.log("Token saved:", cleanToken);
+    localStorage.setItem("accessToken", userToken);
+    localStorage.setItem("user", JSON.stringify(userData));
 
-    return true;
+    setToken(userToken);
+    setUser(userData);
   };
 
+  // Logout
   const logout = () => {
-    setUser(null);
-    setToken(null);
-
+    localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
-    localStorage.removeItem("token");
+
+    setToken(null);
+    setUser(null);
   };
+
+  const isAuthenticated = !!token;
 
   return (
     <AuthContext.Provider
@@ -80,6 +63,8 @@ const AuthProvider = ({ children }) => {
         token,
         login,
         logout,
+        isAuthenticated,
+        loading,
       }}
     >
       {children}
@@ -87,4 +72,7 @@ const AuthProvider = ({ children }) => {
   );
 };
 
+// IMPORTANT:
+// This allows main.jsx to use:
+// import AuthContext from "./context/AuthContext";
 export default AuthProvider;

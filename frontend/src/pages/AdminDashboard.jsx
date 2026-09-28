@@ -16,89 +16,143 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  /* ================================
+  /* ==========================================
      LOAD DASHBOARD DATA
-  ================================= */
+  ========================================== */
 
   useEffect(() => {
     const loadDashboard = async () => {
+      setLoading(true);
+      setError("");
+
+      const errors = [];
+
+      // ========================================
+      // LOAD HOTELS
+      // ========================================
+
       try {
-        setLoading(true);
-        setError("");
+        const response = await API.get("/hotels");
 
-        /*
-          These are the endpoints that currently exist
-          in your backend.
-        */
-        const [hotelsRes, bookingsRes, adminsRes] = await Promise.all([
-          API.get("/hotels"),
-          API.get("/bookings"),
-          API.get("/users/hotel-admins"),
-        ]);
+        console.log("HOTELS:", response.status, response.data);
 
-        /* ============================
-           HOTELS
-        ============================ */
-
-        const hotelData = Array.isArray(hotelsRes.data)
-          ? hotelsRes.data
-          : hotelsRes.data?.hotels || [];
-
-        /* ============================
-           BOOKINGS
-        ============================ */
-
-        const bookingData = Array.isArray(bookingsRes.data)
-          ? bookingsRes.data
-          : bookingsRes.data?.bookings || [];
-
-        /* ============================
-           HOTEL ADMINS
-        ============================ */
-
-        const adminData = Array.isArray(adminsRes.data)
-          ? adminsRes.data
-          : adminsRes.data?.hotelAdmins || adminsRes.data?.admins || [];
+        const hotelData = Array.isArray(response.data)
+          ? response.data
+          : response.data?.hotels || [];
 
         setHotels(hotelData);
+      } catch (err) {
+        console.error(
+          "HOTELS ERROR:",
+          err.response?.status,
+          err.response?.data,
+        );
+
+        errors.push({
+          name: "Hotels",
+          status: err.response?.status,
+          message: err.response?.data?.message,
+        });
+      }
+
+      // ========================================
+      // LOAD BOOKINGS
+      // ========================================
+
+      try {
+        const response = await API.get("/bookings");
+
+        console.log("BOOKINGS:", response.status, response.data);
+
+        const bookingData = Array.isArray(response.data)
+          ? response.data
+          : response.data?.bookings || [];
+
         setBookings(bookingData);
+      } catch (err) {
+        console.error(
+          "BOOKINGS ERROR:",
+          err.response?.status,
+          err.response?.data,
+        );
+
+        errors.push({
+          name: "Bookings",
+          status: err.response?.status,
+          message: err.response?.data?.message,
+        });
+      }
+
+      // ========================================
+      // LOAD HOTEL ADMINS
+      // ========================================
+
+      try {
+        const response = await API.get("/users/hotel-admins");
+
+        console.log("HOTEL ADMINS:", response.status, response.data);
+
+        const adminData = Array.isArray(response.data)
+          ? response.data
+          : response.data?.hotelAdmins || response.data?.admins || [];
+
         setHotelAdmins(adminData);
       } catch (err) {
-        console.error("Dashboard loading error:", err);
+        console.error(
+          "HOTEL ADMINS ERROR:",
+          err.response?.status,
+          err.response?.data,
+        );
 
-        if (err.response?.status === 401) {
-          setError("Your session has expired. Please sign in again.");
-        } else if (err.response?.status === 403) {
-          setError("You do not have permission to access the admin dashboard.");
+        errors.push({
+          name: "Hotel Admins",
+          status: err.response?.status,
+          message: err.response?.data?.message,
+        });
+      }
+
+      // ========================================
+      // SHOW ACTUAL ERROR
+      // ========================================
+
+      if (errors.length > 0) {
+        console.error("DASHBOARD API ERRORS:", errors);
+
+        const unauthorized = errors.find((item) => item.status === 401);
+
+        const forbidden = errors.find((item) => item.status === 403);
+
+        if (unauthorized) {
+          setError(
+            `${unauthorized.name} request returned 401. Your login token was not accepted by that endpoint.`,
+          );
+        } else if (forbidden) {
+          setError(
+            `${forbidden.name} request returned 403. Your account does not have permission for that endpoint.`,
+          );
         } else {
           setError(
-            err.response?.data?.message ||
-              "Unable to load dashboard information.",
+            `Some dashboard data could not be loaded: ${errors
+              .map((item) => item.name)
+              .join(", ")}.`,
           );
         }
-      } finally {
-        setLoading(false);
       }
+
+      setLoading(false);
     };
 
     loadDashboard();
   }, []);
 
-  /* ================================
+  /* ==========================================
      CALCULATIONS
-  ================================= */
+  ========================================== */
 
   const totalHotels = hotels.length;
 
   const totalBookings = bookings.length;
 
-  /*
-    There is currently no GET /api/users endpoint
-    in your backend.
-
-    Therefore we don't make a request to /users here.
-    We use 0 until a dedicated users endpoint is added.
-  */
   const totalUsers = 0;
 
   const totalHotelAdmins = hotelAdmins.length;
@@ -121,9 +175,9 @@ function AdminDashboard() {
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
     .slice(0, 5);
 
-  /* ================================
+  /* ==========================================
      HELPERS
-  ================================= */
+  ========================================== */
 
   const formatDate = (date) => {
     if (!date) return "-";
@@ -181,20 +235,32 @@ function AdminDashboard() {
     return "confirmed";
   };
 
-  /* ================================
+  /* ==========================================
+     ROLE DISPLAY
+  ========================================== */
+
+  const roleLabel =
+    user?.role === "superadmin"
+      ? "Super Administrator"
+      : user?.role === "hoteladmin"
+        ? "Hotel Administrator"
+        : "Administrator";
+
+  /* ==========================================
      LOGOUT
-  ================================= */
+  ========================================== */
 
   const handleLogout = () => {
+    localStorage.removeItem("accessToken");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
 
     navigate("/login");
   };
 
-  /* ================================
+  /* ==========================================
      REFRESH
-  ================================= */
+  ========================================== */
 
   const refreshDashboard = () => {
     window.location.reload();
@@ -202,9 +268,9 @@ function AdminDashboard() {
 
   return (
     <div className="super-admin-layout">
-      {/* =====================================================
+      {/* ======================================
           SIDEBAR
-      ====================================================== */}
+      ====================================== */}
 
       <aside className="admin-sidebar">
         <div className="sidebar-brand">
@@ -221,20 +287,16 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* ADMIN PROFILE */}
-
         <div className="sidebar-profile">
           <div className="sidebar-avatar">{getInitial(adminName)}</div>
 
           <div className="sidebar-profile-text">
             <strong>{adminName}</strong>
-            <span>Super Administrator</span>
+            <span>{roleLabel}</span>
           </div>
 
           <div className="online-dot"></div>
         </div>
-
-        {/* NAVIGATION */}
 
         <nav className="sidebar-nav">
           <div className="nav-section-title">MAIN MENU</div>
@@ -290,8 +352,6 @@ function AdminDashboard() {
           </button>
         </nav>
 
-        {/* SIDEBAR BOTTOM */}
-
         <div className="sidebar-bottom">
           <button className="website-btn" onClick={() => navigate("/")}>
             <span>↗</span>
@@ -305,13 +365,11 @@ function AdminDashboard() {
         </div>
       </aside>
 
-      {/* =====================================================
+      {/* ======================================
           MAIN CONTENT
-      ====================================================== */}
+      ====================================== */}
 
       <main className="admin-main">
-        {/* TOP BAR */}
-
         <header className="admin-topbar">
           <div className="topbar-title">
             <div className="breadcrumb">
@@ -339,13 +397,11 @@ function AdminDashboard() {
 
               <div>
                 <strong>{adminName}</strong>
-                <span>Super Admin</span>
+                <span>{roleLabel}</span>
               </div>
             </div>
           </div>
         </header>
-
-        {/* ERROR */}
 
         {error && (
           <div className="dashboard-error">
@@ -354,9 +410,9 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* =================================================
-            WELCOME AREA
-        ================================================== */}
+        {/* ======================================
+            WELCOME
+        ====================================== */}
 
         <section className="welcome-banner">
           <div className="welcome-content">
@@ -398,16 +454,15 @@ function AdminDashboard() {
                 <div className="building-window"></div>
                 <div className="building-window"></div>
                 <div className="building-window"></div>
-
                 <div className="building-door"></div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* =================================================
+        {/* ======================================
             STATS
-        ================================================== */}
+        ====================================== */}
 
         <section className="dashboard-section">
           <div className="section-heading">
@@ -426,15 +481,12 @@ function AdminDashboard() {
           </div>
 
           <div className="stats-grid">
-            {/* HOTELS */}
-
             <div
               className="stat-card"
               onClick={() => navigate("/admin/manage-hotels")}
             >
               <div className="stat-header">
                 <div className="stat-icon blue">▣</div>
-
                 <span className="stat-arrow">→</span>
               </div>
 
@@ -445,15 +497,12 @@ function AdminDashboard() {
               <div className="stat-description">Properties on platform</div>
             </div>
 
-            {/* BOOKINGS */}
-
             <div
               className="stat-card"
               onClick={() => navigate("/admin/bookings")}
             >
               <div className="stat-header">
                 <div className="stat-icon purple">▤</div>
-
                 <span className="stat-arrow">→</span>
               </div>
 
@@ -464,12 +513,9 @@ function AdminDashboard() {
               <div className="stat-description">All reservations</div>
             </div>
 
-            {/* USERS */}
-
             <div className="stat-card" onClick={() => navigate("/admin/users")}>
               <div className="stat-header">
                 <div className="stat-icon green">◉</div>
-
                 <span className="stat-arrow">→</span>
               </div>
 
@@ -480,15 +526,12 @@ function AdminDashboard() {
               <div className="stat-description">Registered users</div>
             </div>
 
-            {/* REVENUE */}
-
             <div
               className="stat-card"
               onClick={() => navigate("/admin/reports")}
             >
               <div className="stat-header">
                 <div className="stat-icon orange">$</div>
-
                 <span className="stat-arrow">→</span>
               </div>
 
@@ -503,9 +546,9 @@ function AdminDashboard() {
           </div>
         </section>
 
-        {/* =================================================
+        {/* ======================================
             SECONDARY STATS
-        ================================================== */}
+        ====================================== */}
 
         <section className="secondary-stats">
           <div className="mini-stat">
@@ -513,7 +556,6 @@ function AdminDashboard() {
 
             <div>
               <strong>{loading ? "—" : confirmedBookings}</strong>
-
               <span>Confirmed bookings</span>
             </div>
           </div>
@@ -523,7 +565,6 @@ function AdminDashboard() {
 
             <div>
               <strong>{loading ? "—" : cancelledBookings}</strong>
-
               <span>Cancelled bookings</span>
             </div>
           </div>
@@ -533,15 +574,14 @@ function AdminDashboard() {
 
             <div>
               <strong>{loading ? "—" : totalHotelAdmins}</strong>
-
               <span>Hotel administrators</span>
             </div>
           </div>
         </section>
 
-        {/* =================================================
-            MANAGEMENT
-        ================================================== */}
+        {/* ======================================
+            QUICK ACTIONS
+        ====================================== */}
 
         <section className="dashboard-section">
           <div className="section-heading">
@@ -558,7 +598,6 @@ function AdminDashboard() {
             <div className="management-card">
               <div className="management-top">
                 <div className="management-icon blue">▣</div>
-
                 <span>01</span>
               </div>
 
@@ -578,7 +617,6 @@ function AdminDashboard() {
             <div className="management-card">
               <div className="management-top">
                 <div className="management-icon purple">▤</div>
-
                 <span>02</span>
               </div>
 
@@ -598,7 +636,6 @@ function AdminDashboard() {
             <div className="management-card">
               <div className="management-top">
                 <div className="management-icon green">◉</div>
-
                 <span>03</span>
               </div>
 
@@ -618,7 +655,6 @@ function AdminDashboard() {
             <div className="management-card">
               <div className="management-top">
                 <div className="management-icon orange">♙</div>
-
                 <span>04</span>
               </div>
 
@@ -638,7 +674,6 @@ function AdminDashboard() {
             <div className="management-card">
               <div className="management-top">
                 <div className="management-icon red">◫</div>
-
                 <span>05</span>
               </div>
 
@@ -655,7 +690,6 @@ function AdminDashboard() {
             <div className="management-card">
               <div className="management-top">
                 <div className="management-icon cyan">+</div>
-
                 <span>06</span>
               </div>
 
@@ -674,9 +708,9 @@ function AdminDashboard() {
           </div>
         </section>
 
-        {/* =================================================
+        {/* ======================================
             RECENT BOOKINGS
-        ================================================== */}
+        ====================================== */}
 
         <section className="dashboard-section recent-section">
           <div className="section-heading">
@@ -791,14 +825,13 @@ function AdminDashboard() {
           </div>
         </section>
 
-        {/* =================================================
+        {/* ======================================
             FOOTER
-        ================================================== */}
+        ====================================== */}
 
         <footer className="admin-footer">
           <div className="footer-brand">
             <strong>StayHub</strong>
-
             <span>Hotel Management System</span>
           </div>
 

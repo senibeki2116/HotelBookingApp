@@ -11,26 +11,43 @@ const {
   getMyHotelBookings,
 } = require("../controllers/bookingController");
 
-const { protect, adminOnly } = require("../middleware/authMiddleware");
-
+const { protect } = require("../middleware/authMiddleware");
 const hotelAdmin = require("../middleware/hotelAdminMiddleware");
 
-// Customer - create booking
+// =====================================================
+// CUSTOMER - CREATE BOOKING
+// =====================================================
+
 router.post("/", protect, createBooking);
 
-// Super Admin - all bookings
-router.get("/", protect, adminOnly, getAllBookings);
+// =====================================================
+// ADMIN - ALL BOOKINGS
+// =====================================================
 
-// Customer - my bookings
+router.get("/", protect, getAllBookings);
+
+// =====================================================
+// CUSTOMER - MY BOOKINGS
+// =====================================================
+
 router.get("/my", protect, getMyBookings);
 
-// Hotel Admin - my hotel bookings
+// =====================================================
+// HOTEL ADMIN - MY HOTEL BOOKINGS
+// =====================================================
+
 router.get("/my-hotel", protect, hotelAdmin, getMyHotelBookings);
 
-// Single booking
+// =====================================================
+// SINGLE BOOKING
+// =====================================================
+
 router.get("/:id", protect, getBookingById);
 
-// Delete booking
+// =====================================================
+// DELETE BOOKING
+// =====================================================
+
 router.delete("/:id", protect, deleteBooking);
 
 module.exports = router;

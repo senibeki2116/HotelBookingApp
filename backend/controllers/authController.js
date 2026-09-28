@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const User = require("../models/user");
 
 // =====================================================
@@ -21,6 +22,31 @@ const generateToken = (user) => {
 };
 
 // =====================================================
+// CHECK PASSWORD
+// Supports:
+// 1. Existing plain-text passwords
+// 2. New bcrypt hashed passwords
+// =====================================================
+
+const checkPassword = async (enteredPassword, storedPassword) => {
+  if (!storedPassword) {
+    return false;
+  }
+
+  // If password is already bcrypt hashed
+  if (
+    storedPassword.startsWith("$2a$") ||
+    storedPassword.startsWith("$2b$") ||
+    storedPassword.startsWith("$2y$")
+  ) {
+    return bcrypt.compare(enteredPassword, storedPassword);
+  }
+
+  // Support old plain-text passwords
+  return enteredPassword === storedPassword;
+};
+
+// =====================================================
 // REGISTER NORMAL USER
 // =====================================================
 
@@ -34,8 +60,29 @@ exports.register = async (req, res) => {
       });
     }
 
+    const cleanName = String(name).trim();
+    const cleanEmail = String(email).toLowerCase().trim();
+
+    if (!cleanName) {
+      return res.status(400).json({
+        message: "Name is required",
+      });
+    }
+
+    if (!cleanEmail) {
+      return res.status(400).json({
+        message: "Email is required",
+      });
+    }
+
+    if (String(password).length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters",
+      });
+    }
+
     const existingUser = await User.findOne({
-      email: email.toLowerCase().trim(),
+      email: cleanEmail,
     });
 
     if (existingUser) {
@@ -44,16 +91,20 @@ exports.register = async (req, res) => {
       });
     }
 
+    // Hash password before saving
+    const hashedPassword = await bcrypt.hash(String(password), 10);
+
     const user = await User.create({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      password,
+      name: cleanName,
+      email: cleanEmail,
+      password: hashedPassword,
       role: role || "user",
+      isActive: true,
     });
 
     const token = generateToken(user);
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Registration successful",
       token,
       user: {
@@ -67,7 +118,7 @@ exports.register = async (req, res) => {
   } catch (error) {
     console.error("REGISTER ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message || "Registration failed",
     });
   }
@@ -81,42 +132,97 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log("=================================");
+    console.log("LOGIN REQUEST");
+    console.log("=================================");
+    console.log("Email:", email);
+    console.log("Password provided:", !!password);
+
     if (!email || !password) {
       return res.status(400).json({
         message: "Email and password are required",
       });
     }
 
+    const cleanEmail = String(email).toLowerCase().trim();
+
     const user = await User.findOne({
-      email: email.toLowerCase().trim(),
+      email: cleanEmail,
     });
 
+    console.log("USER FOUND:", !!user);
+
+    if (user) {
+      console.log("USER ID:", user._id);
+      console.log("USER EMAIL:", user.email);
+      console.log("USER ROLE:", user.role);
+      console.log("USER ACTIVE:", user.isActive);
+    }
+
+    // User does not exist
     if (!user) {
+      console.log("LOGIN FAILED: USER NOT FOUND");
+
       return res.status(401).json({
         message: "Invalid email or password",
       });
     }
 
-    // Works with a normal string password.
-    // If your User model has a comparePassword method,
-    // use it automatically.
-    let passwordCorrect = false;
+    // Account disabled
+    if (user.isActive === false) {
+      console.log("LOGIN FAILED: ACCOUNT DEACTIVATED");
 
-    if (typeof user.comparePassword === "function") {
-      passwordCorrect = await user.comparePassword(password);
-    } else {
-      passwordCorrect = user.password === password;
+      return res.status(401).json({
+        message: "Your account has been deactivated",
+      });
     }
+
+    // Check password
+    const passwordCorrect = await checkPassword(
+      String(password),
+      user.password,
+    );
+
+    console.log("PASSWORD CORRECT:", passwordCorrect);
 
     if (!passwordCorrect) {
+      console.log("LOGIN FAILED: WRONG PASSWORD");
+
       return res.status(401).json({
         message: "Invalid email or password",
       });
     }
 
+    /*
+     * If this user still has an old plain-text password,
+     * convert it to bcrypt automatically after successful login.
+     */
+
+    const isAlreadyHashed =
+      user.password &&
+      (user.password.startsWith("$2a$") ||
+        user.password.startsWith("$2b$") ||
+        user.password.startsWith("$2y$"));
+
+    if (!isAlreadyHashed) {
+      console.log("OLD PASSWORD FORMAT DETECTED - HASHING PASSWORD");
+
+      user.password = await bcrypt.hash(String(password), 10);
+
+      await user.save();
+
+      console.log("PASSWORD SUCCESSFULLY MIGRATED TO BCRYPT");
+    }
+
+    // Generate JWT
     const token = generateToken(user);
 
-    res.status(200).json({
+    console.log("TOKEN GENERATED:", !!token);
+
+    console.log("LOGIN SUCCESS");
+    console.log("=================================");
+
+    return res.status(200).json({
       message: "Login successful",
       token,
       user: {
@@ -128,9 +234,12 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("LOGIN ERROR:", error);
+    console.error("=================================");
+    console.error("LOGIN ERROR");
+    console.error("=================================");
+    console.error(error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message || "Login failed",
     });
   }
@@ -151,7 +260,20 @@ exports.createHotelAdmin = async (req, res) => {
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanName = String(name).trim();
+    const cleanEmail = String(email).toLowerCase().trim();
+
+    if (!cleanName) {
+      return res.status(400).json({
+        message: "Name is required",
+      });
+    }
+
+    if (String(password).length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters",
+      });
+    }
 
     const existingUser = await User.findOne({
       email: cleanEmail,
@@ -163,14 +285,17 @@ exports.createHotelAdmin = async (req, res) => {
       });
     }
 
+    const hashedPassword = await bcrypt.hash(String(password), 10);
+
     const hotelAdmin = await User.create({
-      name: name.trim(),
+      name: cleanName,
       email: cleanEmail,
-      password,
+      password: hashedPassword,
       role: "hoteladmin",
+      isActive: true,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Hotel admin created successfully",
       user: {
         id: hotelAdmin._id,
@@ -183,7 +308,7 @@ exports.createHotelAdmin = async (req, res) => {
   } catch (error) {
     console.error("CREATE HOTEL ADMIN ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message || "Unable to create hotel admin",
     });
   }
@@ -202,11 +327,11 @@ exports.getHotelAdmins = async (req, res) => {
       .select("-password")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(hotelAdmins);
+    return res.status(200).json(hotelAdmins);
   } catch (error) {
     console.error("GET HOTEL ADMINS ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message || "Unable to get hotel admins",
     });
   }
@@ -268,12 +393,18 @@ exports.updateHotelAdmin = async (req, res) => {
     }
 
     if (password !== undefined && password !== "") {
-      hotelAdmin.password = password;
+      if (String(password).length < 6) {
+        return res.status(400).json({
+          message: "Password must be at least 6 characters",
+        });
+      }
+
+      hotelAdmin.password = await bcrypt.hash(String(password), 10);
     }
 
     await hotelAdmin.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Hotel admin updated successfully",
       user: {
         id: hotelAdmin._id,
@@ -286,7 +417,7 @@ exports.updateHotelAdmin = async (req, res) => {
   } catch (error) {
     console.error("UPDATE HOTEL ADMIN ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message || "Unable to update hotel admin",
     });
   }
@@ -312,13 +443,13 @@ exports.deleteHotelAdmin = async (req, res) => {
 
     await hotelAdmin.deleteOne();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Hotel admin deleted successfully",
     });
   } catch (error) {
     console.error("DELETE HOTEL ADMIN ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message || "Unable to delete hotel admin",
     });
   }
