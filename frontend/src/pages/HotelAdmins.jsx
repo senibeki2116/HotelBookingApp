@@ -182,7 +182,7 @@ const getInitials = (name = "Admin") => {
   const cleanName = String(name).trim();
 
   if (!cleanName) {
-    return "SA";
+    return "AD";
   }
 
   const words = cleanName.split(/\s+/);
@@ -265,9 +265,6 @@ const HotelAdmins = () => {
 
   /* =========================================================
      FETCH HOTEL ADMINS
-     IMPORTANT:
-     This uses /users/hotel-admins
-     NOT /users
      ========================================================= */
 
   const fetchAdmins = async () => {
@@ -290,7 +287,7 @@ const HotelAdmins = () => {
         setError("Your session has expired. Please sign in again.");
       } else if (err.response?.status === 403) {
         setError(
-          "You do not have permission to manage hotel administrators. Please sign in with the Super Admin account.",
+          "You do not have permission to manage hotel administrators. Please sign in with an admin account.",
         );
       } else if (err.response?.status === 404) {
         setError(
@@ -325,10 +322,6 @@ const HotelAdmins = () => {
       setHotels(data);
     } catch (err) {
       console.error("FETCH HOTELS ERROR:", err);
-
-      /*
-       * Do not replace the hotel-admin error with a hotel error.
-       */
     }
   };
 
@@ -380,13 +373,11 @@ const HotelAdmins = () => {
 
   const getHotelName = (admin) => {
     const hotel = getHotelObject(admin);
-
     return hotel?.name || "Not assigned";
   };
 
   const getHotelLocation = (admin) => {
     const hotel = getHotelObject(admin);
-
     return hotel?.location || "Not assigned";
   };
 
@@ -421,11 +412,8 @@ const HotelAdmins = () => {
 
     return admins.filter((admin) => {
       const name = String(admin.name || "").toLowerCase();
-
       const email = String(admin.email || "").toLowerCase();
-
       const hotelName = getHotelName(admin).toLowerCase();
-
       const location = getHotelLocation(admin).toLowerCase();
 
       const matchesSearch =
@@ -553,6 +541,7 @@ const HotelAdmins = () => {
           name: formData.name.trim(),
           email: formData.email.trim(),
           hotelId: formData.hotelId || null,
+          isActive: formData.isActive,
         });
 
         setSuccess("Hotel administrator updated successfully.");
@@ -577,10 +566,10 @@ const HotelAdmins = () => {
     } catch (err) {
       console.error("SAVE ADMIN ERROR:", err);
 
-      if (err.response?.status === 403) {
-        setError(
-          "You must be logged in as the Super Admin to perform this action.",
-        );
+      if (err.response?.status === 401) {
+        setError("Your session has expired. Please sign in again.");
+      } else if (err.response?.status === 403) {
+        setError("You must be logged in as an admin to perform this action.");
       } else {
         setError(
           err.response?.data?.message || "Unable to save hotel administrator.",
@@ -622,10 +611,10 @@ const HotelAdmins = () => {
     } catch (err) {
       console.error("DELETE ADMIN ERROR:", err);
 
-      if (err.response?.status === 403) {
-        setError(
-          "You must be logged in as the Super Admin to delete administrators.",
-        );
+      if (err.response?.status === 401) {
+        setError("Your session has expired. Please sign in again.");
+      } else if (err.response?.status === 403) {
+        setError("You must be logged in as an admin to delete administrators.");
       } else {
         setError(
           err.response?.data?.message ||
@@ -640,6 +629,7 @@ const HotelAdmins = () => {
      ========================================================= */
 
   const handleLogout = () => {
+    localStorage.removeItem("accessToken");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
 
@@ -661,7 +651,6 @@ const HotelAdmins = () => {
 
             <div>
               <div className="ha-brand-name">StayHub</div>
-
               <div className="ha-brand-subtitle">HOTEL MANAGEMENT</div>
             </div>
           </div>
@@ -693,9 +682,7 @@ const HotelAdmins = () => {
 
   return (
     <div className="hotel-admin-page">
-      {/* =====================================================
-          SIDEBAR
-          ===================================================== */}
+      {/* SIDEBAR */}
 
       <aside className="ha-sidebar">
         <div className="ha-brand">
@@ -705,12 +692,11 @@ const HotelAdmins = () => {
 
           <div>
             <div className="ha-brand-name">StayHub</div>
-
             <div className="ha-brand-subtitle">HOTEL MANAGEMENT</div>
           </div>
         </div>
 
-        <div className="ha-sidebar-title">Super Admin System</div>
+        <div className="ha-sidebar-title">Admin System</div>
 
         <nav className="ha-nav">
           <button
@@ -781,13 +767,12 @@ const HotelAdmins = () => {
         <div className="ha-sidebar-bottom">
           <div className="ha-sidebar-user">
             <div className="ha-sidebar-avatar">
-              {getInitials(currentUser?.name || "SA")}
+              {getInitials(currentUser?.name || "AD")}
             </div>
 
             <div className="ha-sidebar-user-info">
-              <strong>{currentUser?.name || "Super Admin"}</strong>
-
-              <span>Super Administrator</span>
+              <strong>{currentUser?.name || "Admin"}</strong>
+              <span>Administrator</span>
             </div>
           </div>
 
@@ -798,17 +783,12 @@ const HotelAdmins = () => {
         </div>
       </aside>
 
-      {/* =====================================================
-          MAIN
-          ===================================================== */}
+      {/* MAIN */}
 
       <main className="ha-main">
-        {/* TOP BAR */}
-
         <header className="ha-topbar">
           <div className="ha-global-search">
             <Icon name="search" size={19} />
-
             <span>Search hotels, admins, or anything...</span>
           </div>
 
@@ -820,13 +800,12 @@ const HotelAdmins = () => {
 
             <div className="ha-user-menu">
               <div className="ha-top-avatar">
-                {getInitials(currentUser?.name || "SA")}
+                {getInitials(currentUser?.name || "AD")}
               </div>
 
               <div className="ha-top-user-info">
-                <strong>{currentUser?.name || "Super Admin"}</strong>
-
-                <span>Super Admin</span>
+                <strong>{currentUser?.name || "Admin"}</strong>
+                <span>Administrator</span>
               </div>
 
               <span className="ha-chevron">⌄</span>
@@ -839,9 +818,7 @@ const HotelAdmins = () => {
 
           <div className="ha-breadcrumb">
             <span>Administration</span>
-
             <span>›</span>
-
             <strong>Hotel Administrators</strong>
           </div>
 
@@ -899,9 +876,7 @@ const HotelAdmins = () => {
             </div>
           )}
 
-          {/* =================================================
-              STATISTICS
-              ================================================= */}
+          {/* STATISTICS */}
 
           <section className="ha-stats-grid">
             <div className="ha-stat-card blue">
@@ -911,9 +886,7 @@ const HotelAdmins = () => {
 
               <div className="ha-stat-content">
                 <span>Total Administrators</span>
-
                 <strong>{totalAdmins}</strong>
-
                 <small>Hotel management team</small>
               </div>
             </div>
@@ -925,9 +898,7 @@ const HotelAdmins = () => {
 
               <div className="ha-stat-content">
                 <span>Assigned to Hotels</span>
-
                 <strong>{assignedAdmins}</strong>
-
                 <small>Administrators with hotel access</small>
               </div>
             </div>
@@ -939,9 +910,7 @@ const HotelAdmins = () => {
 
               <div className="ha-stat-content">
                 <span>Unassigned</span>
-
                 <strong>{unassignedAdmins}</strong>
-
                 <small>Need hotel assignment</small>
               </div>
             </div>
@@ -953,17 +922,13 @@ const HotelAdmins = () => {
 
               <div className="ha-stat-content">
                 <span>Available Hotels</span>
-
                 <strong>{hotels.length}</strong>
-
                 <small>Properties in the system</small>
               </div>
             </div>
           </section>
 
-          {/* =================================================
-              DIRECTORY
-              ================================================= */}
+          {/* DIRECTORY */}
 
           <section className="ha-directory">
             <div className="ha-directory-header">
@@ -1002,9 +967,7 @@ const HotelAdmins = () => {
                 onChange={(event) => setStatusFilter(event.target.value)}
               >
                 <option value="all">All Status</option>
-
                 <option value="active">Active</option>
-
                 <option value="inactive">Inactive</option>
               </select>
 
@@ -1049,17 +1012,11 @@ const HotelAdmins = () => {
                     </th>
 
                     <th>ADMINISTRATOR</th>
-
                     <th>EMAIL</th>
-
                     <th>ASSIGNED HOTEL</th>
-
                     <th>LOCATION</th>
-
                     <th>ROLE</th>
-
                     <th>STATUS</th>
-
                     <th>ACTIONS</th>
                   </tr>
                 </thead>
@@ -1093,11 +1050,8 @@ const HotelAdmins = () => {
                   ) : (
                     filteredAdmins.map((admin) => {
                       const adminId = admin._id || admin.id;
-
                       const hotel = getHotelObject(admin);
-
                       const assigned = Boolean(hotel);
-
                       const active = admin.isActive !== false;
 
                       return (
@@ -1105,8 +1059,6 @@ const HotelAdmins = () => {
                           <td className="checkbox-column">
                             <input type="checkbox" />
                           </td>
-
-                          {/* ADMIN */}
 
                           <td>
                             <div className="ha-admin-cell">
@@ -1126,15 +1078,11 @@ const HotelAdmins = () => {
                             </div>
                           </td>
 
-                          {/* EMAIL */}
-
                           <td>
                             <span className="ha-email">
                               {admin.email || "—"}
                             </span>
                           </td>
-
-                          {/* HOTEL */}
 
                           <td>
                             <div className="ha-hotel-cell">
@@ -1146,20 +1094,16 @@ const HotelAdmins = () => {
                             </div>
                           </td>
 
-                          {/* LOCATION */}
-
                           <td>
                             <div className="ha-location-cell">
                               {assigned ? (
                                 <>
                                   <Icon name="location" size={16} />
-
                                   <span>{getHotelLocation(admin)}</span>
                                 </>
                               ) : (
                                 <>
                                   <span className="ha-dash">—</span>
-
                                   <span className="not-assigned">
                                     Not assigned
                                   </span>
@@ -1168,13 +1112,9 @@ const HotelAdmins = () => {
                             </div>
                           </td>
 
-                          {/* ROLE */}
-
                           <td>
                             <span className="ha-role-badge">Hotel Admin</span>
                           </td>
-
-                          {/* STATUS */}
 
                           <td>
                             <span
@@ -1183,12 +1123,9 @@ const HotelAdmins = () => {
                               }`}
                             >
                               <span className="status-dot" />
-
                               {active ? "Active" : "Inactive"}
                             </span>
                           </td>
-
-                          {/* ACTIONS */}
 
                           <td>
                             <div className="ha-actions">
@@ -1227,9 +1164,7 @@ const HotelAdmins = () => {
 
               <div className="ha-pagination">
                 <button disabled>‹</button>
-
                 <button className="current">1</button>
-
                 <button disabled>›</button>
               </div>
             </div>
@@ -1237,9 +1172,7 @@ const HotelAdmins = () => {
         </div>
       </main>
 
-      {/* =====================================================
-          MODAL
-          ===================================================== */}
+      {/* MODAL */}
 
       {showModal && (
         <div
@@ -1383,7 +1316,6 @@ const HotelAdmins = () => {
                   ) : (
                     <>
                       <Icon name="check" size={18} />
-
                       {editingAdmin ? "Save Changes" : "Create Administrator"}
                     </>
                   )}
