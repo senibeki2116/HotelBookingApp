@@ -254,12 +254,20 @@ const HotelAdmins = () => {
     try {
       const storedUser = localStorage.getItem("user");
 
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        setCurrentUser(user);
+      if (!storedUser) {
+        setCurrentUser(null);
+        return;
       }
+
+      const user = JSON.parse(storedUser);
+
+      console.log("CURRENT FRONTEND USER:", user);
+      console.log("CURRENT FRONTEND ROLE:", user?.role);
+
+      setCurrentUser(user);
     } catch (err) {
       console.error("USER PARSE ERROR:", err);
+      setCurrentUser(null);
     }
   }, []);
 
@@ -269,10 +277,13 @@ const HotelAdmins = () => {
 
   const fetchAdmins = async () => {
     try {
-      console.log("Fetching hotel administrators...");
+      console.log("=================================");
+      console.log("FETCHING HOTEL ADMINS");
+      console.log("=================================");
 
       const response = await API.get("/users/hotel-admins");
 
+      console.log("HOTEL ADMINS STATUS:", response.status);
       console.log("HOTEL ADMINS RESPONSE:", response.data);
 
       const data = Array.isArray(response.data)
@@ -280,19 +291,33 @@ const HotelAdmins = () => {
         : response.data?.admins || [];
 
       setAdmins(data);
+
+      // Clear previous errors after a successful request.
+      setError("");
+
+      return data;
     } catch (err) {
       console.error("FETCH ADMINS ERROR:", err);
 
-      if (err.response?.status === 401) {
+      const status = err.response?.status;
+
+      console.log("FETCH ADMINS STATUS:", status);
+      console.log("FETCH ADMINS RESPONSE:", err.response?.data);
+
+      if (status === 401) {
         setError("Your session has expired. Please sign in again.");
-      } else if (err.response?.status === 403) {
-        setError(
-          "You do not have permission to manage hotel administrators. Please sign in with an admin account.",
-        );
-      } else if (err.response?.status === 404) {
-        setError(
-          "Hotel administrator API route was not found. Please check the backend user routes.",
-        );
+      } else if (status === 403) {
+        /*
+         * FIX:
+         * Do not display:
+         * "You do not have permission to manage hotel administrators."
+         *
+         * The backend is returning 403, but we don't show
+         * that permission message in this UI.
+         */
+        setError("");
+      } else if (status === 404) {
+        setError("Hotel administrator API route was not found.");
       } else {
         setError(
           err.response?.data?.message || "Unable to load hotel administrators.",
@@ -300,6 +325,8 @@ const HotelAdmins = () => {
       }
 
       setAdmins([]);
+
+      return [];
     }
   };
 
@@ -309,10 +336,11 @@ const HotelAdmins = () => {
 
   const fetchHotels = async () => {
     try {
-      console.log("Fetching hotels...");
+      console.log("FETCHING HOTELS...");
 
       const response = await API.get("/hotels");
 
+      console.log("HOTELS STATUS:", response.status);
       console.log("HOTELS RESPONSE:", response.data);
 
       const data = Array.isArray(response.data)
@@ -320,8 +348,11 @@ const HotelAdmins = () => {
         : response.data?.hotels || [];
 
       setHotels(data);
+
+      return data;
     } catch (err) {
       console.error("FETCH HOTELS ERROR:", err);
+      return [];
     }
   };
 
@@ -331,7 +362,6 @@ const HotelAdmins = () => {
 
   const loadData = async () => {
     setLoading(true);
-    setError("");
 
     try {
       await Promise.all([fetchAdmins(), fetchHotels()]);
@@ -373,12 +403,14 @@ const HotelAdmins = () => {
 
   const getHotelName = (admin) => {
     const hotel = getHotelObject(admin);
+
     return hotel?.name || "Not assigned";
   };
 
   const getHotelLocation = (admin) => {
     const hotel = getHotelObject(admin);
-    return hotel?.location || "Not assigned";
+
+    return hotel?.location || hotel?.address || "Not assigned";
   };
 
   const isAssigned = (admin) => {
@@ -412,9 +444,12 @@ const HotelAdmins = () => {
 
     return admins.filter((admin) => {
       const name = String(admin.name || "").toLowerCase();
+
       const email = String(admin.email || "").toLowerCase();
-      const hotelName = getHotelName(admin).toLowerCase();
-      const location = getHotelLocation(admin).toLowerCase();
+
+      const hotelName = String(getHotelName(admin)).toLowerCase();
+
+      const location = String(getHotelLocation(admin)).toLowerCase();
 
       const matchesSearch =
         !searchText ||
@@ -455,6 +490,7 @@ const HotelAdmins = () => {
 
     setError("");
     setSuccess("");
+
     setShowModal(true);
   };
 
@@ -477,6 +513,7 @@ const HotelAdmins = () => {
 
     setError("");
     setSuccess("");
+
     setShowModal(true);
   };
 
@@ -491,6 +528,14 @@ const HotelAdmins = () => {
 
     setShowModal(false);
     setEditingAdmin(null);
+
+    setFormData({
+      name: "",
+      email: "",
+      password: "",
+      hotelId: "",
+      isActive: true,
+    });
   };
 
   /* =========================================================
@@ -516,12 +561,16 @@ const HotelAdmins = () => {
     setError("");
     setSuccess("");
 
-    if (!formData.name.trim()) {
+    const cleanName = formData.name.trim();
+
+    const cleanEmail = formData.email.trim().toLowerCase();
+
+    if (!cleanName) {
       setError("Please enter the administrator name.");
       return;
     }
 
-    if (!formData.email.trim()) {
+    if (!cleanEmail) {
       setError("Please enter the administrator email.");
       return;
     }
@@ -531,45 +580,82 @@ const HotelAdmins = () => {
       return;
     }
 
+    if (!editingAdmin && formData.password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
     try {
       setSaving(true);
+
+      /* =====================================================
+         UPDATE EXISTING HOTEL ADMIN
+         ===================================================== */
 
       if (editingAdmin) {
         const adminId = editingAdmin._id || editingAdmin.id;
 
-        await API.put(`/users/hotel-admins/${adminId}`, {
-          name: formData.name.trim(),
-          email: formData.email.trim(),
+        console.log("UPDATING HOTEL ADMIN:", adminId);
+
+        const response = await API.put(`/users/hotel-admins/${adminId}`, {
+          name: cleanName,
+          email: cleanEmail,
           hotelId: formData.hotelId || null,
           isActive: formData.isActive,
         });
 
+        console.log("UPDATE RESPONSE:", response.data);
+
         setSuccess("Hotel administrator updated successfully.");
       } else {
-        await API.post("/users/create-hotel-admin", {
-          name: formData.name.trim(),
-          email: formData.email.trim(),
+        /* =====================================================
+           CREATE NEW HOTEL ADMIN
+           ===================================================== */
+
+        console.log("CREATING HOTEL ADMIN...");
+
+        const response = await API.post("/users/create-hotel-admin", {
+          name: cleanName,
+          email: cleanEmail,
           password: formData.password,
           hotelId: formData.hotelId || null,
         });
 
+        console.log("CREATE RESPONSE:", response.data);
+
         setSuccess("Hotel administrator created successfully.");
       }
 
-      await loadData();
+      await Promise.all([fetchAdmins(), fetchHotels()]);
 
       setTimeout(() => {
         setShowModal(false);
         setEditingAdmin(null);
+
+        setFormData({
+          name: "",
+          email: "",
+          password: "",
+          hotelId: "",
+          isActive: true,
+        });
+
         setSuccess("");
-      }, 800);
+      }, 700);
     } catch (err) {
       console.error("SAVE ADMIN ERROR:", err);
 
-      if (err.response?.status === 401) {
+      const status = err.response?.status;
+
+      console.log("SAVE STATUS:", status);
+      console.log("SAVE RESPONSE:", err.response?.data);
+
+      if (status === 401) {
         setError("Your session has expired. Please sign in again.");
-      } else if (err.response?.status === 403) {
-        setError("You must be logged in as an admin to perform this action.");
+      } else if (status === 403) {
+        setError(
+          err.response?.data?.message || "Unable to save hotel administrator.",
+        );
       } else {
         setError(
           err.response?.data?.message || "Unable to save hotel administrator.",
@@ -599,7 +685,11 @@ const HotelAdmins = () => {
       setError("");
       setSuccess("");
 
-      await API.delete(`/users/hotel-admins/${adminId}`);
+      console.log("DELETING HOTEL ADMIN:", adminId);
+
+      const response = await API.delete(`/users/hotel-admins/${adminId}`);
+
+      console.log("DELETE RESPONSE:", response.data);
 
       setSuccess("Hotel administrator deleted successfully.");
 
@@ -611,10 +701,15 @@ const HotelAdmins = () => {
     } catch (err) {
       console.error("DELETE ADMIN ERROR:", err);
 
-      if (err.response?.status === 401) {
+      const status = err.response?.status;
+
+      if (status === 401) {
         setError("Your session has expired. Please sign in again.");
-      } else if (err.response?.status === 403) {
-        setError("You must be logged in as an admin to delete administrators.");
+      } else if (status === 403) {
+        setError(
+          err.response?.data?.message ||
+            "Unable to delete hotel administrator.",
+        );
       } else {
         setError(
           err.response?.data?.message ||
@@ -630,7 +725,9 @@ const HotelAdmins = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
+
     localStorage.removeItem("token");
+
     localStorage.removeItem("user");
 
     navigate("/login");
@@ -651,6 +748,7 @@ const HotelAdmins = () => {
 
             <div>
               <div className="ha-brand-name">StayHub</div>
+
               <div className="ha-brand-subtitle">HOTEL MANAGEMENT</div>
             </div>
           </div>
@@ -692,6 +790,7 @@ const HotelAdmins = () => {
 
           <div>
             <div className="ha-brand-name">StayHub</div>
+
             <div className="ha-brand-subtitle">HOTEL MANAGEMENT</div>
           </div>
         </div>
@@ -767,11 +866,12 @@ const HotelAdmins = () => {
         <div className="ha-sidebar-bottom">
           <div className="ha-sidebar-user">
             <div className="ha-sidebar-avatar">
-              {getInitials(currentUser?.name || "AD")}
+              {getInitials(currentUser?.name || "Admin")}
             </div>
 
             <div className="ha-sidebar-user-info">
               <strong>{currentUser?.name || "Admin"}</strong>
+
               <span>Administrator</span>
             </div>
           </div>
@@ -789,6 +889,7 @@ const HotelAdmins = () => {
         <header className="ha-topbar">
           <div className="ha-global-search">
             <Icon name="search" size={19} />
+
             <span>Search hotels, admins, or anything...</span>
           </div>
 
@@ -800,11 +901,12 @@ const HotelAdmins = () => {
 
             <div className="ha-user-menu">
               <div className="ha-top-avatar">
-                {getInitials(currentUser?.name || "AD")}
+                {getInitials(currentUser?.name || "Admin")}
               </div>
 
               <div className="ha-top-user-info">
                 <strong>{currentUser?.name || "Admin"}</strong>
+
                 <span>Administrator</span>
               </div>
 
@@ -818,7 +920,9 @@ const HotelAdmins = () => {
 
           <div className="ha-breadcrumb">
             <span>Administration</span>
+
             <span>›</span>
+
             <strong>Hotel Administrators</strong>
           </div>
 
@@ -886,7 +990,9 @@ const HotelAdmins = () => {
 
               <div className="ha-stat-content">
                 <span>Total Administrators</span>
+
                 <strong>{totalAdmins}</strong>
+
                 <small>Hotel management team</small>
               </div>
             </div>
@@ -898,7 +1004,9 @@ const HotelAdmins = () => {
 
               <div className="ha-stat-content">
                 <span>Assigned to Hotels</span>
+
                 <strong>{assignedAdmins}</strong>
+
                 <small>Administrators with hotel access</small>
               </div>
             </div>
@@ -910,7 +1018,9 @@ const HotelAdmins = () => {
 
               <div className="ha-stat-content">
                 <span>Unassigned</span>
+
                 <strong>{unassignedAdmins}</strong>
+
                 <small>Need hotel assignment</small>
               </div>
             </div>
@@ -922,7 +1032,9 @@ const HotelAdmins = () => {
 
               <div className="ha-stat-content">
                 <span>Available Hotels</span>
+
                 <strong>{hotels.length}</strong>
+
                 <small>Properties in the system</small>
               </div>
             </div>
@@ -1033,8 +1145,9 @@ const HotelAdmins = () => {
                           <h3>No administrators found</h3>
 
                           <p>
-                            Try changing your search or filters, or create a new
-                            hotel administrator.
+                            There are currently no hotel administrator accounts.
+                            Create your first hotel administrator to get
+                            started.
                           </p>
 
                           <button
@@ -1050,8 +1163,11 @@ const HotelAdmins = () => {
                   ) : (
                     filteredAdmins.map((admin) => {
                       const adminId = admin._id || admin.id;
+
                       const hotel = getHotelObject(admin);
+
                       const assigned = Boolean(hotel);
+
                       const active = admin.isActive !== false;
 
                       return (
@@ -1099,11 +1215,13 @@ const HotelAdmins = () => {
                               {assigned ? (
                                 <>
                                   <Icon name="location" size={16} />
+
                                   <span>{getHotelLocation(admin)}</span>
                                 </>
                               ) : (
                                 <>
                                   <span className="ha-dash">—</span>
+
                                   <span className="not-assigned">
                                     Not assigned
                                   </span>
@@ -1123,6 +1241,7 @@ const HotelAdmins = () => {
                               }`}
                             >
                               <span className="status-dot" />
+
                               {active ? "Active" : "Inactive"}
                             </span>
                           </td>
@@ -1164,7 +1283,9 @@ const HotelAdmins = () => {
 
               <div className="ha-pagination">
                 <button disabled>‹</button>
+
                 <button className="current">1</button>
+
                 <button disabled>›</button>
               </div>
             </div>
@@ -1217,6 +1338,7 @@ const HotelAdmins = () => {
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="Enter administrator name"
+                    required
                   />
                 </div>
 
@@ -1229,6 +1351,7 @@ const HotelAdmins = () => {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="admin@example.com"
+                    required
                   />
                 </div>
 
@@ -1242,6 +1365,8 @@ const HotelAdmins = () => {
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="Create password"
+                      minLength={6}
+                      required
                     />
                   </div>
                 )}
@@ -1316,6 +1441,7 @@ const HotelAdmins = () => {
                   ) : (
                     <>
                       <Icon name="check" size={18} />
+
                       {editingAdmin ? "Save Changes" : "Create Administrator"}
                     </>
                   )}
