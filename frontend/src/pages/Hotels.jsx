@@ -30,13 +30,13 @@ function Hotels() {
   // VIEW ALL HOTELS
   const [showAllHotels, setShowAllHotels] = useState(false);
 
-  // AI Finder
+  // AI FINDER
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResults, setAiResults] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
 
-  // SIDE NAVIGATION
+  // HEADER MENU
   const [menuOpen, setMenuOpen] = useState(false);
 
   // ========================================
@@ -157,13 +157,9 @@ function Hotels() {
 
     if (!hotelId) {
       console.error("Hotel ID is missing:", hotel);
-
       alert("Unable to open hotel details because the hotel ID is missing.");
-
       return;
     }
-
-    console.log("Opening hotel details:", hotelId);
 
     navigate(`/hotels/${hotelId}`);
   };
@@ -177,9 +173,7 @@ function Hotels() {
 
     if (!hotelId) {
       console.error("Hotel ID is missing:", hotel);
-
       alert("Unable to book this hotel because the hotel ID is missing.");
-
       return;
     }
 
@@ -230,7 +224,6 @@ function Hotels() {
   const handleAIRecommend = async () => {
     if (!aiPrompt.trim()) {
       setAiError("Please tell us what kind of hotel you're looking for.");
-
       return;
     }
 
@@ -289,41 +282,89 @@ function Hotels() {
 
       <header className={`main-navbar ${menuOpen ? "menu-is-open" : ""}`}>
         <div className="nav-container">
+          {/* ================= BRAND ================= */}
+
           <button
             type="button"
             className="brand"
             onClick={() => {
               setMenuOpen(false);
-              window.scrollTo({ top: 0, behavior: "smooth" });
+              window.scrollTo({
+                top: 0,
+                behavior: "smooth",
+              });
             }}
             aria-label="Go to homepage"
           >
-            <span className="brand-icon">H</span>
             <span className="brand-text">
               <strong>HOTELBOOKING</strong>
-              <em>Explore. Stay. Experience.</em>
             </span>
           </button>
 
-          <button
-            type="button"
-            className={`hamburger-button ${menuOpen ? "is-open" : ""}`}
-            onClick={() => setMenuOpen((current) => !current)}
-            aria-label={menuOpen ? "Close navigation" : "Open navigation"}
-            aria-expanded={menuOpen}
-            onMouseEnter={() => setMenuOpen(true)}
-            onMouseLeave={() => {
-              window.setTimeout(() => {
-                const menu = document.querySelector(".top-menu:hover");
-                if (!menu) setMenuOpen(false);
-              }, 40);
-            }}
-          >
-            <span></span>
-            <span></span>
-            <span></span>
-          </button>
+          {/* ================= HEADER ACTIONS ================= */}
+
+          <div className="header-actions">
+            {/* WISHLIST */}
+
+            <button
+              type="button"
+              className="header-action wishlist-header-button"
+              onClick={() => {
+                setMenuOpen(false);
+                navigate("/wishlist");
+              }}
+              aria-label="Wishlist"
+              title="Wishlist"
+            >
+              <span className="header-action-icon">♡</span>
+
+              {favorites.length > 0 && (
+                <span className="wishlist-count">{favorites.length}</span>
+              )}
+            </button>
+
+            {/* PROFILE */}
+
+            <button
+              type="button"
+              className="header-action profile-header-button"
+              onClick={() => {
+                setMenuOpen(false);
+                navigate("/profile");
+              }}
+              aria-label="Profile"
+              title="Profile"
+            >
+              <span className="header-action-icon">♙</span>
+            </button>
+
+            {/* HAMBURGER */}
+
+            <button
+              type="button"
+              className={`hamburger-button ${menuOpen ? "is-open" : ""}`}
+              onClick={() => setMenuOpen((current) => !current)}
+              aria-label={menuOpen ? "Close navigation" : "Open navigation"}
+              aria-expanded={menuOpen}
+              onMouseEnter={() => setMenuOpen(true)}
+              onMouseLeave={() => {
+                window.setTimeout(() => {
+                  const menu = document.querySelector(".top-menu:hover");
+
+                  if (!menu) {
+                    setMenuOpen(false);
+                  }
+                }, 40);
+              }}
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
         </div>
+
+        {/* ================= TOP MENU ================= */}
 
         <div
           className={`top-menu ${menuOpen ? "top-menu-open" : ""}`}
@@ -333,33 +374,45 @@ function Hotels() {
         >
           <div className="top-menu-glass">
             <div className="top-menu-inner">
+              {/* MENU HEADING */}
+
               <div className="top-menu-heading">
                 <div className="top-menu-heading-copy">
                   <span>HOTEL BOOKING</span>
+
                   <p>Explore. Stay. Experience.</p>
+
                   <small>Beautiful stays, unforgettable journeys.</small>
                 </div>
+
                 <div className="top-menu-heading-image">
                   <img
                     src="https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=700&q=85"
                     alt="Luxury hotel room"
                   />
+
                   <span>✦</span>
                 </div>
               </div>
+
+              {/* MENU LINKS */}
 
               <nav className="top-menu-links">
                 <button
                   type="button"
                   onClick={() => {
                     setMenuOpen(false);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    window.scrollTo({
+                      top: 0,
+                      behavior: "smooth",
+                    });
                   }}
                 >
                   <span className="top-menu-index">01</span>
                   <span className="top-menu-title">Home</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -371,6 +424,7 @@ function Hotels() {
                   <span className="top-menu-title">Hotels</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -382,6 +436,7 @@ function Hotels() {
                   <span className="top-menu-title">Destinations</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -393,6 +448,7 @@ function Hotels() {
                   <span className="top-menu-title">About Us</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -404,6 +460,7 @@ function Hotels() {
                   <span className="top-menu-title">My Bookings</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -412,14 +469,17 @@ function Hotels() {
                   }}
                 >
                   <span className="top-menu-index">06</span>
+
                   <span className="top-menu-title">
                     My Wishlist
                     {favorites.length > 0 && (
                       <span className="top-menu-count">{favorites.length}</span>
                     )}
                   </span>
+
                   <span className="top-menu-arrow">↗</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -428,9 +488,12 @@ function Hotels() {
                   }}
                 >
                   <span className="top-menu-index">07</span>
+
                   <span className="top-menu-title">My Profile</span>
+
                   <span className="top-menu-arrow">↗</span>
                 </button>
+
                 {!localStorage.getItem("token") && (
                   <button
                     type="button"
@@ -440,11 +503,15 @@ function Hotels() {
                     }}
                   >
                     <span className="top-menu-index">08</span>
+
                     <span className="top-menu-title">Sign In</span>
+
                     <span className="top-menu-arrow">↗</span>
                   </button>
                 )}
               </nav>
+
+              {/* MENU BOTTOM */}
 
               <div className="top-menu-bottom">
                 <span>DISCOVER BEAUTIFUL STAYS</span>
@@ -626,7 +693,6 @@ function Hotels() {
 
               <div>
                 <strong>AI Hotel Finder</strong>
-
                 <span>Personalized recommendations</span>
               </div>
             </div>
@@ -768,8 +834,6 @@ function Hotels() {
               </p>
             </div>
 
-            {/* FIXED VIEW ALL BUTTON */}
-
             {!showAllHotels && hotels.length > 6 && (
               <button
                 type="button"
@@ -805,7 +869,6 @@ function Hotels() {
           {loading && (
             <div className="hotel-loading">
               <div className="loading-spinner"></div>
-
               <p>Finding beautiful places to stay...</p>
             </div>
           )}
@@ -945,9 +1008,7 @@ function Hotels() {
 
             <div className="about-stat">
               <strong>4.9</strong>
-
               <span>Guest rating</span>
-
               <div>★★★★★</div>
             </div>
           </div>
@@ -974,7 +1035,6 @@ function Hotels() {
 
                 <div>
                   <strong>Verified stays</strong>
-
                   <small>Quality places you can trust.</small>
                 </div>
               </div>
@@ -984,7 +1044,6 @@ function Hotels() {
 
                 <div>
                   <strong>Simple booking</strong>
-
                   <small>Book your stay in just a few clicks.</small>
                 </div>
               </div>
@@ -1022,7 +1081,6 @@ function Hotels() {
 
               <span>
                 <strong>Hotel</strong>
-
                 <em>Booking</em>
               </span>
             </button>
@@ -1169,7 +1227,6 @@ function HotelCard({
         {aiReason && (
           <div className="ai-reason">
             <span>✦</span>
-
             {aiReason}
           </div>
         )}
