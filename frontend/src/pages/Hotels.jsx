@@ -36,6 +36,9 @@ function Hotels() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
 
+  // SIDE NAVIGATION
+  const [menuOpen, setMenuOpen] = useState(false);
+
   // ========================================
   // FETCH HOTELS
   // ========================================
@@ -284,35 +287,37 @@ function Hotels() {
     <div className="hotel-home">
       {/* ================= NAVBAR ================= */}
 
-      <header className="main-navbar">
+      {/* ================= NAVBAR ================= */}
+
+      {/* ================= TOP NAVIGATION ================= */}
+
+      <header className={`main-navbar ${menuOpen ? "menu-is-open" : ""}`}>
         <div className="nav-container">
+          {/* LOGO */}
           <button
             type="button"
             className="brand"
-            onClick={() =>
-              window.scrollTo({
-                top: 0,
-                behavior: "smooth",
-              })
-            }
+            onClick={() => {
+              setMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            aria-label="Go to homepage"
           >
             <span className="brand-icon">H</span>
 
-            <span>
+            <span className="brand-text">
               <strong>Hotel</strong>
               <em>Booking</em>
             </span>
           </button>
 
+          {/* DESKTOP NAVIGATION */}
           <nav className="desktop-nav">
             <button
               type="button"
-              onClick={() =>
-                window.scrollTo({
-                  top: 0,
-                  behavior: "smooth",
-                })
-              }
+              onClick={() => {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
             >
               Home
             </button>
@@ -328,74 +333,209 @@ function Hotels() {
             <button type="button" onClick={scrollToAbout}>
               About
             </button>
-
-            <button type="button" onClick={() => navigate("/bookings")}>
-              My Bookings
-            </button>
           </nav>
 
-          {/* ================= LOGIN / LOGOUT ================= */}
-
-          {/* WISHLIST BUTTON */}
-          <button
-            type="button"
-            className="transparent-icon-button wishlist-nav-button"
-            onClick={() => navigate("/wishlist")}
-            title="Wishlist"
-          >
-            <svg viewBox="0 0 24 24">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-
-            {favorites.length > 0 && (
-              <span className="wishlist-count">{favorites.length}</span>
-            )}
-          </button>
-
-          {/* PROFILE BUTTON */}
-          <button
-            type="button"
-            className="transparent-icon-button profile-nav-button"
-            onClick={() => navigate("/profile")}
-            title="My Profile"
-          >
-            <svg viewBox="0 0 24 24">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 21c0-4.2 3.6-7 8-7s8 2.8 8 7" />
-            </svg>
-          </button>
-
-          {/* Sign In / Sign Out */}
-          {localStorage.getItem("token") ? (
+          {/* RIGHT SIDE */}
+          <div className="nav-actions">
             <button
               type="button"
-              className="login-link"
-              onClick={() => {
-                localStorage.removeItem("token");
-                window.location.reload();
-              }}
+              className="transparent-icon-button wishlist-nav-button"
+              onClick={() => navigate("/wishlist")}
+              aria-label="Wishlist"
             >
-              Sign Out
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+
+              {favorites.length > 0 && (
+                <span className="wishlist-count">{favorites.length}</span>
+              )}
             </button>
-          ) : (
-            <>
+
+            <button
+              type="button"
+              className="transparent-icon-button profile-nav-button"
+              onClick={() => navigate("/profile")}
+              aria-label="My Profile"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21c0-4.2 3.6-7 8-7s8 2.8 8 7" />
+              </svg>
+            </button>
+
+            {localStorage.getItem("token") ? (
               <button
                 type="button"
                 className="login-link"
-                onClick={() => navigate("/login")}
+                onClick={() => {
+                  localStorage.removeItem("token");
+                  window.location.reload();
+                }}
               >
-                Sign In
+                Sign Out
               </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="login-link"
+                  onClick={() => navigate("/login")}
+                >
+                  Sign In
+                </button>
 
-              <button
-                type="button"
-                className="register-button"
-                onClick={() => navigate("/register")}
-              >
-                Register
-              </button>
-            </>
-          )}
+                <button
+                  type="button"
+                  className="register-button"
+                  onClick={() => navigate("/register")}
+                >
+                  Register
+                </button>
+              </>
+            )}
+
+            {/* HAMBURGER */}
+            <button
+              type="button"
+              className={`hamburger-button ${menuOpen ? "is-open" : ""}`}
+              onClick={() => setMenuOpen((current) => !current)}
+              aria-label={menuOpen ? "Close navigation" : "Open navigation"}
+              aria-expanded={menuOpen}
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+        </div>
+
+        {/* =====================================================
+            TOP-DOWN TRANSPARENT MENU
+            ===================================================== */}
+
+        <div
+          className={`top-menu ${menuOpen ? "top-menu-open" : ""}`}
+          aria-hidden={!menuOpen}
+        >
+          <div className="top-menu-glass">
+            <div className="top-menu-inner">
+              <div className="top-menu-heading">
+                <span>HOTEL BOOKING</span>
+                <p>Explore. Stay. Experience.</p>
+              </div>
+
+              <nav className="top-menu-links">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  <span className="top-menu-index">01</span>
+                  <span className="top-menu-title">Home</span>
+                  <span className="top-menu-arrow">↗</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    scrollToHotels();
+                  }}
+                >
+                  <span className="top-menu-index">02</span>
+                  <span className="top-menu-title">Hotels</span>
+                  <span className="top-menu-arrow">↗</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    scrollToDestinations();
+                  }}
+                >
+                  <span className="top-menu-index">03</span>
+                  <span className="top-menu-title">Destinations</span>
+                  <span className="top-menu-arrow">↗</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    scrollToAbout();
+                  }}
+                >
+                  <span className="top-menu-index">04</span>
+                  <span className="top-menu-title">About Us</span>
+                  <span className="top-menu-arrow">↗</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate("/bookings");
+                  }}
+                >
+                  <span className="top-menu-index">05</span>
+                  <span className="top-menu-title">My Bookings</span>
+                  <span className="top-menu-arrow">↗</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate("/wishlist");
+                  }}
+                >
+                  <span className="top-menu-index">06</span>
+                  <span className="top-menu-title">
+                    My Wishlist
+                    {favorites.length > 0 && (
+                      <span className="top-menu-count">{favorites.length}</span>
+                    )}
+                  </span>
+                  <span className="top-menu-arrow">↗</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate("/profile");
+                  }}
+                >
+                  <span className="top-menu-index">07</span>
+                  <span className="top-menu-title">My Profile</span>
+                  <span className="top-menu-arrow">↗</span>
+                </button>
+
+                {!localStorage.getItem("token") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/login");
+                    }}
+                  >
+                    <span className="top-menu-index">08</span>
+                    <span className="top-menu-title">Sign In</span>
+                    <span className="top-menu-arrow">↗</span>
+                  </button>
+                )}
+              </nav>
+
+              <div className="top-menu-bottom">
+                <span>DISCOVER BEAUTIFUL STAYS</span>
+                <strong>Across Ethiopia</strong>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
