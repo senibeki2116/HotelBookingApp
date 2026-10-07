@@ -287,13 +287,8 @@ function Hotels() {
     <div className="hotel-home">
       {/* ================= NAVBAR ================= */}
 
-      {/* ================= NAVBAR ================= */}
-
-      {/* ================= TOP NAVIGATION ================= */}
-
       <header className={`main-navbar ${menuOpen ? "menu-is-open" : ""}`}>
         <div className="nav-container">
-          {/* LOGO */}
           <button
             type="button"
             className="brand"
@@ -304,125 +299,53 @@ function Hotels() {
             aria-label="Go to homepage"
           >
             <span className="brand-icon">H</span>
-
             <span className="brand-text">
-              <strong>Hotel</strong>
-              <em>Booking</em>
+              <strong>HOTELBOOKING</strong>
+              <em>Explore. Stay. Experience.</em>
             </span>
           </button>
 
-          {/* DESKTOP NAVIGATION */}
-          <nav className="desktop-nav">
-            <button
-              type="button"
-              onClick={() => {
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-            >
-              Home
-            </button>
-
-            <button type="button" onClick={scrollToHotels}>
-              Hotels
-            </button>
-
-            <button type="button" onClick={scrollToDestinations}>
-              Destinations
-            </button>
-
-            <button type="button" onClick={scrollToAbout}>
-              About
-            </button>
-          </nav>
-
-          {/* RIGHT SIDE */}
-          <div className="nav-actions">
-            <button
-              type="button"
-              className="transparent-icon-button wishlist-nav-button"
-              onClick={() => navigate("/wishlist")}
-              aria-label="Wishlist"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-
-              {favorites.length > 0 && (
-                <span className="wishlist-count">{favorites.length}</span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              className="transparent-icon-button profile-nav-button"
-              onClick={() => navigate("/profile")}
-              aria-label="My Profile"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21c0-4.2 3.6-7 8-7s8 2.8 8 7" />
-              </svg>
-            </button>
-
-            {localStorage.getItem("token") ? (
-              <button
-                type="button"
-                className="login-link"
-                onClick={() => {
-                  localStorage.removeItem("token");
-                  window.location.reload();
-                }}
-              >
-                Sign Out
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="login-link"
-                  onClick={() => navigate("/login")}
-                >
-                  Sign In
-                </button>
-
-                <button
-                  type="button"
-                  className="register-button"
-                  onClick={() => navigate("/register")}
-                >
-                  Register
-                </button>
-              </>
-            )}
-
-            {/* HAMBURGER */}
-            <button
-              type="button"
-              className={`hamburger-button ${menuOpen ? "is-open" : ""}`}
-              onClick={() => setMenuOpen((current) => !current)}
-              aria-label={menuOpen ? "Close navigation" : "Open navigation"}
-              aria-expanded={menuOpen}
-            >
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
+          <button
+            type="button"
+            className={`hamburger-button ${menuOpen ? "is-open" : ""}`}
+            onClick={() => setMenuOpen((current) => !current)}
+            aria-label={menuOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={menuOpen}
+            onMouseEnter={() => setMenuOpen(true)}
+            onMouseLeave={() => {
+              window.setTimeout(() => {
+                const menu = document.querySelector(".top-menu:hover");
+                if (!menu) setMenuOpen(false);
+              }, 40);
+            }}
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
         </div>
-
-        {/* =====================================================
-            TOP-DOWN TRANSPARENT MENU
-            ===================================================== */}
 
         <div
           className={`top-menu ${menuOpen ? "top-menu-open" : ""}`}
           aria-hidden={!menuOpen}
+          onMouseEnter={() => setMenuOpen(true)}
+          onMouseLeave={() => setMenuOpen(false)}
         >
           <div className="top-menu-glass">
             <div className="top-menu-inner">
               <div className="top-menu-heading">
-                <span>HOTEL BOOKING</span>
-                <p>Explore. Stay. Experience.</p>
+                <div className="top-menu-heading-copy">
+                  <span>HOTEL BOOKING</span>
+                  <p>Explore. Stay. Experience.</p>
+                  <small>Beautiful stays, unforgettable journeys.</small>
+                </div>
+                <div className="top-menu-heading-image">
+                  <img
+                    src="https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=700&q=85"
+                    alt="Luxury hotel room"
+                  />
+                  <span>✦</span>
+                </div>
               </div>
 
               <nav className="top-menu-links">
@@ -437,7 +360,6 @@ function Hotels() {
                   <span className="top-menu-title">Home</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -449,7 +371,6 @@ function Hotels() {
                   <span className="top-menu-title">Hotels</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -461,7 +382,6 @@ function Hotels() {
                   <span className="top-menu-title">Destinations</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -473,7 +393,6 @@ function Hotels() {
                   <span className="top-menu-title">About Us</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -485,7 +404,6 @@ function Hotels() {
                   <span className="top-menu-title">My Bookings</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -502,7 +420,6 @@ function Hotels() {
                   </span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -514,7 +431,6 @@ function Hotels() {
                   <span className="top-menu-title">My Profile</span>
                   <span className="top-menu-arrow">↗</span>
                 </button>
-
                 {!localStorage.getItem("token") && (
                   <button
                     type="button"
