@@ -10,16 +10,19 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Allow both admin and hoteladmin
   const role = String(user.role || "")
     .trim()
     .toLowerCase();
 
-  if (role !== "admin" && role !== "hoteladmin") {
+  if (role === "hoteladmin") {
+    return <Navigate to="/admin/hotel-dashboard" replace />;
+  }
+
+  if (role !== "admin" && role !== "superadmin") {
     return <Navigate to="/" replace />;
   }
 
-  // Admin or hotel admin
+  // Platform administrators only
   return children;
 };
 

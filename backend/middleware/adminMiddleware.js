@@ -8,7 +8,7 @@ const admin = (req, res, next) => {
     .trim()
     .toLowerCase();
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "superadmin") {
     return res.status(403).json({
       message: "Admin access only",
       currentRole: role || "no role",

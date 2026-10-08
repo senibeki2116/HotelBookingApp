@@ -28,11 +28,12 @@ const userSchema = new mongoose.Schema(
 
     // User roles:
     // user       = normal customer
-    // admin      = super admin
+    // admin      = administrator
+    // superadmin = super administrator
     // hoteladmin = administrator for one specific hotel
     role: {
       type: String,
-      enum: ["user", "admin", "hoteladmin"],
+      enum: ["user", "admin", "superadmin", "hoteladmin"],
       default: "user",
     },
 

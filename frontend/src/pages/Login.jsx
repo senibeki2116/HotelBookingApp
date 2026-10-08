@@ -175,7 +175,9 @@ function Login() {
         .trim()
         .toLowerCase();
 
-      if (role === "admin" || role === "hoteladmin" || role === "superadmin") {
+      if (role === "hoteladmin") {
+        navigate("/admin/hotel-dashboard");
+      } else if (role === "admin" || role === "superadmin") {
         navigate("/admin");
       } else {
         navigate("/hotels");

@@ -213,9 +213,9 @@ const adminOnly = (req, res, next) => {
     });
   }
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "superadmin") {
     console.log("❌ Admin access denied");
-    console.log("Required role: admin");
+    console.log("Required role: admin or superadmin");
     console.log("Received role:", role);
 
     return res.status(403).json({

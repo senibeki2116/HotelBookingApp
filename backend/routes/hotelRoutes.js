@@ -17,6 +17,7 @@ const { protect } = require("../middleware/authMiddleware");
 // ======================================================
 // ROLE MIDDLEWARE
 // ======================================================
+
 const adminOrHotelAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
@@ -24,9 +25,14 @@ const adminOrHotelAdmin = (req, res, next) => {
     });
   }
 
-  if (req.user.role !== "admin" && req.user.role !== "hoteladmin") {
+  const role = String(req.user.role || "")
+    .trim()
+    .toLowerCase();
+
+  if (role !== "admin" && role !== "hoteladmin") {
     return res.status(403).json({
       message: "Admin or hotel admin access required",
+      currentRole: req.user.role,
     });
   }
 
@@ -40,29 +46,33 @@ const adminOrHotelAdmin = (req, res, next) => {
 // Get all hotels
 router.get("/", getHotels);
 
-// Get one hotel
-router.get("/:id", getHotelById);
-
 // ======================================================
 // HOTEL ADMIN ROUTES
+// IMPORTANT:
+// These routes MUST come before /:id
 // ======================================================
 
 // Get hotel belonging to logged-in hotel admin
 router.get("/my-hotel", protect, getMyHotel);
 
-// Create hotel
-// ADMIN + HOTEL ADMIN
-router.post("/", protect, adminOrHotelAdmin, createHotel);
-
-// Update my hotel
+// Update hotel belonging to logged-in hotel admin
 router.put("/my-hotel", protect, adminOrHotelAdmin, updateMyHotel);
 
 // ======================================================
 // GENERAL HOTEL MANAGEMENT
 // ======================================================
 
+// Get one hotel by ID
+// Keep this AFTER /my-hotel
+router.get("/:id", getHotelById);
+
+// Create hotel
+router.post("/", protect, adminOrHotelAdmin, createHotel);
+
+// Update any hotel
 router.put("/:id", protect, adminOrHotelAdmin, updateHotel);
 
+// Delete any hotel
 router.delete("/:id", protect, adminOrHotelAdmin, deleteHotel);
 
 module.exports = router;
