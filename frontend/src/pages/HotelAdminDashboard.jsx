@@ -939,7 +939,7 @@ const HotelAdminDashboard = () => {
 
       capacity: Number(roomForm.capacity),
 
-      roomSize: roomForm.roomSize,
+      roomSize: roomForm.roomSize === "" ? 0 : Number(roomForm.roomSize),
 
       floor: Number(roomForm.floor),
 
@@ -1048,11 +1048,14 @@ const HotelAdminDashboard = () => {
     try {
       await Promise.all([loadHotel(), loadBookings(), loadRooms()]);
 
-      setSuccess("Dashboard refreshed.");
+      setSuccess("Dashboard refreshed successfully.");
     } catch (requestError) {
       console.error("Refresh error:", requestError);
 
-      setError("Unable to refresh the dashboard.");
+      setError(
+        requestError?.response?.data?.message ||
+          "Unable to refresh the dashboard.",
+      );
     } finally {
       setRefreshing(false);
     }
@@ -1291,13 +1294,18 @@ const HotelAdminDashboard = () => {
           <div className="dashboard-header-actions">
             <button
               type="button"
-              className="dashboard-refresh-button"
+              className={`dashboard-refresh-button ${
+                refreshing ? "is-refreshing" : ""
+              }`}
               onClick={handleRefresh}
               disabled={refreshing}
+              aria-label="Refresh dashboard"
+              title={refreshing ? "Refreshing dashboard" : "Refresh dashboard"}
             >
               <Icon name="refresh" size={15} />
-
-              {refreshing ? "Refreshing..." : "Refresh"}
+              <span className="refresh-button-text">
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </span>
             </button>
 
             <button
@@ -2373,19 +2381,12 @@ const HotelAdminDashboard = () => {
                         })
                       }
                     >
-                      <option>Standard</option>
-
-                      <option>Deluxe</option>
-
-                      <option>Superior</option>
-
-                      <option>Executive</option>
-
-                      <option>Suite</option>
-
-                      <option>Family</option>
-
-                      <option>Presidential</option>
+                      <option value="Standard">Standard</option>
+                      <option value="Deluxe">Deluxe</option>
+                      <option value="Executive">Executive</option>
+                      <option value="Suite">Suite</option>
+                      <option value="Family">Family</option>
+                      <option value="Presidential">Presidential</option>
                     </select>
                   </label>
 
@@ -2406,10 +2407,12 @@ const HotelAdminDashboard = () => {
                   </label>
 
                   <label>
-                    <span>Room size</span>
+                    <span>Room size (m²)</span>
 
                     <input
-                      type="text"
+                      type="number"
+                      min="0"
+                      step="0.1"
                       value={roomForm.roomSize}
                       onChange={(event) =>
                         setRoomForm({
@@ -2417,7 +2420,7 @@ const HotelAdminDashboard = () => {
                           roomSize: event.target.value,
                         })
                       }
-                      placeholder="e.g. 32 m²"
+                      placeholder="e.g. 32"
                     />
                   </label>
                 </div>

@@ -16,10 +16,17 @@ const roomSchema = new mongoose.Schema(
 
     roomType: {
       type: String,
-      enum: ["Standard", "Deluxe", "Suite", "Family"],
+      enum: [
+        "Standard",
+        "Deluxe",
+        "Superior",
+        "Executive",
+        "Suite",
+        "Family",
+        "Presidential",
+      ],
       default: "Standard",
     },
-
     // Number of beds in the room
     beds: {
       type: Number,
