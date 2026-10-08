@@ -19,7 +19,7 @@ function Login() {
 
     setError("");
 
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail || !password) {
       setError("Please enter your email and password.");
@@ -48,20 +48,27 @@ function Login() {
       );
 
       console.log("=================================");
-      console.log("LOGIN SUCCESS");
-      console.log("STATUS:", response.status);
-      console.log("RESPONSE:", response.data);
+      console.log("LOGIN RESPONSE");
+      console.log("Status:", response.status);
+      console.log("Data:", response.data);
       console.log("=================================");
 
-      const data = response.data;
+      const data = response.data || {};
 
-      // Support different backend response structures
+      // ========================================
+      // GET USER FROM BACKEND RESPONSE
+      // ========================================
+
       const user =
         data.user ||
         data.data?.user ||
         data.account ||
         data.data?.account ||
         null;
+
+      // ========================================
+      // GET TOKEN FROM BACKEND RESPONSE
+      // ========================================
 
       const token =
         data.token ||
@@ -72,10 +79,13 @@ function Login() {
         data.data?.access_token ||
         null;
 
-      console.log("USER:", user);
-      console.log("TOKEN:", token);
+      console.log("User returned:", user);
+      console.log("Token returned:", token ? "YES" : "NO");
 
-      // If backend did not return a token
+      // ========================================
+      // CHECK TOKEN
+      // ========================================
+
       if (!token) {
         console.error("LOGIN ERROR: No token returned.");
 
@@ -86,7 +96,10 @@ function Login() {
         return;
       }
 
-      // If backend did not return user
+      // ========================================
+      // CHECK USER
+      // ========================================
+
       if (!user) {
         console.error("LOGIN ERROR: No user returned.");
 
@@ -97,40 +110,72 @@ function Login() {
         return;
       }
 
-      /*
-       * Save authentication information
-       */
+      // ========================================
+      // CLEAN TOKEN
+      // ========================================
 
-      localStorage.setItem("accessToken", token);
+      const cleanToken = String(token)
+        .replace(/^Bearer\s+/i, "")
+        .trim();
+
+      if (!cleanToken) {
+        console.error("LOGIN ERROR: Token is empty.");
+
+        setError("Authentication token is invalid.");
+
+        return;
+      }
+
+      // ========================================
+      // SAVE AUTHENTICATION
+      // ========================================
+
+      localStorage.setItem("accessToken", cleanToken);
+      localStorage.setItem("token", cleanToken);
       localStorage.setItem("user", JSON.stringify(user));
 
-      // Also support token key if other parts of the application use it
-      localStorage.setItem("token", token);
+      // ========================================
+      // VERIFY STORAGE
+      // ========================================
 
-      // Update AuthContext
-      login(user, token);
+      const savedToken = localStorage.getItem("accessToken");
 
       console.log("=================================");
       console.log("AUTHENTICATION SAVED");
       console.log("User:", user);
-      console.log("Saved accessToken:", localStorage.getItem("accessToken"));
       console.log("Role:", user.role);
+      console.log("Access token saved:", savedToken ? "YES" : "NO");
       console.log("=================================");
+
+      if (!savedToken) {
+        setError("Unable to save your login session.");
+        return;
+      }
+
+      // ========================================
+      // UPDATE AUTH CONTEXT
+      // ========================================
+
+      login(user, cleanToken);
+
+      // ========================================
+      // CLEAR FORM
+      // ========================================
 
       setEmail("");
       setPassword("");
 
       alert("Login Successful");
 
-      /*
-       * Redirect based on role
-       */
+      // ========================================
+      // REDIRECT BASED ON ROLE
+      // ========================================
 
-      if (user.role === "hoteladmin") {
-        navigate("/admin");
-      } else if (user.role === "admin") {
-        navigate("/admin");
-      } else if (user.role === "superadmin") {
+      const role = String(user.role || "")
+        .trim()
+        .toLowerCase();
+
+      if (role === "admin" || role === "hoteladmin" || role === "superadmin") {
         navigate("/admin");
       } else {
         navigate("/hotels");
@@ -145,36 +190,55 @@ function Login() {
       console.error("Backend response:", error.response?.data);
       console.error("Request URL:", error.config?.url);
       console.error("Request method:", error.config?.method);
-      console.error("Request data:", error.config?.data);
+
+      // ========================================
+      // BACKEND RESPONSE ERROR
+      // ========================================
 
       if (error.response) {
-        if (error.response.status === 401) {
-          setError(
-            error.response.data?.message || "Invalid email or password.",
-          );
-        } else if (error.response.status === 400) {
-          setError(
-            error.response.data?.message || "Invalid login information.",
-          );
-        } else if (error.response.status === 404) {
+        const status = error.response.status;
+
+        const backendMessage =
+          error.response.data?.message || error.response.data?.error || "";
+
+        if (status === 401) {
+          setError(backendMessage || "Invalid email or password.");
+        } else if (status === 400) {
+          setError(backendMessage || "Invalid login information.");
+        } else if (status === 403) {
+          setError(backendMessage || "You do not have permission to login.");
+        } else if (status === 404) {
           setError(
             "Login endpoint was not found. Please check the backend server.",
           );
-        } else if (error.response.status >= 500) {
-          setError("Server error. Please check your backend server.");
-        } else {
+        } else if (status >= 500) {
           setError(
-            error.response.data?.message ||
-              "Unable to login. Please try again.",
+            backendMessage || "Server error. Please check your backend server.",
           );
+        } else {
+          setError(backendMessage || "Unable to login. Please try again.");
         }
-      } else if (error.request) {
+
+        return;
+      }
+
+      // ========================================
+      // SERVER CONNECTION ERROR
+      // ========================================
+
+      if (error.request) {
         setError(
           "Cannot connect to the server. Make sure the backend is running on port 5000.",
         );
-      } else {
-        setError("An unexpected error occurred.");
+
+        return;
       }
+
+      // ========================================
+      // UNKNOWN ERROR
+      // ========================================
+
+      setError("An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -184,6 +248,7 @@ function Login() {
     <div className="login-page">
       <div className="login-overlay"></div>
 
+      {/* HEADER */}
       <header className="login-header">
         <Link to="/hotels" className="login-brand">
           <span className="brand-icon">🏨</span>
@@ -198,8 +263,10 @@ function Login() {
         </Link>
       </header>
 
+      {/* MAIN */}
       <main className="login-main">
         <div className="login-card">
+          {/* LOGO */}
           <div className="login-logo">
             <div className="login-logo-icon">🏨</div>
           </div>
@@ -210,17 +277,17 @@ function Login() {
             Sign in to continue your hotel booking journey
           </p>
 
+          {/* ERROR */}
           {error && (
             <div className="login-error">
               <span className="error-icon">!</span>
-
               <span>{error}</span>
             </div>
           )}
 
+          {/* FORM */}
           <form onSubmit={handleSubmit} className="login-form">
             {/* EMAIL */}
-
             <div className="form-group">
               <label htmlFor="email">Email Address</label>
 
@@ -234,13 +301,15 @@ function Login() {
                   value={email}
                   autoComplete="email"
                   disabled={loading}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setError("");
+                  }}
                 />
               </div>
             </div>
 
             {/* PASSWORD */}
-
             <div className="form-group">
               <div className="password-label-row">
                 <label htmlFor="password">Password</label>
@@ -258,7 +327,10 @@ function Login() {
                   value={password}
                   autoComplete="current-password"
                   disabled={loading}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError("");
+                  }}
                 />
 
                 <button
@@ -273,7 +345,6 @@ function Login() {
             </div>
 
             {/* OPTIONS */}
-
             <div className="login-options">
               <label className="remember-me">
                 <input type="checkbox" disabled={loading} />
@@ -283,7 +354,6 @@ function Login() {
             </div>
 
             {/* LOGIN BUTTON */}
-
             <button type="submit" className="login-button" disabled={loading}>
               {loading ? (
                 <>
@@ -299,15 +369,18 @@ function Login() {
             </button>
           </form>
 
+          {/* DIVIDER */}
           <div className="login-divider">
             <span>New to HotelBooking?</span>
           </div>
 
+          {/* REGISTER */}
           <p className="register-text">
             Don't have an account?
             <Link to="/register"> Create an account</Link>
           </p>
 
+          {/* SECURITY */}
           <div className="secure-login">
             <span>🔐</span>
 
@@ -316,6 +389,7 @@ function Login() {
         </div>
       </main>
 
+      {/* FOOTER */}
       <footer className="login-footer">
         <p>© 2026 HotelBooking. All rights reserved.</p>
       </footer>

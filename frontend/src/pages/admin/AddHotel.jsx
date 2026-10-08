@@ -11,6 +11,7 @@ function AddHotel() {
     location: "",
     description: "",
     price: "",
+    rooms: "",
     image: "",
   });
 
@@ -18,6 +19,9 @@ function AddHotel() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // ======================================================
+  // HANDLE INPUT CHANGE
+  // ======================================================
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -30,11 +34,18 @@ function AddHotel() {
     setSuccess("");
   };
 
+  // ======================================================
+  // SUBMIT HOTEL
+  // ======================================================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     setError("");
     setSuccess("");
+
+    // -----------------------------
+    // VALIDATION
+    // -----------------------------
 
     if (!formData.name.trim()) {
       setError("Please enter the hotel name.");
@@ -51,8 +62,13 @@ function AddHotel() {
       return;
     }
 
-    if (!formData.price || Number(formData.price) <= 0) {
+    if (formData.price === "" || Number(formData.price) < 0) {
       setError("Please enter a valid price.");
+      return;
+    }
+
+    if (formData.rooms === "" || Number(formData.rooms) < 1) {
+      setError("Please enter a valid number of rooms.");
       return;
     }
 
@@ -64,29 +80,57 @@ function AddHotel() {
     try {
       setLoading(true);
 
-      await API.post("/hotels", {
+      console.log("=================================");
+      console.log("CREATING HOTEL");
+      console.log("=================================");
+      console.log({
         name: formData.name.trim(),
         location: formData.location.trim(),
         description: formData.description.trim(),
         price: Number(formData.price),
+        rooms: Number(formData.rooms),
         image: formData.image.trim(),
       });
 
+      // IMPORTANT:
+      // This is an ADMIN route.
+      const response = await API.post("/admin/hotels", {
+        name: formData.name.trim(),
+        location: formData.location.trim(),
+        description: formData.description.trim(),
+        price: Number(formData.price),
+        rooms: Number(formData.rooms),
+        image: formData.image.trim(),
+      });
+
+      console.log("HOTEL CREATED SUCCESSFULLY");
+      console.log("Response:", response.data);
+
       setSuccess("Hotel added successfully!");
 
+      // Clear form
       setFormData({
         name: "",
         location: "",
         description: "",
         price: "",
+        rooms: "",
         image: "",
       });
 
+      // Go back to hotel management
       setTimeout(() => {
         navigate("/admin/hotels");
-      }, 1500);
+      }, 1000);
     } catch (err) {
-      console.error("Add hotel error:", err);
+      console.error("=================================");
+      console.error("ADD HOTEL ERROR");
+      console.error("=================================");
+      console.error(err);
+
+      console.error("Status:", err.response?.status);
+
+      console.error("Backend response:", err.response?.data);
 
       setError(
         err.response?.data?.message || "Failed to add hotel. Please try again.",
@@ -96,6 +140,9 @@ function AddHotel() {
     }
   };
 
+  // ======================================================
+  // CANCEL
+  // ======================================================
   const handleCancel = () => {
     navigate("/admin/hotels");
   };
@@ -117,7 +164,7 @@ function AddHotel() {
             ←
           </button>
 
-          {/* HOTEL ICON - LEFT SIDE */}
+          {/* HOTEL ICON */}
           <div className="header-icon">🏨</div>
 
           {/* TITLE */}
@@ -255,16 +302,16 @@ function AddHotel() {
             </div>
 
             {/* =========================================
-                PRICING
+                PRICING + ROOMS
             ========================================= */}
 
             <div className="section-heading pricing-heading">
               <span>02</span>
 
               <div>
-                <h3>Pricing</h3>
+                <h3>Pricing & Rooms</h3>
 
-                <p>Set the nightly rate for this hotel.</p>
+                <p>Set the nightly rate and available rooms.</p>
               </div>
             </div>
 
@@ -294,15 +341,38 @@ function AddHotel() {
                 </div>
               </div>
 
-              {/* PRICE TIP */}
-              <div className="price-info">
-                <span className="price-info-icon">💡</span>
+              {/* ROOMS */}
+              <div className="form-group">
+                <label htmlFor="rooms">
+                  Number of Rooms
+                  <span>*</span>
+                </label>
 
-                <div>
-                  <strong>Pricing tip</strong>
+                <div className="input-wrapper">
+                  <span className="input-icon">🛏️</span>
 
-                  <p>Set a competitive nightly price to attract more guests.</p>
+                  <input
+                    id="rooms"
+                    type="number"
+                    name="rooms"
+                    value={formData.rooms}
+                    onChange={handleChange}
+                    placeholder="e.g. 20"
+                    min="1"
+                    step="1"
+                  />
                 </div>
+              </div>
+            </div>
+
+            {/* PRICE TIP */}
+            <div className="price-info">
+              <span className="price-info-icon">💡</span>
+
+              <div>
+                <strong>Pricing tip</strong>
+
+                <p>Set a competitive nightly price to attract more guests.</p>
               </div>
             </div>
 
@@ -455,6 +525,12 @@ function AddHotel() {
                 <span>✓</span>
 
                 <p>Add a high-quality image</p>
+              </div>
+
+              <div>
+                <span>✓</span>
+
+                <p>Enter the correct number of rooms</p>
               </div>
             </div>
           </div>

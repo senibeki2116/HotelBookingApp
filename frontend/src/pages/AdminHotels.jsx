@@ -3,56 +3,107 @@ import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import "./AdminHotels.css";
 
+const FALLBACK_HOTEL_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80";
+
 const AdminHotels = () => {
   const navigate = useNavigate();
 
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Get all hotels
+  // ======================================================
+  // GET ALL HOTELS
+  // ======================================================
   const fetchHotels = async () => {
     try {
-      const response = await API.get("/hotels");
+      setLoading(true);
 
-      setHotels(response.data);
+      const response = await API.get("/admin/hotels");
+
+      /*
+       * Your backend returns:
+       *
+       * res.status(200).json(hotels);
+       *
+       * Therefore response.data is already the array.
+       */
+      setHotels(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error("Error fetching hotels:", error);
+      console.error("=================================");
+      console.error("GET HOTELS ERROR");
+      console.error("=================================");
+      console.error(error);
 
-      alert("Failed to load hotels.");
+      console.error("Status:", error.response?.status);
+      console.error("Backend response:", error.response?.data);
+
+      alert(
+        error.response?.data?.message ||
+          "Failed to load hotels. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // ======================================================
+  // LOAD HOTELS WHEN PAGE OPENS
+  // ======================================================
   useEffect(() => {
     fetchHotels();
   }, []);
 
-  // Delete hotel
+  // ======================================================
+  // DELETE HOTEL
+  // ======================================================
   const handleDelete = async (id) => {
+    if (!id) {
+      alert("Invalid hotel ID.");
+      return;
+    }
+
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this hotel?",
     );
 
-    if (!confirmDelete) return;
+    if (!confirmDelete) {
+      return;
+    }
 
     try {
       await API.delete(`/admin/hotels/${id}`);
 
       alert("Hotel deleted successfully!");
 
-      // Remove deleted hotel from UI
-      setHotels(hotels.filter((hotel) => hotel._id !== id));
+      // Remove hotel from UI immediately
+      setHotels((currentHotels) =>
+        currentHotels.filter((hotel) => hotel._id !== id),
+      );
     } catch (error) {
-      console.error("Delete error:", error);
+      console.error("=================================");
+      console.error("DELETE HOTEL ERROR");
+      console.error("=================================");
+      console.error(error);
 
-      alert(error.response?.data?.message || "Failed to delete hotel.");
+      console.error("Status:", error.response?.status);
+      console.error("Backend response:", error.response?.data);
+
+      alert(
+        error.response?.data?.message ||
+          "Failed to delete hotel. Please try again.",
+      );
     }
   };
 
+  // ======================================================
+  // RENDER
+  // ======================================================
   return (
     <div className="admin-hotels-page">
-      {/* Header */}
+      {/* ==================================================
+          HEADER
+      ================================================== */}
       <div className="admin-hotels-header">
         <div>
           <h1>Manage Hotels</h1>
@@ -61,6 +112,7 @@ const AdminHotels = () => {
         </div>
 
         <button
+          type="button"
           className="add-new-hotel-btn"
           onClick={() => navigate("/admin/hotels/add")}
         >
@@ -68,20 +120,27 @@ const AdminHotels = () => {
         </button>
       </div>
 
-      {/* Hotel Count */}
+      {/* ==================================================
+          HOTEL COUNT
+      ================================================== */}
       <div className="hotel-count-card">
         <div className="count-icon">🏨</div>
 
         <div>
           <span>Total Hotels</span>
+
           <strong>{hotels.length}</strong>
         </div>
       </div>
 
-      {/* Loading */}
+      {/* ==================================================
+          LOADING
+      ================================================== */}
       {loading && <div className="loading-message">Loading hotels...</div>}
 
-      {/* No Hotels */}
+      {/* ==================================================
+          NO HOTELS
+      ================================================== */}
       {!loading && hotels.length === 0 && (
         <div className="no-hotels">
           <div>🏨</div>
@@ -90,32 +149,40 @@ const AdminHotels = () => {
 
           <p>You haven't added any hotels yet.</p>
 
-          <button onClick={() => navigate("/admin/hotels/add")}>
+          <button type="button" onClick={() => navigate("/admin/hotels/add")}>
             Add Your First Hotel
           </button>
         </div>
       )}
 
-      {/* Hotels */}
+      {/* ==================================================
+          HOTELS
+      ================================================== */}
       {!loading && hotels.length > 0 && (
         <div className="hotels-grid">
           {hotels.map((hotel) => (
             <div className="admin-hotel-card" key={hotel._id}>
-              {/* Image */}
+              {/* ==================================================
+                  IMAGE
+              ================================================== */}
               <div className="hotel-image-container">
                 <img
-                  src={hotel.image}
-                  alt={hotel.name}
-                  onError={(e) => {
-                    e.target.src =
-                      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80";
+                  src={hotel.image || FALLBACK_HOTEL_IMAGE}
+                  alt={hotel.name || "Hotel"}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = FALLBACK_HOTEL_IMAGE;
                   }}
                 />
 
-                <div className="price-badge">${hotel.price} / night</div>
+                <div className="price-badge">
+                  ${Number(hotel.price || 0).toLocaleString()} / night
+                </div>
               </div>
 
-              {/* Information */}
+              {/* ==================================================
+                  HOTEL INFORMATION
+              ================================================== */}
               <div className="hotel-info">
                 <h2>{hotel.name}</h2>
 
@@ -123,9 +190,14 @@ const AdminHotels = () => {
 
                 <p className="hotel-description">{hotel.description}</p>
 
-                {/* Buttons */}
+                <p className="hotel-rooms">🛏️ {hotel.rooms || 0} rooms</p>
+
+                {/* ==================================================
+                    BUTTONS
+                ================================================== */}
                 <div className="hotel-actions">
                   <button
+                    type="button"
                     className="edit-btn"
                     onClick={() => navigate(`/admin/hotels/edit/${hotel._id}`)}
                   >
@@ -133,6 +205,7 @@ const AdminHotels = () => {
                   </button>
 
                   <button
+                    type="button"
                     className="delete-btn"
                     onClick={() => handleDelete(hotel._id)}
                   >
