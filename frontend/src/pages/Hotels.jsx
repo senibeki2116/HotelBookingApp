@@ -221,9 +221,19 @@ function Hotels() {
   // AI RECOMMENDATION
   // ========================================
 
-  const handleAIRecommend = async () => {
+  const handleAIRecommend = () => {
+    console.log("🔎 Hotel search started");
+    console.log("User request:", aiPrompt);
+    console.log("Available hotels:", hotels);
+
     if (!aiPrompt.trim()) {
       setAiError("Please tell us what kind of hotel you're looking for.");
+      return;
+    }
+
+    if (!Array.isArray(hotels) || hotels.length === 0) {
+      setAiError("No hotels are currently available.");
+      console.log("❌ No hotels available:", hotels);
       return;
     }
 
@@ -232,44 +242,335 @@ function Hotels() {
       setAiError("");
       setAiResults([]);
 
-      const response = await fetch(`${API_URL}/api/ai/recommend`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: aiPrompt,
-        }),
+      const prompt = aiPrompt.toLowerCase().trim();
+
+      // -----------------------------------------
+      // USER PREFERENCES
+      // -----------------------------------------
+
+      const wantsCheap =
+        prompt.includes("cheap") ||
+        prompt.includes("budget") ||
+        prompt.includes("affordable") ||
+        prompt.includes("low price") ||
+        prompt.includes("inexpensive");
+
+      const wantsLuxury =
+        prompt.includes("luxury") ||
+        prompt.includes("luxurious") ||
+        prompt.includes("premium") ||
+        prompt.includes("expensive") ||
+        prompt.includes("high end");
+
+      const wantsFamily =
+        prompt.includes("family") ||
+        prompt.includes("children") ||
+        prompt.includes("kids") ||
+        prompt.includes("child");
+
+      const wantsBusiness =
+        prompt.includes("business") ||
+        prompt.includes("work") ||
+        prompt.includes("office") ||
+        prompt.includes("business trip");
+
+      const wantsRomantic =
+        prompt.includes("romantic") ||
+        prompt.includes("couple") ||
+        prompt.includes("honeymoon");
+
+      // -----------------------------------------
+      // LOCATION
+      // -----------------------------------------
+
+      const locations = [
+        "addis ababa",
+        "bahir dar",
+        "hawassa",
+        "gondar",
+        "mekele",
+        "dire dawa",
+        "jimma",
+        "lalibela",
+        "arbaminch",
+        "arba minch",
+        "axum",
+        "harar",
+      ];
+
+      const requestedLocation = locations.find((city) => prompt.includes(city));
+
+      console.log("📍 Requested location:", requestedLocation);
+
+      // -----------------------------------------
+      // NUMBER OF GUESTS
+      // -----------------------------------------
+
+      const guestMatch = prompt.match(
+        /(\d+)\s*(people|person|guests|guest|adults)/i,
+      );
+
+      const requestedGuests = guestMatch ? Number(guestMatch[1]) : null;
+
+      console.log("👥 Requested guests:", requestedGuests);
+
+      // -----------------------------------------
+      // SCORE HOTELS
+      // -----------------------------------------
+
+      const scoredHotels = hotels.map((hotel) => {
+        let score = 0;
+        const reasons = [];
+
+        // Get hotel information safely
+        const name = String(
+          hotel?.name || hotel?.hotelName || hotel?.title || "Hotel",
+        ).toLowerCase();
+
+        const location = String(
+          hotel?.location || hotel?.city || hotel?.address || "",
+        ).toLowerCase();
+
+        const price = Number(
+          hotel?.price || hotel?.pricePerNight || hotel?.amount || 0,
+        );
+
+        const rating = Number(
+          hotel?.rating || hotel?.stars || hotel?.averageRating || 0,
+        );
+
+        const description = String(
+          hotel?.description ||
+            hotel?.about ||
+            hotel?.amenities ||
+            hotel?.facilities ||
+            "",
+        ).toLowerCase();
+
+        const searchableText =
+          `${name} ${location} ${description}`.toLowerCase();
+
+        // -----------------------------------------
+        // LOCATION MATCH
+        // -----------------------------------------
+
+        if (requestedLocation) {
+          const cleanRequestedLocation = requestedLocation.replace(
+            "arba minch",
+            "arbaminch",
+          );
+
+          const cleanHotelLocation = location.replace(
+            "arba minch",
+            "arbaminch",
+          );
+
+          if (cleanHotelLocation.includes(cleanRequestedLocation)) {
+            score += 100;
+            reasons.push(`Located in ${requestedLocation}`);
+          } else {
+            score -= 30;
+          }
+        }
+
+        // -----------------------------------------
+        // CHEAP / BUDGET
+        // -----------------------------------------
+
+        if (wantsCheap && price > 0) {
+          if (price <= 100) {
+            score += 50;
+            reasons.push("Budget-friendly price");
+          } else if (price <= 200) {
+            score += 25;
+            reasons.push("Reasonable price");
+          } else {
+            score -= 20;
+          }
+        }
+
+        // -----------------------------------------
+        // LUXURY
+        // -----------------------------------------
+
+        if (wantsLuxury) {
+          if (rating >= 4.5) {
+            score += 40;
+            reasons.push("Highly rated luxury stay");
+          }
+
+          if (price >= 150) {
+            score += 30;
+            reasons.push("Premium accommodation");
+          }
+
+          if (
+            searchableText.includes("luxury") ||
+            searchableText.includes("premium") ||
+            searchableText.includes("5 star") ||
+            searchableText.includes("five star")
+          ) {
+            score += 40;
+            reasons.push("Luxury facilities");
+          }
+        }
+
+        // -----------------------------------------
+        // RATING
+        // -----------------------------------------
+
+        if (rating >= 4.8) {
+          score += 30;
+          reasons.push("Excellent guest rating");
+        } else if (rating >= 4.5) {
+          score += 20;
+          reasons.push("Very highly rated");
+        } else if (rating >= 4.0) {
+          score += 10;
+        }
+
+        // -----------------------------------------
+        // FAMILY
+        // -----------------------------------------
+
+        if (wantsFamily) {
+          if (
+            searchableText.includes("family") ||
+            searchableText.includes("children") ||
+            searchableText.includes("kids") ||
+            searchableText.includes("child") ||
+            searchableText.includes("playground") ||
+            searchableText.includes("pool")
+          ) {
+            score += 50;
+            reasons.push("Family-friendly");
+          }
+        }
+
+        // -----------------------------------------
+        // BUSINESS
+        // -----------------------------------------
+
+        if (wantsBusiness) {
+          if (
+            searchableText.includes("business") ||
+            searchableText.includes("wifi") ||
+            searchableText.includes("wi-fi") ||
+            searchableText.includes("conference") ||
+            searchableText.includes("meeting") ||
+            searchableText.includes("office")
+          ) {
+            score += 40;
+            reasons.push("Good for business travel");
+          }
+        }
+
+        // -----------------------------------------
+        // ROMANTIC
+        // -----------------------------------------
+
+        if (wantsRomantic) {
+          if (
+            searchableText.includes("romantic") ||
+            searchableText.includes("couple") ||
+            searchableText.includes("honeymoon") ||
+            searchableText.includes("luxury") ||
+            searchableText.includes("spa")
+          ) {
+            score += 45;
+            reasons.push("Great for couples");
+          }
+        }
+
+        // -----------------------------------------
+        // KEYWORD MATCH
+        // -----------------------------------------
+
+        const words = prompt
+          .split(/\s+/)
+          .map((word) => word.replace(/[^\w]/g, ""))
+          .filter((word) => word.length > 3);
+
+        let matches = 0;
+
+        words.forEach((word) => {
+          if (searchableText.includes(word)) {
+            matches++;
+            score += 5;
+          }
+        });
+
+        if (matches > 0) {
+          reasons.push("Matches your preferences");
+        }
+
+        // -----------------------------------------
+        // GUEST CAPACITY
+        // -----------------------------------------
+
+        if (requestedGuests) {
+          const capacity = Number(
+            hotel?.maxGuests ||
+              hotel?.guests ||
+              hotel?.capacity ||
+              hotel?.maxOccupancy ||
+              hotel?.numberOfGuests ||
+              0,
+          );
+
+          if (capacity >= requestedGuests) {
+            score += 25;
+            reasons.push(`Suitable for ${requestedGuests} guests`);
+          }
+        }
+
+        // -----------------------------------------
+        // GENERAL QUALITY
+        // -----------------------------------------
+
+        score += rating * 3;
+
+        return {
+          ...hotel,
+          recommendationScore: score,
+          reason:
+            reasons.length > 0
+              ? reasons.slice(0, 2).join(" • ")
+              : "Good overall match for your search",
+        };
       });
 
-      const data = await response.json();
+      // -----------------------------------------
+      // SORT RESULTS
+      // -----------------------------------------
 
-      if (!response.ok) {
-        throw new Error(
-          data?.message || "Unable to get hotel recommendations.",
-        );
-      }
-
-      const recommendations =
-        data?.recommendations || data?.hotels || data?.results || [];
-
-      setAiResults(Array.isArray(recommendations) ? recommendations : []);
-    } catch (err) {
-      console.error("AI recommendation error:", err);
-
-      setAiError(
-        err.message || "Something went wrong while finding your perfect hotel.",
+      scoredHotels.sort(
+        (a, b) => b.recommendationScore - a.recommendationScore,
       );
+
+      // -----------------------------------------
+      // TOP 6
+      // -----------------------------------------
+
+      const recommendations = scoredHotels
+        .slice(0, 6)
+        .map(({ recommendationScore, ...hotel }) => hotel);
+
+      console.log("✅ Recommendations:", recommendations);
+
+      setAiResults(recommendations);
+
+      if (recommendations.length === 0) {
+        setAiError("We couldn't find hotels matching your preferences.");
+      }
+    } catch (err) {
+      console.error("❌ Hotel recommendation error:", err);
+
+      setAiError("Something went wrong while finding your perfect hotel.");
     } finally {
       setAiLoading(false);
     }
   };
-
-  const useExamplePrompt = (prompt) => {
-    setAiPrompt(prompt);
-    setAiError("");
-  };
-
   // ========================================
   // DISPLAY HOTELS
   // ========================================
@@ -289,6 +590,7 @@ function Hotels() {
             className="brand"
             onClick={() => {
               setMenuOpen(false);
+
               window.scrollTo({
                 top: 0,
                 behavior: "smooth",
@@ -384,15 +686,6 @@ function Hotels() {
 
                   <small>Beautiful stays, unforgettable journeys.</small>
                 </div>
-
-                <div className="top-menu-heading-image">
-                  <img
-                    src="https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=700&q=85"
-                    alt="Luxury hotel room"
-                  />
-
-                  <span>✦</span>
-                </div>
               </div>
 
               {/* MENU LINKS */}
@@ -402,6 +695,7 @@ function Hotels() {
                   type="button"
                   onClick={() => {
                     setMenuOpen(false);
+
                     window.scrollTo({
                       top: 0,
                       behavior: "smooth",

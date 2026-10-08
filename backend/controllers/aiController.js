@@ -126,7 +126,7 @@ Return exactly this structure:
     // ------------------------------------
 
     const response = await client.responses.create({
-      model: "gpt-5.6-luna",
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       input: aiPrompt,
     });
 
@@ -193,6 +193,17 @@ Return exactly this structure:
       recommendations: recommendedHotels,
     });
   } catch (error) {
+    if (error?.status === 401) {
+      console.error(
+        "OpenAI rejected OPENAI_API_KEY. Replace the backend credential and restart the server.",
+      );
+
+      return res.status(503).json({
+        message:
+          "AI recommendations are temporarily unavailable. Configure a valid OpenAI API key in the backend and restart the server.",
+      });
+    }
+
     console.error("❌ AI hotel recommendation error:", error);
 
     // ------------------------------------

@@ -2315,3 +2315,31 @@ button:focus-visible {
     flex-direction: column;
   }
 }
+/* ========================================
+   HAMBURGER HOVER AREA
+======================================== */
+
+.hamburger-hover-area {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0;
+}
+
+/* Invisible hover bridge between button and menu */
+.hamburger-hover-area::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  right: -20px;
+  width: 70px;
+  height: 25px;
+  background: transparent;
+}
+
+/* Keep menu above everything */
+.top-menu {
+  z-index: 9999;
+}
