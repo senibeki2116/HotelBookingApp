@@ -1047,8 +1047,6 @@ const HotelAdminDashboard = () => {
 
     try {
       await Promise.all([loadHotel(), loadBookings(), loadRooms()]);
-
-      setSuccess("Dashboard refreshed successfully.");
     } catch (requestError) {
       console.error("Refresh error:", requestError);
 
@@ -1302,10 +1300,7 @@ const HotelAdminDashboard = () => {
               aria-label="Refresh dashboard"
               title={refreshing ? "Refreshing dashboard" : "Refresh dashboard"}
             >
-              <Icon name="refresh" size={15} />
-              <span className="refresh-button-text">
-                {refreshing ? "Refreshing..." : "Refresh"}
-              </span>
+              <Icon name="refresh" size={17} />
             </button>
 
             <button

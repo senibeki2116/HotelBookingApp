@@ -9,6 +9,7 @@ const {
   deleteBooking,
   getAllBookings,
   getMyHotelBookings,
+  updateBookingStatus,
 } = require("../controllers/bookingController");
 
 const { protect } = require("../middleware/authMiddleware");
@@ -41,6 +42,12 @@ router.get("/my-hotel", protect, hotelAdmin, getMyHotelBookings);
 // =====================================================
 // SINGLE BOOKING
 // =====================================================
+
+// =====================================================
+// HOTEL ADMIN - UPDATE BOOKING STATUS
+// =====================================================
+
+router.patch("/:id/status", protect, hotelAdmin, updateBookingStatus);
 
 router.get("/:id", protect, getBookingById);
 
