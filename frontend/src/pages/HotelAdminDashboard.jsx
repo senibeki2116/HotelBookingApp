@@ -408,6 +408,7 @@ const HotelAdminDashboard = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -1040,20 +1041,23 @@ const HotelAdminDashboard = () => {
      REFRESH
   ======================================================= */
 
-  const handleRefresh = async () => {
+  const openBookingsFromNotification = () => {
+    setShowNotifications(false);
+
+    document.querySelector(".recent-bookings-panel")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  const handleRefresh = () => {
+    if (refreshing) return;
+
     setRefreshing(true);
     setError("");
-    setSuccess("");
 
-    try {
-      await Promise.all([loadHotel(), loadBookings(), loadRooms()]);
-    } catch (requestError) {
-      console.error("Refresh error:", requestError);
-
-      setError("Unable to refresh the dashboard.");
-    } finally {
-      setRefreshing(false);
-    }
+    // Reload the dashboard without showing a message.
+    window.location.reload();
   };
 
   /* =======================================================
@@ -1312,15 +1316,155 @@ const HotelAdminDashboard = () => {
               View Website
             </button>
 
-            <button
-              type="button"
-              className="dashboard-notification-button"
-              aria-label="Notifications"
-            >
-              <Icon name="bell" size={17} />
+            <div className="dashboard-notification-wrapper">
+              <button
+                type="button"
+                className="dashboard-notification-button"
+                aria-label="Toggle notifications"
+                aria-expanded={showNotifications}
+                title="Notifications"
+                onClick={() => {
+    window.open(
+      `${window.location.pathname}#recent-bookings`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }} 
+  > <Icon name="bell" size={17} />
+  {todayCheckIns.length > 0 && <span />}
+                <svg
+                  className="dashboard-bell-svg"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                  <path d="M10 21h4" />
+                </svg>
 
-              {todayCheckIns.length > 0 && <span />}
-            </button>
+                {(todayCheckIns.length > 0 || todayCheckOuts.length > 0) && (
+                  <span className="dashboard-notification-dot" />
+                )}
+              </button>
+
+              {showNotifications && (
+                <div
+                  className="dashboard-notification-panel"
+                  role="dialog"
+                  aria-label="Property notifications"
+                >
+                  <div className="dashboard-notification-heading">
+                    <div>
+                      <h3>Notifications</h3>
+                      <p>Updates for your property</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="dashboard-notification-x"
+                      aria-label="Close notifications"
+                      onClick={() => setShowNotifications(false)}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="dashboard-notification-list">
+                    {todayCheckIns.map((booking, index) => (
+                      <div
+                        className="dashboard-notification-item"
+                        key={booking._id || booking.id || `checkin-${index}`}
+                      >
+                        <div className="dashboard-notification-icon">↗</div>
+                        <div>
+                          <strong>Guest check-in today</strong>
+                          <p>
+                            {getGuestName(booking)} is scheduled to check in.
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+
+                    {todayCheckOuts.map((booking, index) => (
+                      <div
+                        className="dashboard-notification-item"
+                        key={booking._id || booking.id || `checkout-${index}`}
+                      >
+                        <div className="dashboard-notification-icon">↙</div>
+                        <div>
+                          <strong>Guest check-out today</strong>
+                          <p>
+                            {getGuestName(booking)} is scheduled to check out.
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+
+                    
+<section
+  id="recent-bookings"
+  className="dashboard-panel recent-bookings-panel"
+></section>
+
+                    {recentBookings.slice(0, 3).map((booking, index) => (
+                      
+                      <button
+                        type="button"
+                        className="dashboard-notification-item dashboard-notification-clickable"
+                        key={booking._id || booking.id || `booking-${index}`}
+                        onClick={openBookingsFromNotification}
+                        title="View recent bookings"
+                      >
+                        <div className="dashboard-notification-icon">
+                          <Icon name="calendar" size={18} />
+                        </div>
+
+                        <div className="dashboard-notification-text">
+                          <strong>Recent booking</strong>
+
+                          <p>
+                            {getGuestName(booking)} ·{" "}
+                            {getBookingStatus(booking).replace(/-/g, " ")}
+                          </p>
+
+                          <small>
+                            {formatDate(booking.createdAt || booking.checkIn)}
+                          </small>
+
+                          <span className="notification-view-hint">
+                            View bookings →
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+
+                    {todayCheckIns.length === 0 &&
+                      todayCheckOuts.length === 0 &&
+                      recentBookings.length === 0 && (
+                        <div className="dashboard-notification-empty">
+                          <strong>No notifications yet</strong>
+                          <p>Booking updates will appear here.</p>
+                        </div>
+                      )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="dashboard-notification-close"
+                    onClick={() => setShowNotifications(false)}
+                  >
+                    Close notifications
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="dashboard-header-avatar">
               {getUserInitials(adminName)}

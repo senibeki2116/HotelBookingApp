@@ -2883,3 +2883,445 @@
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* Notification button and dropdown */
+.dashboard-notification-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dashboard-notification-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border: 1px solid #e6e9ef;
+  border-radius: 12px;
+  background: #fff;
+  color: #17243a;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.dashboard-notification-button:hover {
+  background: #f5f7fb;
+  border-color: #cbd5e1;
+}
+
+.dashboard-notification-button > span {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #e14b55;
+}
+
+.dashboard-notification-panel {
+  position: absolute;
+  z-index: 1000;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(360px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid #e7eaf0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.16);
+  color: #17243a;
+}
+
+.dashboard-notification-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.dashboard-notification-heading h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.dashboard-notification-heading p {
+  margin: 5px 0 0;
+  color: #778196;
+  font-size: 12px;
+}
+
+.dashboard-notification-heading > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: #f3f5f8;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.dashboard-notification-list {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.dashboard-notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px 18px;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.dashboard-notification-item:last-child {
+  border-bottom: 0;
+}
+
+.dashboard-notification-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: #f5f0e5;
+  color: #a67b32;
+}
+
+.dashboard-notification-item strong {
+  display: block;
+  margin: 1px 0 5px;
+  font-size: 13px;
+}
+
+.dashboard-notification-item p {
+  margin: 0;
+  color: #687386;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-notification-item small {
+  display: block;
+  margin-top: 5px;
+  color: #929bad;
+  font-size: 11px;
+}
+
+.dashboard-notification-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 30px 18px;
+  color: #778196;
+  text-align: center;
+}
+
+.dashboard-notification-empty strong {
+  color: #17243a;
+  font-size: 14px;
+}
+
+.dashboard-notification-empty p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.dashboard-notification-close {
+  width: 100%;
+  padding: 13px;
+  border: 0;
+  border-top: 1px solid #edf0f4;
+  background: #fafbfc;
+  color: #8a6a2d;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dashboard-notification-close:hover {
+  background: #f3f5f8;
+}
+
+.dashboard-refresh-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.dashboard-refresh-button:disabled svg {
+  animation: dashboard-refresh-spin 0.8s linear infinite;
+}
+
+@keyframes dashboard-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-notification-panel {
+    right: -55px;
+  }
+}
+
+/* Keep the notification control visible and clickable */
+.hotel-admin-dashboard .dashboard-notification-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  z-index: 1001;
+}
+
+.hotel-admin-dashboard .dashboard-notification-button {
+  position: relative;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid #e2e6ed;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #17243a !important;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.hotel-admin-dashboard .dashboard-notification-button:hover {
+  background: #f7f8fa;
+  border-color: #c5a15c;
+}
+
+.hotel-admin-dashboard .dashboard-notification-button .dashboard-bell-svg {
+  display: block !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px;
+  color: #17243a !important;
+  stroke: #17243a !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none;
+}
+
+.hotel-admin-dashboard .dashboard-notification-dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: block;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #d94b52;
+}
+
+/* Notification dropdown */
+.hotel-admin-dashboard .dashboard-notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 1002;
+  display: block;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(520px, 75vh);
+  overflow: hidden;
+  border: 1px solid #e5e8ee;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #17243a;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
+  pointer-events: auto;
+}
+
+.hotel-admin-dashboard .dashboard-notification-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.hotel-admin-dashboard .dashboard-notification-heading h3 {
+  margin: 0;
+  color: #17243a;
+  font-size: 17px;
+}
+
+.hotel-admin-dashboard .dashboard-notification-heading p {
+  margin: 6px 0 0;
+  color: #778196;
+  font-size: 13px;
+}
+
+.hotel-admin-dashboard .dashboard-notification-x {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 10px;
+  background: #f1f3f6;
+  color: #17243a !important;
+  font-size: 27px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.hotel-admin-dashboard .dashboard-notification-list {
+  max-height: 350px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.hotel-admin-dashboard .dashboard-notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.hotel-admin-dashboard .dashboard-notification-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: #f5efe2;
+  color: #a87521;
+  font-weight: 700;
+}
+
+.hotel-admin-dashboard .dashboard-notification-item strong {
+  display: block;
+  margin: 1px 0 6px;
+  color: #17243a;
+  font-size: 13px;
+}
+
+.hotel-admin-dashboard .dashboard-notification-item p {
+  margin: 0;
+  color: #687386;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.hotel-admin-dashboard .dashboard-notification-item small {
+  display: block;
+  margin-top: 7px;
+  color: #929bad;
+  font-size: 11px;
+}
+
+.hotel-admin-dashboard .dashboard-notification-empty {
+  padding: 28px 18px;
+  color: #687386;
+  text-align: center;
+}
+
+.hotel-admin-dashboard .dashboard-notification-empty p {
+  font-size: 12px;
+}
+
+.hotel-admin-dashboard .dashboard-notification-close {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  border: 0;
+  border-top: 1px solid #edf0f4;
+  border-radius: 0;
+  background: #fafbfc;
+  color: #9a6a18 !important;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.hotel-admin-dashboard .dashboard-notification-close:hover {
+  background: #f5efe2;
+}
+
+@media (max-width: 520px) {
+  .hotel-admin-dashboard .dashboard-notification-panel {
+    position: fixed;
+    top: 78px;
+    right: 12px;
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 100px);
+  }
+}
+
+/* Make notification items genuinely clickable */
+.hotel-admin-dashboard .dashboard-notification-clickable {
+  width: 100%;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  color: #17243a;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid #edf0f4;
+  border-radius: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.2s ease;
+}
+
+.hotel-admin-dashboard .dashboard-notification-clickable:hover {
+  background: #faf7f0;
+}
+
+.hotel-admin-dashboard .dashboard-notification-clickable:focus-visible {
+  outline: 2px solid #b88732;
+  outline-offset: -3px;
+}
+
+.hotel-admin-dashboard
+  .dashboard-notification-clickable
+  .dashboard-notification-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.hotel-admin-dashboard .notification-view-hint {
+  display: inline-block;
+  margin-top: 8px;
+  color: #a87521;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hotel-admin-dashboard
+  .dashboard-notification-clickable:hover
+  .notification-view-hint {
+  text-decoration: underline;
+}
