@@ -2688,3 +2688,198 @@
     padding: 0 20px 20px;
   }
 }
+
+/* =========================================
+   RESPONSIVE DASHBOARD IMPROVEMENTS
+   ========================================= */
+
+.hotel-admin-dashboard,
+.hotel-admin-dashboard * {
+  box-sizing: border-box;
+}
+
+.hotel-admin-dashboard {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  overflow-x: clip;
+}
+
+.hotel-dashboard-main {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.hotel-dashboard-main > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.hotel-statistics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.hotel-stat-card,
+.dashboard-panel {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.hotel-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
+  gap: 20px;
+}
+
+.dashboard-right-column {
+  min-width: 0;
+}
+
+.recent-bookings-list,
+.hotel-room-management {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.recent-booking-item {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.hotel-admin-dashboard img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* TABLETS */
+@media (max-width: 1100px) {
+  .hotel-statistics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .hotel-dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-right-column {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+/* SMALL TABLETS AND LARGE PHONES */
+@media (max-width: 768px) {
+  .hotel-admin-dashboard {
+    display: block;
+  }
+
+  .hotel-sidebar {
+    width: 100%;
+    max-width: 100%;
+    min-height: auto;
+    height: auto;
+    position: relative;
+    inset: auto;
+  }
+
+  .hotel-sidebar-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .hotel-nav-item {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  .sidebar-bottom {
+    margin-top: 16px;
+  }
+
+  .hotel-dashboard-main {
+    margin-left: 0;
+    padding: 20px 16px;
+    width: 100%;
+  }
+
+  .dashboard-right-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .recent-booking-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+  }
+
+  .guest-info,
+  .booking-dates,
+  .booking-price,
+  .booking-status {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* MOBILE PHONES */
+@media (max-width: 480px) {
+  .hotel-statistics {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .hotel-dashboard-main {
+    padding: 14px 10px;
+  }
+
+  .hotel-dashboard-main h1 {
+    font-size: clamp(22px, 6vw, 30px);
+    overflow-wrap: anywhere;
+  }
+
+  .hotel-dashboard-main h2 {
+    font-size: 22px;
+  }
+
+  .hotel-dashboard-main h3 {
+    font-size: 17px;
+  }
+
+  .hotel-stat-card,
+  .dashboard-panel {
+    padding: 16px;
+  }
+
+  .hotel-nav-item {
+    flex: 1 1 100%;
+  }
+
+  .hotel-admin-dashboard button,
+  .hotel-admin-dashboard input,
+  .hotel-admin-dashboard select,
+  .hotel-admin-dashboard textarea {
+    max-width: 100%;
+  }
+
+  .hotel-admin-dashboard input,
+  .hotel-admin-dashboard select,
+  .hotel-admin-dashboard textarea {
+    min-width: 0;
+  }
+
+  .hotel-admin-dashboard table {
+    min-width: 600px;
+  }
+
+  .hotel-room-management {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
