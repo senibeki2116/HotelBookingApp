@@ -5,16 +5,18 @@ const Hotel = require("../models/Hotel");
 // ======================================================
 const getHotels = async (req, res) => {
   try {
+    res.set("Cache-Control", "no-store");
+
     const hotels = await Hotel.find()
       .populate("createdBy", "name email")
       .populate("hotelAdmin", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(hotels);
+    return res.status(200).json(hotels);
   } catch (error) {
     console.error("GET HOTELS ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to fetch hotels",
       error: error.message,
     });
@@ -36,11 +38,11 @@ const getHotelById = async (req, res) => {
       });
     }
 
-    res.status(200).json(hotel);
+    return res.status(200).json(hotel);
   } catch (error) {
     console.error("GET HOTEL ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to fetch hotel",
       error: error.message,
     });
@@ -55,22 +57,19 @@ const createHotel = async (req, res) => {
   try {
     const { name, location, description, price, rooms, image } = req.body;
 
-    // -----------------------------
-    // VALIDATION
-    // -----------------------------
-    if (!name || !name.trim()) {
+    if (!name || !String(name).trim()) {
       return res.status(400).json({
         message: "Hotel name is required",
       });
     }
 
-    if (!location || !location.trim()) {
+    if (!location || !String(location).trim()) {
       return res.status(400).json({
         message: "Hotel location is required",
       });
     }
 
-    if (!description || !description.trim()) {
+    if (!description || !String(description).trim()) {
       return res.status(400).json({
         message: "Hotel description is required",
       });
@@ -80,6 +79,7 @@ const createHotel = async (req, res) => {
       price === undefined ||
       price === null ||
       price === "" ||
+      !Number.isFinite(Number(price)) ||
       Number(price) < 0
     ) {
       return res.status(400).json({
@@ -91,6 +91,7 @@ const createHotel = async (req, res) => {
       rooms === undefined ||
       rooms === null ||
       rooms === "" ||
+      !Number.isFinite(Number(rooms)) ||
       Number(rooms) < 1
     ) {
       return res.status(400).json({
@@ -98,9 +99,6 @@ const createHotel = async (req, res) => {
       });
     }
 
-    // -----------------------------
-    // LOGGED-IN USER
-    // -----------------------------
     const userId = req.user?._id || req.user?.id;
 
     if (!userId) {
@@ -109,22 +107,21 @@ const createHotel = async (req, res) => {
       });
     }
 
-    // -----------------------------
-    // CHECK ROLE
-    // -----------------------------
-    if (req.user.role !== "admin" && req.user.role !== "hoteladmin") {
+    const role = String(req.user.role || "").toLowerCase();
+
+    if (role !== "admin" && role !== "hoteladmin") {
       return res.status(403).json({
         message: "Only admin or hotel admin can create a hotel",
       });
     }
 
-    // -----------------------------
-    // PREVENT MULTIPLE HOTELS
-    // FOR ONE HOTEL ADMIN
-    // -----------------------------
-    if (req.user.role === "hoteladmin") {
+    // Prevent a hotel admin from creating multiple hotels.
+    if (role === "hoteladmin") {
       const existingHotel = await Hotel.findOne({
-        hotelAdmin: userId,
+        $or: [
+          { hotelAdmin: userId },
+          { createdBy: userId, hotelAdmin: { $exists: false } },
+        ],
       });
 
       if (existingHotel) {
@@ -135,38 +132,29 @@ const createHotel = async (req, res) => {
       }
     }
 
-    // -----------------------------
-    // CREATE HOTEL
-    // -----------------------------
     const hotel = await Hotel.create({
-      name: name.trim(),
-      location: location.trim(),
-      description: description.trim(),
+      name: String(name).trim(),
+      location: String(location).trim(),
+      description: String(description).trim(),
       price: Number(price),
       rooms: Number(rooms),
-      image: image ? image.trim() : "",
-
-      // Whoever created it
+      image: image ? String(image).trim() : "",
       createdBy: userId,
-
-      // IMPORTANT:
-      // Hotel admin automatically becomes
-      // the manager of this hotel.
-      hotelAdmin: req.user.role === "hoteladmin" ? userId : null,
+      hotelAdmin: role === "hoteladmin" ? userId : null,
     });
 
     const populatedHotel = await Hotel.findById(hotel._id)
       .populate("createdBy", "name email")
       .populate("hotelAdmin", "name email");
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Hotel created successfully",
       hotel: populatedHotel,
     });
   } catch (error) {
     console.error("CREATE HOTEL ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to create hotel",
       error: error.message,
     });
@@ -186,25 +174,36 @@ const getMyHotel = async (req, res) => {
       });
     }
 
+    console.log("GET MY HOTEL - USER ID:", String(userId));
+    console.log("GET MY HOTEL - USER ROLE:", req.user?.role);
+
+    // Find the hotel assigned to this user or created by them.
     const hotel = await Hotel.findOne({
-      hotelAdmin: userId,
+      $or: [{ hotelAdmin: userId }, { createdBy: userId }],
     })
       .populate("createdBy", "name email")
-      .populate("hotelAdmin", "name email");
+      .populate("hotelAdmin", "name email")
+      .lean();
+
+    res.set("Cache-Control", "no-store");
 
     if (!hotel) {
+      console.log("GET MY HOTEL - NO MATCH FOUND");
+
       return res.status(404).json({
         message: "No hotel is assigned to this hotel admin",
       });
     }
 
-    res.status(200).json({
+    console.log("GET MY HOTEL - FOUND:", hotel.name);
+
+    return res.status(200).json({
       hotel,
     });
   } catch (error) {
     console.error("GET MY HOTEL ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to fetch your hotel",
       error: error.message,
     });
@@ -212,7 +211,7 @@ const getMyHotel = async (req, res) => {
 };
 
 // ======================================================
-// UPDATE HOTEL
+// UPDATE HOTEL BY ID
 // ======================================================
 const updateHotel = async (req, res) => {
   try {
@@ -232,10 +231,12 @@ const updateHotel = async (req, res) => {
       });
     }
 
-    // Hotel admin can only update their own hotel
+    const role = String(req.user.role || "").toLowerCase();
+
     if (
-      req.user.role === "hoteladmin" &&
-      String(hotel.hotelAdmin) !== String(userId)
+      role === "hoteladmin" &&
+      String(hotel.hotelAdmin || "") !== String(userId) &&
+      String(hotel.createdBy || "") !== String(userId)
     ) {
       return res.status(403).json({
         message: "You can only update your own hotel",
@@ -245,27 +246,60 @@ const updateHotel = async (req, res) => {
     const { name, location, description, price, rooms, image } = req.body;
 
     if (name !== undefined) {
-      hotel.name = name.trim();
+      if (!String(name).trim()) {
+        return res.status(400).json({
+          message: "Hotel name cannot be empty",
+        });
+      }
+      hotel.name = String(name).trim();
     }
 
     if (location !== undefined) {
-      hotel.location = location.trim();
+      if (!String(location).trim()) {
+        return res.status(400).json({
+          message: "Hotel location cannot be empty",
+        });
+      }
+      hotel.location = String(location).trim();
     }
 
     if (description !== undefined) {
-      hotel.description = description.trim();
+      if (!String(description).trim()) {
+        return res.status(400).json({
+          message: "Hotel description cannot be empty",
+        });
+      }
+      hotel.description = String(description).trim();
     }
 
     if (price !== undefined) {
+      if (
+        price === "" ||
+        !Number.isFinite(Number(price)) ||
+        Number(price) < 0
+      ) {
+        return res.status(400).json({
+          message: "Valid hotel price is required",
+        });
+      }
       hotel.price = Number(price);
     }
 
     if (rooms !== undefined) {
+      if (
+        rooms === "" ||
+        !Number.isFinite(Number(rooms)) ||
+        Number(rooms) < 1
+      ) {
+        return res.status(400).json({
+          message: "Valid number of rooms is required",
+        });
+      }
       hotel.rooms = Number(rooms);
     }
 
     if (image !== undefined) {
-      hotel.image = image.trim();
+      hotel.image = String(image).trim();
     }
 
     await hotel.save();
@@ -274,14 +308,14 @@ const updateHotel = async (req, res) => {
       .populate("createdBy", "name email")
       .populate("hotelAdmin", "name email");
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Hotel updated successfully",
       hotel: updatedHotel,
     });
   } catch (error) {
     console.error("UPDATE HOTEL ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to update hotel",
       error: error.message,
     });
@@ -302,7 +336,7 @@ const updateMyHotel = async (req, res) => {
     }
 
     const hotel = await Hotel.findOne({
-      hotelAdmin: userId,
+      $or: [{ hotelAdmin: userId }, { createdBy: userId }],
     });
 
     if (!hotel) {
@@ -314,27 +348,60 @@ const updateMyHotel = async (req, res) => {
     const { name, location, description, price, rooms, image } = req.body;
 
     if (name !== undefined) {
-      hotel.name = name.trim();
+      if (!String(name).trim()) {
+        return res.status(400).json({
+          message: "Hotel name cannot be empty",
+        });
+      }
+      hotel.name = String(name).trim();
     }
 
     if (location !== undefined) {
-      hotel.location = location.trim();
+      if (!String(location).trim()) {
+        return res.status(400).json({
+          message: "Hotel location cannot be empty",
+        });
+      }
+      hotel.location = String(location).trim();
     }
 
     if (description !== undefined) {
-      hotel.description = description.trim();
+      if (!String(description).trim()) {
+        return res.status(400).json({
+          message: "Hotel description cannot be empty",
+        });
+      }
+      hotel.description = String(description).trim();
     }
 
     if (price !== undefined) {
+      if (
+        price === "" ||
+        !Number.isFinite(Number(price)) ||
+        Number(price) < 0
+      ) {
+        return res.status(400).json({
+          message: "Valid hotel price is required",
+        });
+      }
       hotel.price = Number(price);
     }
 
     if (rooms !== undefined) {
+      if (
+        rooms === "" ||
+        !Number.isFinite(Number(rooms)) ||
+        Number(rooms) < 1
+      ) {
+        return res.status(400).json({
+          message: "Valid number of rooms is required",
+        });
+      }
       hotel.rooms = Number(rooms);
     }
 
     if (image !== undefined) {
-      hotel.image = image.trim();
+      hotel.image = String(image).trim();
     }
 
     await hotel.save();
@@ -343,14 +410,14 @@ const updateMyHotel = async (req, res) => {
       .populate("createdBy", "name email")
       .populate("hotelAdmin", "name email");
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Hotel updated successfully",
       hotel: updatedHotel,
     });
   } catch (error) {
     console.error("UPDATE MY HOTEL ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to update your hotel",
       error: error.message,
     });
@@ -372,19 +439,22 @@ const deleteHotel = async (req, res) => {
 
     await Hotel.findByIdAndDelete(req.params.id);
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Hotel deleted successfully",
     });
   } catch (error) {
     console.error("DELETE HOTEL ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to delete hotel",
       error: error.message,
     });
   }
 };
 
+// ======================================================
+// EXPORTS
+// ======================================================
 module.exports = {
   getHotels,
   getHotelById,

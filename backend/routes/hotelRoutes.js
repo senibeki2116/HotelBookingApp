@@ -53,7 +53,15 @@ router.get("/", getHotels);
 // ======================================================
 
 // Get hotel belonging to logged-in hotel admin
-router.get("/my-hotel", protect, getMyHotel);
+router.get(
+  "/my-hotel",
+  (req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  },
+  protect,
+  getMyHotel,
+);
 
 // Update hotel belonging to logged-in hotel admin
 router.put("/my-hotel", protect, adminOrHotelAdmin, updateMyHotel);

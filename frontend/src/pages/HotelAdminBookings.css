@@ -1018,3 +1018,425 @@
   }
 }
 
+/* ========================================
+   RESERVATIONS PAGE - LAYOUT IMPROVEMENTS
+======================================== */
+
+.hotel-admin-main {
+  padding: 0;
+  min-width: 0;
+  background: #f3f4f8;
+}
+
+/* Compact white page header */
+.hotel-admin-header {
+  min-height: 90px;
+  box-sizing: border-box;
+  padding: 18px 30px;
+  margin: 0 0 26px;
+  border: none;
+  border-bottom: 1px solid #e8ebf2;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.hotel-admin-header h1 {
+  font-size: 25px;
+  letter-spacing: -0.5px;
+  color: #172b4d;
+}
+
+.hotel-admin-header .header-eyebrow {
+  display: none;
+}
+
+.hotel-admin-header p {
+  font-size: 13px;
+}
+
+/* Main reservation workspace */
+.reservation-workspace {
+  margin: 0 25px 30px;
+  min-width: 0;
+}
+
+/* Tabs bar */
+.reservation-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 76px;
+  padding: 0 25px;
+  margin-bottom: 25px;
+  background: #ffffff;
+  border: 1px solid #e8ebf2;
+  border-radius: 3px;
+}
+
+.reservation-tabs {
+  display: flex;
+  align-self: stretch;
+  align-items: stretch;
+  gap: 30px;
+}
+
+.reservation-tab {
+  position: relative;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.reservation-tab.active {
+  color: #245de8;
+  font-weight: 700;
+}
+
+.reservation-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: #3166ed;
+}
+
+.create-reservation-btn {
+  border: 0;
+  border-radius: 6px;
+  padding: 13px 18px;
+  background: #3166e8;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.create-reservation-btn:hover {
+  background: #2453c7;
+}
+
+/* Toolbar */
+.reservation-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(250px, 340px) minmax(180px, 1fr);
+  align-items: center;
+  gap: 20px;
+  padding: 0 20px;
+  margin-bottom: 24px;
+}
+
+.reservation-heading h2 {
+  margin: 0 0 8px;
+  color: #172b4d;
+  font-size: 21px;
+}
+
+.reservation-heading p {
+  margin: 0;
+  color: #8190a8;
+  font-size: 12px;
+}
+
+.reservation-date-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 10px;
+  min-height: 70px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  border: 1px solid #e1e7f0;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(25, 45, 80, 0.04);
+}
+
+.reservation-date-picker > button {
+  border: none;
+  background: transparent;
+  color: #34506f;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.reservation-today {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.reservation-today strong {
+  color: #245de8;
+  font-size: 12px;
+}
+
+.reservation-today span {
+  color: #71809a;
+  font-size: 11px;
+}
+
+.reservation-date-picker input {
+  width: 25px;
+  max-width: 30px;
+  border: none;
+  background: transparent;
+  color: #42526b;
+  cursor: pointer;
+}
+
+.reservation-view-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.reservation-view-actions > span {
+  margin-right: 8px;
+  color: #53647f;
+  font-size: 12px;
+}
+
+.reservation-view-actions button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e0e6ef;
+  border-radius: 7px;
+  background: #fff;
+  color: #50627c;
+  cursor: pointer;
+}
+
+.reservation-view-actions button.selected {
+  border-color: #9db7ff;
+  background: #edf3ff;
+  color: #245de8;
+}
+
+/* Search */
+.reservation-search-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 0 auto 28px;
+  padding: 0 15px;
+}
+
+.reservation-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(650px, 100%);
+  min-height: 45px;
+  box-sizing: border-box;
+  padding: 0 15px;
+  border: 1px solid #dce4f0;
+  border-radius: 30px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(25, 45, 80, 0.04);
+}
+
+.reservation-search > span {
+  color: #4776c9;
+  font-size: 22px;
+}
+
+.reservation-search input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #24364f;
+  font-size: 12px;
+}
+
+.reservation-search input::placeholder {
+  color: #93a0b5;
+}
+
+.reservation-search > button {
+  border: none;
+  background: transparent;
+  color: #71809a;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.reservation-updated {
+  color: #8794a9;
+  font-size: 10px;
+}
+
+.online-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #35bb88;
+}
+
+/* Table */
+.bookings-section {
+  padding: 0;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.bookings-table-container {
+  overflow-x: auto;
+  border: 1px solid #e5eaf1;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.bookings-table {
+  min-width: 1050px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.bookings-table th {
+  padding: 15px 12px;
+  background: #fafbfc;
+  color: #6c788b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.bookings-table td {
+  padding: 16px 12px;
+  font-size: 12px;
+}
+
+.bookings-table tbody tr:hover {
+  background: #f7f9fd;
+}
+
+.reservation-guest-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.reservation-guest-details strong {
+  color: #24364f;
+}
+
+.reservation-guest-details span {
+  color: #8b98aa;
+  font-size: 10px;
+}
+
+.reservation-amount {
+  color: #344761;
+  white-space: nowrap;
+}
+
+/* Empty state */
+.empty-bookings {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 35px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 65px;
+  height: 65px;
+  margin-bottom: 18px;
+  border-radius: 50%;
+  background: #eaf0ff;
+  font-size: 32px;
+}
+
+.empty-bookings h3 {
+  color: #203652;
+  font-size: 19px;
+}
+
+.empty-bookings p {
+  color: #8190a8;
+  font-size: 13px;
+}
+
+.reservation-reset-btn {
+  margin-top: 12px;
+  padding: 9px 15px;
+  border: 1px solid #d8e2f5;
+  border-radius: 7px;
+  background: #fff;
+  color: #245de8;
+  cursor: pointer;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .reservation-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .reservation-view-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .hotel-admin-main {
+    padding: 0;
+  }
+
+  .hotel-admin-header {
+    padding: 18px;
+    gap: 15px;
+  }
+
+  .reservation-workspace {
+    margin: 0 12px 20px;
+  }
+
+  .reservation-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 12px;
+  }
+
+  .reservation-tabs {
+    width: 100%;
+    min-height: 45px;
+    gap: 8px;
+  }
+
+  .reservation-tab {
+    padding: 0 5px;
+    font-size: 11px;
+  }
+
+  .reservation-toolbar {
+    grid-template-columns: 1fr;
+    padding: 0 5px;
+  }
+
+  .reservation-view-actions {
+    grid-column: auto;
+    justify-content: flex-start;
+  }
+}
+

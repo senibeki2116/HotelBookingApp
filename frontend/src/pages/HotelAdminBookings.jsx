@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
@@ -24,12 +23,29 @@ const HotelAdminBookings = () => {
 
   const fetchHotel = useCallback(async () => {
     try {
-      const response = await API.get("/hotels/my-hotel");
+      const token =
+        localStorage.getItem("accessToken") || localStorage.getItem("token");
+
+      if (!token || token === "null" || token === "undefined") {
+        setError("You are not logged in. Please log in again.");
+        return;
+      }
+
+      const cleanToken = token.replace(/^Bearer\s+/i, "").trim();
+
+      const response = await API.get("/hotels/my-hotel", {
+        headers: {
+          Authorization: `Bearer ${cleanToken}`,
+        },
+      });
+
       setHotel(response.data);
+      setError("");
     } catch (err) {
-      console.error("GET HOTEL ERROR:", err);
+      console.error("GET HOTEL ERROR:", err.response?.data || err);
+
       setError(
-        err.response?.data?.message || "Unable to load hotel information."
+        err.response?.data?.message || "Unable to load hotel information.",
       );
     }
   }, []);
@@ -49,9 +65,7 @@ const HotelAdminBookings = () => {
       setBookings(data);
     } catch (err) {
       console.error("HOTEL ADMIN BOOKINGS ERROR:", err);
-      setError(
-        err.response?.data?.message || "Unable to load bookings."
-      );
+      setError(err.response?.data?.message || "Unable to load bookings.");
     }
   }, []);
 
@@ -159,16 +173,10 @@ const HotelAdminBookings = () => {
       .replace(/\s+/g, "-");
 
   const getGuestName = (booking) =>
-    booking.user?.name ||
-    booking.guestName ||
-    booking.customerName ||
-    "Guest";
+    booking.user?.name || booking.guestName || booking.customerName || "Guest";
 
   const getGuestEmail = (booking) =>
-    booking.user?.email ||
-    booking.guestEmail ||
-    booking.customerEmail ||
-    "-";
+    booking.user?.email || booking.guestEmail || booking.customerEmail || "-";
 
   const getCheckIn = (booking) =>
     booking.checkIn || booking.checkin || booking.check_in;
@@ -186,15 +194,15 @@ const HotelAdminBookings = () => {
   const totalBookings = bookings.length;
 
   const confirmedBookings = bookings.filter(
-    (booking) => booking.status?.toLowerCase() === "confirmed"
+    (booking) => booking.status?.toLowerCase() === "confirmed",
   ).length;
 
   const cancelledBookings = bookings.filter(
-    (booking) => booking.status?.toLowerCase() === "cancelled"
+    (booking) => booking.status?.toLowerCase() === "cancelled",
   ).length;
 
   const pendingBookings = bookings.filter(
-    (booking) => booking.status?.toLowerCase() === "pending"
+    (booking) => booking.status?.toLowerCase() === "pending",
   ).length;
 
   // ==========================================
@@ -208,7 +216,9 @@ const HotelAdminBookings = () => {
       const guestName = getGuestName(booking).toLowerCase();
       const guestEmail = getGuestEmail(booking).toLowerCase();
       const hotelName = (
-        booking.hotel?.name || hotel?.name || ""
+        booking.hotel?.name ||
+        hotel?.name ||
+        ""
       ).toLowerCase();
 
       const matchesSearch =
@@ -216,7 +226,9 @@ const HotelAdminBookings = () => {
         guestName.includes(query) ||
         guestEmail.includes(query) ||
         hotelName.includes(query) ||
-        String(booking._id || "").toLowerCase().includes(query);
+        String(booking._id || "")
+          .toLowerCase()
+          .includes(query);
 
       let matchesTab = true;
 
@@ -268,7 +280,6 @@ const HotelAdminBookings = () => {
           </div>
         </div>
 
-
         <nav className="sidebar-menu">
           <button
             className="sidebar-item"
@@ -286,20 +297,14 @@ const HotelAdminBookings = () => {
             <span>Reservations</span>
           </button>
 
-          <button
-            className="sidebar-item"
-            onClick={() => navigate("/")}
-          >
+          <button className="sidebar-item" onClick={() => navigate("/")}>
             <span className="sidebar-icon">🌐</span>
             <span>View Website</span>
           </button>
         </nav>
 
         <div className="sidebar-bottom">
-          <button
-            className="sidebar-item logout-item"
-            onClick={handleLogout}
-          >
+          <button className="sidebar-item logout-item" onClick={handleLogout}>
             <span className="sidebar-icon">↪</span>
             <span>Logout</span>
           </button>
@@ -314,8 +319,7 @@ const HotelAdminBookings = () => {
             <span className="header-eyebrow">HOTEL MANAGEMENT</span>
             <h1>Reservations</h1>
             <p>
-              Manage bookings for{" "}
-              <strong>{hotel?.name || "your hotel"}</strong>
+              Manage bookings for <strong>{hotel?.name || "your hotel"}</strong>
             </p>
           </div>
 
@@ -324,9 +328,7 @@ const HotelAdminBookings = () => {
 
             <div className="welcome-text">
               <span>Welcome back,</span>
-              <strong>
-                {hotel?.hotelAdmin?.name || "Hotel Admin"}
-              </strong>
+              <strong>{hotel?.hotelAdmin?.name || "Hotel Admin"}</strong>
               <small>Hotel Administrator</small>
             </div>
           </div>
@@ -370,9 +372,7 @@ const HotelAdminBookings = () => {
 
             <button
               className="create-reservation-btn"
-              onClick={() =>
-                navigate("/admin/hotel-dashboard")
-              }
+              onClick={() => navigate("/admin/hotel-dashboard")}
               title="Open your hotel dashboard to manage your property"
             >
               + Hotel Dashboard
@@ -391,10 +391,7 @@ const HotelAdminBookings = () => {
             </div>
 
             <div className="reservation-date-picker">
-              <button
-                onClick={() => changeDate(-1)}
-                aria-label="Previous day"
-              >
+              <button onClick={() => changeDate(-1)} aria-label="Previous day">
                 ‹
               </button>
 
@@ -409,10 +406,7 @@ const HotelAdminBookings = () => {
                 <span>{formatLongDate(selectedDate)}</span>
               </div>
 
-              <button
-                onClick={() => changeDate(1)}
-                aria-label="Next day"
-              >
+              <button onClick={() => changeDate(1)} aria-label="Next day">
                 ›
               </button>
 
@@ -552,15 +546,16 @@ const HotelAdminBookings = () => {
                       <td>
                         <div className="guest-info">
                           <div className="guest-avatar">
-                            {getGuestName(booking)
-                              .charAt(0)
-                              .toUpperCase()}
+                            {getGuestName(booking).charAt(0).toUpperCase()}
                           </div>
 
                           <div className="reservation-guest-details">
                             <strong>{getGuestName(booking)}</strong>
                             <span>
-                              ID: {String(booking._id || booking.id || "—").slice(-8)}
+                              ID:{" "}
+                              {String(booking._id || booking.id || "—").slice(
+                                -8,
+                              )}
                             </span>
                           </div>
                         </div>
@@ -568,9 +563,7 @@ const HotelAdminBookings = () => {
 
                       <td>{getGuestEmail(booking)}</td>
 
-                      <td>
-                        {booking.hotel?.name || hotel?.name || "-"}
-                      </td>
+                      <td>{booking.hotel?.name || hotel?.name || "-"}</td>
 
                       <td>{formatDate(getCheckIn(booking))}</td>
 
@@ -589,7 +582,7 @@ const HotelAdminBookings = () => {
                       <td>
                         <span
                           className={`booking-status ${getStatusClass(
-                            booking.status
+                            booking.status,
                           )}`}
                         >
                           {booking.status || "Unknown"}

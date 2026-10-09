@@ -2,31 +2,37 @@ import axios from "axios";
 
 const API = axios.create({
   baseURL: "http://localhost:5000/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-// ============================================
-// ADD AUTH TOKEN TO EVERY REQUEST
-// ============================================
+export const getAuthToken = () => {
+  if (typeof window === "undefined") return null;
+
+  const token =
+    localStorage.getItem("accessToken") || localStorage.getItem("token");
+
+  if (!token || token === "null" || token === "undefined") {
+    return null;
+  }
+
+  return token.replace(/^Bearer\s+/i, "").trim();
+};
 
 API.interceptors.request.use(
   (config) => {
-    // Your login stores the token as "accessToken"
-    const rawToken = localStorage.getItem("accessToken");
+    const token = getAuthToken();
 
-    if (rawToken && rawToken !== "null" && rawToken !== "undefined") {
-      const cleanToken = rawToken.replace(/^Bearer\s+/i, "").trim();
-
-      if (cleanToken) {
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${cleanToken}`;
-      }
+    if (token) {
+      config.headers.set
+        ? config.headers.set("Authorization", `Bearer ${token}`)
+        : (config.headers.Authorization = `Bearer ${token}`);
     }
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  },
+  (error) => Promise.reject(error),
 );
 
 export default API;

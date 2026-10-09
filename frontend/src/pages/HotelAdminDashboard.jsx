@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../api/axios";
+import API, { getAuthToken } from "../api/axios";
 import "./HotelAdminDashboard.css";
 
 const API_URL = "http://localhost:5000";
@@ -464,86 +464,95 @@ const HotelAdminDashboard = () => {
      Then we find the hotel belonging to the logged-in user.
   ======================================================= */
 
-  const loadHotel = async () => {
-    try {
-      const response = await API.get("/hotels");
+const loadHotel = async () => {
+  try {
+    const token = getAuthToken();
 
-      const hotels = normalizeHotelArray(response);
-
-      let user = null;
-
-      try {
-        user = JSON.parse(localStorage.getItem("user") || "null");
-      } catch {
-        user = null;
-      }
-
-      const userId = String(user?._id || user?.id || user?.userId || "").trim();
-
-      const userEmail = String(user?.email || "")
-        .trim()
-        .toLowerCase();
-
-      const myHotel =
-        hotels.find((item) => {
-          const hotelAdminId = String(
-            item?.hotelAdmin?._id ||
-              item?.hotelAdmin?.id ||
-              item?.createdBy?._id ||
-              item?.createdBy?.id ||
-              "",
-          ).trim();
-
-          const hotelAdminEmail = String(
-            item?.hotelAdmin?.email || item?.createdBy?.email || "",
-          )
-            .trim()
-            .toLowerCase();
-
-          const matchesId =
-            Boolean(userId) && Boolean(hotelAdminId) && hotelAdminId === userId;
-
-          const matchesEmail =
-            Boolean(userEmail) &&
-            Boolean(hotelAdminEmail) &&
-            hotelAdminEmail === userEmail;
-
-          return matchesId || matchesEmail;
-        }) || null;
-
-      if (!myHotel) {
-        setHotel(null);
-
-        setFormData({
-          name: "",
-          location: "",
-          description: "",
-          price: "",
-          rooms: "",
-          image: "",
-        });
-
-        return null;
-      }
-
-      setHotel(myHotel);
-
-      setFormData({
-        name: myHotel.name || "",
-        location: myHotel.location || "",
-        description: myHotel.description || "",
-        price: myHotel.price ?? "",
-        rooms: myHotel.rooms ?? "",
-        image: myHotel.image || "",
-      });
-
-      return myHotel;
-    } catch (requestError) {
-      console.error("Could not load hotel:", requestError);
-
-      throw requestError;
+    if (!token) {
+      throw new Error("No login token found. Please sign in again.");
     }
-  };
+
+    const response = await API.get("/hotels", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const hotels = normalizeHotelArray(response);
+
+    let user = null;
+
+    try {
+      user = JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      user = null;
+    }
+
+    const userId = String(
+      user?._id || user?.id || user?.userId || ""
+    ).trim();
+
+    const userEmail = String(user?.email || "")
+      .trim()
+      .toLowerCase();
+
+    const myHotel =
+      hotels.find((item) => {
+        const hotelAdminId = String(
+          item?.hotelAdmin?._id ||
+            item?.hotelAdmin?.id ||
+            item?.createdBy?._id ||
+            item?.createdBy?.id ||
+            item?.hotelAdmin ||
+            item?.createdBy ||
+            ""
+        ).trim();
+
+        const hotelAdminEmail = String(
+          item?.hotelAdmin?.email || item?.createdBy?.email || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        return (
+          (Boolean(userId) && hotelAdminId === userId) ||
+          (Boolean(userEmail) && hotelAdminEmail === userEmail)
+        );
+      }) || null;
+
+    if (!myHotel) {
+      setHotel(null);
+      setFormData({
+        name: "",
+        location: "",
+        description: "",
+        price: "",
+        rooms: "",
+        image: "",
+      });
+      return null;
+    }
+
+    setHotel(myHotel);
+
+    setFormData({
+      name: myHotel.name || "",
+      location: myHotel.location || "",
+      description: myHotel.description || "",
+      price: myHotel.price ?? "",
+      rooms: myHotel.rooms ?? "",
+      image: myHotel.image || "",
+    });
+
+    return myHotel;
+  } catch (requestError) {
+    console.error(
+      "Could not load hotel:",
+      requestError.response?.data || requestError.message
+    );
+    throw requestError;
+  }
+};
 
   /* =======================================================
      LOAD BOOKINGS

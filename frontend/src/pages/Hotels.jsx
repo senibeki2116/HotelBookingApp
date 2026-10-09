@@ -14,6 +14,25 @@ const FALLBACK_HOTEL =
 function Hotels() {
   const navigate = useNavigate();
 
+  const [isLoggedIn, setIsLoggedIn] = useState(() =>
+    Boolean(
+      localStorage.getItem("token") || localStorage.getItem("accessToken"),
+    ),
+  );
+
+  const handleAuthButton = () => {
+    setMenuOpen(false);
+
+    if (isLoggedIn) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("accessToken");
+      setIsLoggedIn(false);
+      navigate("/");
+    } else {
+      navigate("/login");
+    }
+  };
+
   const [hotels, setHotels] = useState([]);
 
   const [favorites, setFavorites] = useState(() => {
@@ -606,6 +625,17 @@ function Hotels() {
           {/* ================= HEADER ACTIONS ================= */}
 
           <div className="header-actions">
+            {/* LOGIN / LOGOUT */}
+            <button
+              type="button"
+              className={`auth-header-button ${
+                isLoggedIn ? "logout-header-button" : "login-header-button"
+              }`}
+              onClick={handleAuthButton}
+            >
+              {isLoggedIn ? "Logout" : "Login"}
+            </button>
+
             {/* WISHLIST */}
 
             <button
@@ -788,7 +818,7 @@ function Hotels() {
                   <span className="top-menu-arrow">↗</span>
                 </button>
 
-                {!localStorage.getItem("token") && (
+                {!isLoggedIn && (
                   <button
                     type="button"
                     onClick={() => {

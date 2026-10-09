@@ -2343,3 +2343,64 @@ button:focus-visible {
 .top-menu {
   z-index: 9999;
 }
+
+/* LOGIN AND LOGOUT BUTTONS — MATCH WISHLIST STYLE */
+.auth-header-button {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.25s ease,
+    transform 0.25s ease;
+  white-space: nowrap;
+}
+
+.login-header-button,
+.logout-header-button {
+  background: transparent;
+  color: inherit;
+}
+
+.auth-header-button:hover {
+  background: rgba(128, 128, 128, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Visible transparent Login / Logout buttons */
+.header-actions .auth-header-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  min-height: 36px;
+  background: transparent !important;
+  color: #c9a96e !important;
+  border: 1px solid rgba(201, 169, 110, 0.75) !important;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.header-actions .auth-header-button:hover {
+  background: rgba(201, 169, 110, 0.14) !important;
+  color: #e2c58f !important;
+}
+
+@media (max-width: 480px) {
+  .header-actions .auth-header-button {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
