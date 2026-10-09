@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import "./HotelAdminBookings.css";
@@ -12,291 +13,523 @@ const HotelAdminBookings = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  // ==========================
-  // Get Hotel
-  // ==========================
-  const fetchHotel = async () => {
+  const [activeTab, setActiveTab] = useState("Check-ins");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState("list");
+
+  // ==========================================
+  // FETCH HOTEL
+  // ==========================================
+
+  const fetchHotel = useCallback(async () => {
     try {
       const response = await API.get("/hotels/my-hotel");
-
       setHotel(response.data);
-    } catch (error) {
-      console.error("GET HOTEL ERROR:", error);
-
+    } catch (err) {
+      console.error("GET HOTEL ERROR:", err);
       setError(
-        error.response?.data?.message || "Unable to load hotel information.",
+        err.response?.data?.message || "Unable to load hotel information."
       );
     }
-  };
+  }, []);
 
-  // ==========================
-  // Get Bookings
-  // ==========================
-  const fetchBookings = async () => {
+  // ==========================================
+  // FETCH BOOKINGS
+  // ==========================================
+
+  const fetchBookings = useCallback(async () => {
     try {
-      setError("");
-
       const response = await API.get("/bookings/my-hotel");
 
-      setBookings(
-        Array.isArray(response.data)
-          ? response.data
-          : response.data.bookings || [],
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data?.bookings || [];
+
+      setBookings(data);
+    } catch (err) {
+      console.error("HOTEL ADMIN BOOKINGS ERROR:", err);
+      setError(
+        err.response?.data?.message || "Unable to load bookings."
       );
-    } catch (error) {
-      console.error("HOTEL ADMIN BOOKINGS ERROR:", error);
-
-      setError(error.response?.data?.message || "Unable to load bookings.");
     }
-  };
+  }, []);
 
-  // ==========================
-  // Initial Load
-  // ==========================
+  // ==========================================
+  // INITIAL LOAD
+  // ==========================================
+
   useEffect(() => {
+    let isMounted = true;
+
     const loadData = async () => {
       setLoading(true);
-
       await Promise.all([fetchHotel(), fetchBookings()]);
 
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     };
 
     loadData();
-  }, []);
 
-  // ==========================
-  // Refresh
-  // ==========================
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchHotel, fetchBookings]);
+
+  // ==========================================
+  // REFRESH
+  // ==========================================
+
   const handleRefresh = async () => {
     setRefreshing(true);
+    setError("");
 
-    await Promise.all([fetchHotel(), fetchBookings()]);
-
-    setRefreshing(false);
+    try {
+      await Promise.all([fetchHotel(), fetchBookings()]);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  // ==========================
-  // Logout
-  // ==========================
+  // ==========================================
+  // LOGOUT
+  // ==========================================
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-
     navigate("/login");
   };
 
-  // ==========================
-  // Date Format
-  // ==========================
+  // ==========================================
+  // DATE HELPERS
+  // ==========================================
+
   const formatDate = (date) => {
     if (!date) return "-";
 
-    return new Date(date).toLocaleDateString("en-US", {
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) return "-";
+
+    return parsedDate.toLocaleDateString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
       year: "numeric",
-      month: "short",
-      day: "numeric",
     });
   };
 
-  // ==========================
-  // Status
-  // ==========================
-  const getStatusClass = (status) => {
-    return String(status || "")
-      .toLowerCase()
-      .replace(/\s+/g, "-");
+  const formatLongDate = (date) =>
+    date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  const changeDate = (amount) => {
+    setSelectedDate((previous) => {
+      const next = new Date(previous);
+      next.setDate(next.getDate() + amount);
+      return next;
+    });
   };
 
-  // ==========================
-  // Statistics
-  // ==========================
+  const isSameDay = (first, second) => {
+    if (!first || !second) return false;
+
+    const a = new Date(first);
+    const b = new Date(second);
+
+    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) {
+      return false;
+    }
+
+    return (
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
+  };
+
+  const getStatusClass = (status) =>
+    String(status || "unknown")
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+
+  const getGuestName = (booking) =>
+    booking.user?.name ||
+    booking.guestName ||
+    booking.customerName ||
+    "Guest";
+
+  const getGuestEmail = (booking) =>
+    booking.user?.email ||
+    booking.guestEmail ||
+    booking.customerEmail ||
+    "-";
+
+  const getCheckIn = (booking) =>
+    booking.checkIn || booking.checkin || booking.check_in;
+
+  const getCheckOut = (booking) =>
+    booking.checkOut || booking.checkout || booking.check_out;
+
+  const getAmount = (booking) =>
+    Number(booking.totalPrice ?? booking.totalAmount ?? booking.price ?? 0);
+
+  // ==========================================
+  // STATISTICS
+  // ==========================================
+
   const totalBookings = bookings.length;
 
   const confirmedBookings = bookings.filter(
-    (booking) => booking.status?.toLowerCase() === "confirmed",
+    (booking) => booking.status?.toLowerCase() === "confirmed"
   ).length;
 
   const cancelledBookings = bookings.filter(
-    (booking) => booking.status?.toLowerCase() === "cancelled",
+    (booking) => booking.status?.toLowerCase() === "cancelled"
   ).length;
 
   const pendingBookings = bookings.filter(
-    (booking) => booking.status?.toLowerCase() === "pending",
+    (booking) => booking.status?.toLowerCase() === "pending"
   ).length;
 
-  // ==========================
-  // Loading
-  // ==========================
+  // ==========================================
+  // FILTER BOOKINGS
+  // ==========================================
+
+  const filteredBookings = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    return bookings.filter((booking) => {
+      const guestName = getGuestName(booking).toLowerCase();
+      const guestEmail = getGuestEmail(booking).toLowerCase();
+      const hotelName = (
+        booking.hotel?.name || hotel?.name || ""
+      ).toLowerCase();
+
+      const matchesSearch =
+        !query ||
+        guestName.includes(query) ||
+        guestEmail.includes(query) ||
+        hotelName.includes(query) ||
+        String(booking._id || "").toLowerCase().includes(query);
+
+      let matchesTab = true;
+
+      if (activeTab === "Check-ins") {
+        matchesTab = isSameDay(getCheckIn(booking), selectedDate);
+      } else if (activeTab === "Check-outs") {
+        matchesTab = isSameDay(getCheckOut(booking), selectedDate);
+      } else if (activeTab === "Stay-overs") {
+        const checkIn = new Date(getCheckIn(booking));
+        const checkOut = new Date(getCheckOut(booking));
+
+        matchesTab =
+          !Number.isNaN(checkIn.getTime()) &&
+          !Number.isNaN(checkOut.getTime()) &&
+          checkIn < selectedDate &&
+          checkOut > selectedDate;
+      }
+
+      return matchesSearch && matchesTab;
+    });
+  }, [bookings, searchTerm, activeTab, selectedDate, hotel]);
+
+  // ==========================================
+  // LOADING
+  // ==========================================
+
   if (loading) {
     return (
       <div className="hotel-bookings-loading">
-        <div className="loading-spinner"></div>
+        <div className="loading-spinner" />
         <p>Loading bookings...</p>
       </div>
     );
   }
 
+  // ==========================================
+  // DASHBOARD
+  // ==========================================
+
   return (
     <div className="hotel-admin-layout">
-      {/* ==========================
-          SIDEBAR
-      ========================== */}
+      {/* SIDEBAR */}
       <aside className="hotel-admin-sidebar">
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">🏨</div>
-
+          <div className="sidebar-logo-icon">S</div>
           <div>
-            <h2>Hotel Admin</h2>
-            <span>Management Panel</span>
+            <h2>STAYORA</h2>
+            <span>PROPERTY MANAGEMENT</span>
           </div>
         </div>
 
-        <div className="sidebar-menu">
-          {/* Dashboard */}
+
+        <nav className="sidebar-menu">
           <button
             className="sidebar-item"
             onClick={() => navigate("/admin/hotel-dashboard")}
           >
-            <span className="sidebar-icon">🏠</span>
-
+            <span className="sidebar-icon">⌂</span>
             <span>Dashboard</span>
           </button>
 
-          {/* Bookings */}
           <button
             className="sidebar-item active"
             onClick={() => navigate("/admin/hotel-bookings")}
           >
-            <span className="sidebar-icon">📅</span>
-
-            <span>Bookings</span>
+            <span className="sidebar-icon">▣</span>
+            <span>Reservations</span>
           </button>
 
-          {/* View Website */}
-          <button className="sidebar-item" onClick={() => navigate("/")}>
+          <button
+            className="sidebar-item"
+            onClick={() => navigate("/")}
+          >
             <span className="sidebar-icon">🌐</span>
-
             <span>View Website</span>
           </button>
-        </div>
+        </nav>
 
         <div className="sidebar-bottom">
-          {/* Logout */}
-          <button className="sidebar-item logout-item" onClick={handleLogout}>
-            <span className="sidebar-icon">🚪</span>
-
+          <button
+            className="sidebar-item logout-item"
+            onClick={handleLogout}
+          >
+            <span className="sidebar-icon">↪</span>
             <span>Logout</span>
           </button>
         </div>
       </aside>
 
-      {/* ==========================
-          MAIN CONTENT
-      ========================== */}
+      {/* MAIN */}
       <main className="hotel-admin-main">
-        {/* Header */}
+        {/* HEADER */}
         <header className="hotel-admin-header">
-          <div>
-            <h1>Bookings</h1>
-
+          <div className="header-title">
+            <span className="header-eyebrow">HOTEL MANAGEMENT</span>
+            <h1>Reservations</h1>
             <p>
-              Manage bookings for <strong>{hotel?.name || "your hotel"}</strong>
+              Manage bookings for{" "}
+              <strong>{hotel?.name || "your hotel"}</strong>
             </p>
           </div>
 
           <div className="admin-welcome">
-            <span>Welcome,</span>
+            <div className="welcome-avatar">👋</div>
 
-            <strong>{hotel?.hotelAdmin?.name || "Hotel Admin"} 👋</strong>
+            <div className="welcome-text">
+              <span>Welcome back,</span>
+              <strong>
+                {hotel?.hotelAdmin?.name || "Hotel Admin"}
+              </strong>
+              <small>Hotel Administrator</small>
+            </div>
           </div>
         </header>
 
-        {/* ==========================
-            ERROR
-        ========================== */}
-        {error && <div className="booking-error">⚠️ {error}</div>}
-
-        {/* ==========================
-            STATISTICS
-        ========================== */}
-        <section className="booking-stats">
-          <div className="booking-stat-card">
-            <div className="booking-stat-icon">📊</div>
-
-            <div>
-              <span>Total Bookings</span>
-
-              <strong>{totalBookings}</strong>
-            </div>
+        {error && (
+          <div className="booking-error" role="alert">
+            ⚠️ {error}
+            <button
+              onClick={() => setError("")}
+              aria-label="Dismiss error"
+              style={{
+                float: "right",
+                border: 0,
+                background: "transparent",
+                cursor: "pointer",
+              }}
+            >
+              ✕
+            </button>
           </div>
+        )}
 
-          <div className="booking-stat-card">
-            <div className="booking-stat-icon">✅</div>
-
-            <div>
-              <span>Confirmed</span>
-
-              <strong>{confirmedBookings}</strong>
-            </div>
-          </div>
-
-          <div className="booking-stat-card">
-            <div className="booking-stat-icon">⏳</div>
-
-            <div>
-              <span>Pending</span>
-
-              <strong>{pendingBookings}</strong>
-            </div>
-          </div>
-
-          <div className="booking-stat-card">
-            <div className="booking-stat-icon">❌</div>
-
-            <div>
-              <span>Cancelled</span>
-
-              <strong>{cancelledBookings}</strong>
-            </div>
-          </div>
-        </section>
-
-        {/* ==========================
-            BOOKINGS SECTION
-        ========================== */}
-        <section className="bookings-section">
-          <div className="bookings-section-header">
-            <div>
-              <h2>Hotel Bookings</h2>
-
-              <p>All bookings made for your hotel.</p>
+        {/* RESERVATION WORKSPACE */}
+        <section className="reservation-workspace">
+          {/* TABS */}
+          <div className="reservation-topbar">
+            <div className="reservation-tabs">
+              {["Check-outs", "Stay-overs", "Check-ins"].map((tab) => (
+                <button
+                  key={tab}
+                  className={`reservation-tab ${
+                    activeTab === tab ? "active" : ""
+                  }`}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab}
+                </button>
+              ))}
             </div>
 
             <button
-              className="refresh-bookings-btn"
-              onClick={handleRefresh}
-              disabled={refreshing}
+              className="create-reservation-btn"
+              onClick={() =>
+                navigate("/admin/hotel-dashboard")
+              }
+              title="Open your hotel dashboard to manage your property"
             >
-              {refreshing ? "Refreshing..." : "↻ Refresh"}
+              + Hotel Dashboard
             </button>
           </div>
 
-          {/* ==========================
-              EMPTY STATE
-          ========================== */}
-          {bookings.length === 0 ? (
+          {/* TOOLBAR */}
+          <div className="reservation-toolbar">
+            <div className="reservation-heading">
+              <h2>{activeTab}</h2>
+              <p>
+                {filteredBookings.length} reservation
+                {filteredBookings.length === 1 ? "" : "s"} for{" "}
+                {formatLongDate(selectedDate)}
+              </p>
+            </div>
+
+            <div className="reservation-date-picker">
+              <button
+                onClick={() => changeDate(-1)}
+                aria-label="Previous day"
+              >
+                ‹
+              </button>
+
+              <div className="reservation-today">
+                <strong>
+                  {isSameDay(selectedDate, new Date())
+                    ? "Today"
+                    : selectedDate.toLocaleDateString("en-US", {
+                        weekday: "short",
+                      })}
+                </strong>
+                <span>{formatLongDate(selectedDate)}</span>
+              </div>
+
+              <button
+                onClick={() => changeDate(1)}
+                aria-label="Next day"
+              >
+                ›
+              </button>
+
+              <input
+                type="date"
+                aria-label="Choose reservation date"
+                value={[
+                  selectedDate.getFullYear(),
+                  String(selectedDate.getMonth() + 1).padStart(2, "0"),
+                  String(selectedDate.getDate()).padStart(2, "0"),
+                ].join("-")}
+                onChange={(event) => {
+                  if (!event.target.value) return;
+
+                  const [year, month, day] = event.target.value
+                    .split("-")
+                    .map(Number);
+
+                  setSelectedDate(new Date(year, month - 1, day));
+                }}
+              />
+            </div>
+
+            <div className="reservation-view-actions">
+              <span>#{totalBookings} Total</span>
+
+              <button
+                className={viewMode === "grid" ? "selected" : ""}
+                onClick={() => setViewMode("grid")}
+                aria-label="Grid view"
+                title="Grid view"
+              >
+                ▦
+              </button>
+
+              <button
+                className={viewMode === "list" ? "selected" : ""}
+                onClick={() => setViewMode("list")}
+                aria-label="List view"
+                title="List view"
+              >
+                ☷
+              </button>
+
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                aria-label="Refresh reservations"
+                title="Refresh reservations"
+              >
+                ↻
+              </button>
+            </div>
+          </div>
+
+          {/* SEARCH */}
+          <div className="reservation-search-row">
+            <div className="reservation-search">
+              <span aria-hidden="true">⌕</span>
+
+              <input
+                type="search"
+                placeholder="Search by name, email, hotel, or booking ID"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                aria-label="Search reservations"
+              />
+
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <div className="reservation-updated">
+              <span className="online-dot" />
+              {refreshing ? "Updating reservations..." : "Reservation list"}
+            </div>
+          </div>
+
+          {/* BOOKINGS TABLE */}
+          {filteredBookings.length === 0 ? (
             <div className="empty-bookings">
               <div className="empty-icon">📅</div>
 
-              <h3>No bookings yet</h3>
+              <h3>
+                {searchTerm
+                  ? "No matching reservations"
+                  : "No reservations for this date"}
+              </h3>
 
-              <p>There are currently no bookings for your hotel.</p>
+              <p>
+                {searchTerm
+                  ? "Try another guest name, email, or booking ID."
+                  : "Choose another date or check another reservation tab."}
+              </p>
+
+              {(searchTerm ||
+                activeTab !== "Check-ins" ||
+                !isSameDay(selectedDate, new Date())) && (
+                <button
+                  className="reservation-reset-btn"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setActiveTab("Check-ins");
+                    setSelectedDate(new Date());
+                  }}
+                >
+                  Reset filters
+                </button>
+              )}
             </div>
           ) : (
-            /* ==========================
-               BOOKINGS TABLE
-            ========================== */
             <div className="bookings-table-container">
               <table className="bookings-table">
                 <thead>
@@ -314,51 +547,49 @@ const HotelAdminBookings = () => {
                 </thead>
 
                 <tbody>
-                  {bookings.map((booking) => (
-                    <tr key={booking._id}>
-                      {/* Guest */}
+                  {filteredBookings.map((booking, index) => (
+                    <tr key={booking._id || booking.id || index}>
                       <td>
                         <div className="guest-info">
                           <div className="guest-avatar">
-                            {(booking.user?.name || "G")
+                            {getGuestName(booking)
                               .charAt(0)
                               .toUpperCase()}
                           </div>
 
-                          <strong>{booking.user?.name || "Guest"}</strong>
+                          <div className="reservation-guest-details">
+                            <strong>{getGuestName(booking)}</strong>
+                            <span>
+                              ID: {String(booking._id || booking.id || "—").slice(-8)}
+                            </span>
+                          </div>
                         </div>
                       </td>
 
-                      {/* Email */}
-                      <td>{booking.user?.email || "-"}</td>
+                      <td>{getGuestEmail(booking)}</td>
 
-                      {/* Hotel */}
-                      <td>{booking.hotel?.name || hotel?.name || "-"}</td>
-
-                      {/* Check In */}
-                      <td>{formatDate(booking.checkIn)}</td>
-
-                      {/* Check Out */}
-                      <td>{formatDate(booking.checkOut)}</td>
-
-                      {/* Guests */}
-                      <td>{booking.guests || 0}</td>
-
-                      {/* Rooms */}
-                      <td>{booking.rooms || 0}</td>
-
-                      {/* Amount */}
                       <td>
-                        <strong>
-                          ${Number(booking.totalPrice || 0).toFixed(2)}
+                        {booking.hotel?.name || hotel?.name || "-"}
+                      </td>
+
+                      <td>{formatDate(getCheckIn(booking))}</td>
+
+                      <td>{formatDate(getCheckOut(booking))}</td>
+
+                      <td>{booking.guests ?? 1}</td>
+
+                      <td>{booking.rooms ?? 1}</td>
+
+                      <td>
+                        <strong className="reservation-amount">
+                          ${getAmount(booking).toFixed(2)}
                         </strong>
                       </td>
 
-                      {/* Status */}
                       <td>
                         <span
                           className={`booking-status ${getStatusClass(
-                            booking.status,
+                            booking.status
                           )}`}
                         >
                           {booking.status || "Unknown"}
