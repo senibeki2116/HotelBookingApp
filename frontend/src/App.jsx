@@ -27,8 +27,6 @@ import AdminBooking from "./pages/AdminBooking";
 import AdminUsers from "./pages/AdminUsers";
 import AdminReports from "./pages/AdminReports";
 import HotelAdminBookings from "./pages/HotelAdminBookings";
-
-// ⭐ HOTEL ADMIN MANAGEMENT
 import HotelAdminManagement from "./pages/HotelAdminManagement";
 
 // ================= COMPONENTS =================
@@ -38,29 +36,14 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* =========================================
-            USER PAGES
-        ========================================= */}
-
-        {/* Home */}
+        {/* USER PAGES */}
         <Route path="/" element={<Hotels />} />
-
-        {/* Hotels */}
         <Route path="/hotels" element={<Hotels />} />
-
-        {/* Login */}
         <Route path="/login" element={<Login />} />
-
-        {/* Register */}
         <Route path="/register" element={<Register />} />
-
-        {/* Hotel Details */}
         <Route path="/hotels/:id" element={<HotelDetails />} />
 
-        {/* =========================================
-            BOOKING
-        ========================================= */}
-
+        {/* BOOKING */}
         <Route
           path="/booking/hotel/:id"
           element={
@@ -70,6 +53,32 @@ function App() {
           }
         />
         <Route
+          path="/booking-confirmation/:id"
+          element={
+            <ProtectedRoute>
+              <BookingConfirmation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-bookings"
+          element={
+            <ProtectedRoute>
+              <MyBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bookings"
+          element={
+            <ProtectedRoute>
+              <MyBookings />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* HOTEL ADMIN DASHBOARD ALIASES */}
+        <Route
           path="/admin/hotel-dashboard"
           element={
             <HotelAdminRoute>
@@ -77,7 +86,6 @@ function App() {
             </HotelAdminRoute>
           }
         />
-
         <Route
           path="/admin/hotel-dashbord"
           element={
@@ -86,17 +94,14 @@ function App() {
             </HotelAdminRoute>
           }
         />
-
-        {/* Wishlist */}
         <Route
-          path="/wishlist"
+          path="/hotel-admin-dashboard"
           element={
-            <ProtectedRoute>
-              <Wishlist />
-            </ProtectedRoute>
+            <HotelAdminRoute>
+              <HotelAdminDashboard />
+            </HotelAdminRoute>
           }
         />
-
         <Route
           path="/admin/hotel-bookings"
           element={
@@ -106,47 +111,17 @@ function App() {
           }
         />
 
+        {/* WISHLIST */}
         <Route
-          path="/booking-confirmation/:id"
+          path="/wishlist"
           element={
             <ProtectedRoute>
-              <BookingConfirmation />
+              <Wishlist />
             </ProtectedRoute>
           }
         />
 
-        {/* =========================================
-            MY BOOKINGS
-        ========================================= */}
-
-        <Route
-          path="/my-bookings"
-          element={
-            <ProtectedRoute>
-              <MyBookings />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Compatibility route */}
-        <Route
-          path="/bookings"
-          element={
-            <ProtectedRoute>
-              <MyBookings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/hotel-admin-dashboard"
-          element={<HotelAdminDashboard />}
-        />
-
-        {/* =========================================
-            PROFILE
-        ========================================= */}
-
-        {/* Profile */}
+        {/* PROFILE */}
         <Route
           path="/profile"
           element={
@@ -155,8 +130,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* Edit Profile */}
         <Route
           path="/profile/edit"
           element={
@@ -166,10 +139,7 @@ function App() {
           }
         />
 
-        {/* =========================================
-            ADMIN DASHBOARD
-        ========================================= */}
-
+        {/* ADMIN DASHBOARD */}
         <Route
           path="/admin"
           element={
@@ -178,7 +148,6 @@ function App() {
             </AdminRoute>
           }
         />
-
         <Route
           path="/AdminDashboard"
           element={
@@ -187,7 +156,6 @@ function App() {
             </AdminRoute>
           }
         />
-
         <Route
           path="/admin/dashboard"
           element={
@@ -197,10 +165,7 @@ function App() {
           }
         />
 
-        {/* =========================================
-            ADMIN HOTELS
-        ========================================= */}
-
+        {/* ADMIN HOTELS */}
         <Route
           path="/admin/hotels"
           element={
@@ -209,7 +174,6 @@ function App() {
             </AdminRoute>
           }
         />
-
         <Route
           path="/admin/manage-hotels"
           element={
@@ -218,7 +182,6 @@ function App() {
             </AdminRoute>
           }
         />
-
         <Route
           path="/admin/add-hotel"
           element={
@@ -227,7 +190,6 @@ function App() {
             </AdminRoute>
           }
         />
-
         <Route
           path="/admin/hotels/add"
           element={
@@ -236,7 +198,6 @@ function App() {
             </AdminRoute>
           }
         />
-
         <Route
           path="/admin/hotels/edit/:id"
           element={
@@ -246,10 +207,7 @@ function App() {
           }
         />
 
-        {/* =========================================
-            ADMIN BOOKINGS
-        ========================================= */}
-
+        {/* ADMIN BOOKINGS */}
         <Route
           path="/admin/bookings"
           element={
@@ -259,10 +217,7 @@ function App() {
           }
         />
 
-        {/* =========================================
-            ADMIN USERS
-        ========================================= */}
-
+        {/* ADMIN USERS */}
         <Route
           path="/admin/users"
           element={
@@ -272,10 +227,7 @@ function App() {
           }
         />
 
-        {/* =========================================
-            ADMIN REPORTS
-        ========================================= */}
-
+        {/* ADMIN REPORTS */}
         <Route
           path="/admin/reports"
           element={
@@ -285,10 +237,7 @@ function App() {
           }
         />
 
-        {/* =========================================
-            HOTEL ADMIN MANAGEMENT
-        ========================================= */}
-
+        {/* HOTEL ADMIN MANAGEMENT */}
         <Route
           path="/admin/hotel-admins"
           element={

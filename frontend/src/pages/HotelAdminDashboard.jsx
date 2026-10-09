@@ -401,6 +401,8 @@ const HotelAdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -408,7 +410,6 @@ const HotelAdminDashboard = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
-  const [showNotifications, setShowNotifications] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -940,7 +941,7 @@ const HotelAdminDashboard = () => {
 
       capacity: Number(roomForm.capacity),
 
-      roomSize: roomForm.roomSize,
+      roomSize: roomForm.roomSize === "" ? 0 : Number(roomForm.roomSize),
 
       floor: Number(roomForm.floor),
 
@@ -1042,12 +1043,9 @@ const HotelAdminDashboard = () => {
   ======================================================= */
 
   const handleRefresh = () => {
-    if (refreshing) return;
-
+    // Reload the dashboard page so all dashboard data and API state are
+    // fetched again from a clean page load.
     setRefreshing(true);
-    setError("");
-
-    // Reload the dashboard without showing a message.
     window.location.reload();
   };
 
@@ -1065,6 +1063,12 @@ const HotelAdminDashboard = () => {
     navigate("/login", {
       replace: true,
     });
+  };
+
+  const handleRecentBookingClick = () => {
+    setShowNotifications(false);
+    // Open the bookings page in a separate tab and leave this dashboard open.
+    window.open("/admin/hotel-bookings", "_blank", "noopener,noreferrer");
   };
 
   /* =======================================================
@@ -1142,7 +1146,7 @@ const HotelAdminDashboard = () => {
           SIDEBAR
       =================================================== */}
 
-      <aside className="hotel-sidebar">
+      <aside className="hotel-sidebar sidebar-open">
         <div className="sidebar-brand">
           <div className="brand-mark">
             <span>S</span>
@@ -1284,17 +1288,15 @@ const HotelAdminDashboard = () => {
           <div className="dashboard-header-actions">
             <button
               type="button"
-              className="dashboard-refresh-button"
+              className={`dashboard-refresh-button ${
+                refreshing ? "is-refreshing" : ""
+              }`}
               onClick={handleRefresh}
               disabled={refreshing}
-              aria-label={
-                refreshing ? "Refreshing dashboard" : "Refresh dashboard"
-              }
-              title={
-                refreshing ? "Refreshing dashboard..." : "Refresh dashboard"
-              }
+              aria-label="Refresh dashboard"
+              title={refreshing ? "Refreshing dashboard" : "Refresh dashboard"}
             >
-              <Icon name="refresh" size={15} />
+              <Icon name="refresh" size={17} />
             </button>
 
             <button
@@ -1307,127 +1309,85 @@ const HotelAdminDashboard = () => {
               View Website
             </button>
 
-          
-
-
-            <div className="dashboard-notification-wrapper">
+            <div style={{ position: "relative" }}>
               <button
                 type="button"
                 className="dashboard-notification-button"
-                aria-label="Open notifications"
-                aria-expanded={showNotifications}
+                aria-label="Show notifications"
                 title="Notifications"
-                onClick={() =>
-                  setShowNotifications((previous) => !previous)
-                }
+                aria-expanded={showNotifications}
+                onClick={() => setShowNotifications((visible) => !visible)}
               >
-                <Icon name="bell" size={22} />
-                {(todayCheckIns.length > 0 ||
-                  todayCheckOuts.length > 0) && (
-                  <span className="dashboard-notification-dot" />
-                )}
+                <Icon name="bell" size={17} />
+                {(todayCheckIns.length + todayCheckOuts.length) > 0 && <span />}
               </button>
 
               {showNotifications && (
                 <div
-                  className="dashboard-notifications-panel"
                   role="dialog"
                   aria-label="Notifications"
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 12px)",
+                    right: 0,
+                    width: "min(340px, calc(100vw - 32px))",
+                    zIndex: 1000,
+                    background: "#ffffff",
+                    color: "#172033",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 16,
+                    boxShadow: "0 18px 50px rgba(15, 23, 42, 0.20)",
+                    overflow: "hidden",
+                  }}
                 >
-                  <div className="dashboard-notifications-header">
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderBottom: "1px solid #edf0f4" }}>
                     <div>
-                      <h3>Notifications</h3>
-                      <p>Updates for your property</p>
+                      <strong style={{ display: "block", fontSize: 15 }}>Notifications</strong>
+                      <span style={{ color: "#718096", fontSize: 12 }}>Your property updates</span>
                     </div>
-                    <button
-                      type="button"
-                      aria-label="Close notifications"
-                      onClick={() => setShowNotifications(false)}
-                    >
-                      ×
-                    </button>
+                    <button type="button" onClick={() => setShowNotifications(false)} aria-label="Close notifications" style={{ border: 0, background: "#f1f5f9", borderRadius: 8, width: 30, height: 30, cursor: "pointer", fontSize: 19, color: "#475569" }}>×</button>
                   </div>
 
-                  <div className="dashboard-notifications-list">
-                    {bookings.length === 0 ? (
-                      <p className="dashboard-notifications-empty">
-                        No bookings yet.
-                      </p>
+                  <div style={{ padding: 10, maxHeight: 330, overflowY: "auto" }}>
+                    {todayCheckIns.length === 0 && todayCheckOuts.length === 0 ? (
+                      <div style={{ padding: "22px 12px", textAlign: "center" }}>
+                        <div style={{ fontSize: 25, marginBottom: 8 }}>🔔</div>
+                        <strong style={{ display: "block", fontSize: 13 }}>You're all caught up</strong>
+                        <span style={{ color: "#718096", fontSize: 12 }}>No check-ins or check-outs scheduled for today.</span>
+                      </div>
                     ) : (
-                      [...bookings]
-                        .sort(
-                          (a, b) =>
-                            new Date(
-                              b.createdAt || b.checkIn || 0
-                            ).getTime() -
-                            new Date(
-                              a.createdAt || a.checkIn || 0
-                            ).getTime()
-                        )
-                        .slice(0, 5)
-                        .map((booking) => {
-                          const bookingId = booking._id || booking.id;
-
-                          return (
-                            <button
-                              type="button"
-                              className="dashboard-notification-item"
-                              key={bookingId}
-                              onClick={() => {
-                                const url = new URL(
-                                  "/admin/hotel-dashboard",
-                                  window.location.origin
-                                );
-
-                                url.searchParams.set(
-                                  "bookingId",
-                                  bookingId
-                                );
-                                url.hash = "recent-bookings";
-                                window.open(
-                                  url.toString(),
-                                  "_blank",
-                                  "noopener,noreferrer"
-                                );
-                                setShowNotifications(false);
-                              }}
-                            >
-                              <span className="dashboard-notification-icon">
-                                •
-                              </span>
-                              <span className="dashboard-notification-content">
-                                <strong>Recent booking</strong>
-                                <span>
-                                  {getGuestName(booking)}
-                                  {" · "}
-                                  {getBookingStatus(booking)}
-                                </span>
-                                <small>
-                                  {formatDate(
-                                    booking.createdAt ||
-                                      booking.checkIn ||
-                                      booking.checkInDate
-                                  )}
-                                </small>
-                              </span>
-                            </button>
-                          );
-                        })
+                      <>
+                        {todayCheckIns.map((booking, index) => (
+                          <button key={booking._id || booking.id || `checkin-${index}`} type="button" onClick={handleRecentBookingClick} style={{ display: "flex", width: "100%", gap: 11, alignItems: "flex-start", textAlign: "left", padding: 12, border: 0, borderRadius: 10, background: "transparent", cursor: "pointer" }}>
+                            <span style={{ display: "grid", placeItems: "center", flexShrink: 0, width: 34, height: 34, borderRadius: 10, background: "#e8f8ef", color: "#18834b", fontSize: 17 }}>↘</span>
+                            <span>
+                              <strong style={{ display: "block", fontSize: 13 }}>Check-in today</strong>
+                              <span style={{ display: "block", color: "#64748b", fontSize: 12, marginTop: 3 }}>{booking.guestName || booking.guest?.name || booking.user?.name || booking.customerName || "Guest reservation"}</span>
+                              <span style={{ display: "block", color: "#94a3b8", fontSize: 11, marginTop: 3 }}>View recent bookings</span>
+                            </span>
+                          </button>
+                        ))}
+                        {todayCheckOuts.map((booking, index) => (
+                          <button key={booking._id || booking.id || `checkout-${index}`} type="button" onClick={handleRecentBookingClick} style={{ display: "flex", width: "100%", gap: 11, alignItems: "flex-start", textAlign: "left", padding: 12, border: 0, borderRadius: 10, background: "transparent", cursor: "pointer" }}>
+                            <span style={{ display: "grid", placeItems: "center", flexShrink: 0, width: 34, height: 34, borderRadius: 10, background: "#fff4e5", color: "#b66a12", fontSize: 17 }}>↗</span>
+                            <span>
+                              <strong style={{ display: "block", fontSize: 13 }}>Check-out today</strong>
+                              <span style={{ display: "block", color: "#64748b", fontSize: 12, marginTop: 3 }}>{booking.guestName || booking.guest?.name || booking.user?.name || booking.customerName || "Guest reservation"}</span>
+                              <span style={{ display: "block", color: "#94a3b8", fontSize: 11, marginTop: 3 }}>View recent bookings</span>
+                            </span>
+                          </button>
+                        ))}
+                      </>
                     )}
                   </div>
-
-                  <button
-                    type="button"
-                    className="dashboard-notifications-close"
-                    onClick={() => setShowNotifications(false)}
-                  >
-                    Close notifications
+                  <button type="button" onClick={handleRecentBookingClick} style={{ width: "100%", padding: "13px 16px", border: 0, borderTop: "1px solid #edf0f4", background: "#f8fafc", color: "#9a7526", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                    View recent bookings →
                   </button>
                 </div>
               )}
             </div>
 
-     <div className="dashboard-header-avatar">
+            <div className="dashboard-header-avatar">
               {getUserInitials(adminName)}
             </div>
           </div>
@@ -2483,19 +2443,12 @@ const HotelAdminDashboard = () => {
                         })
                       }
                     >
-                      <option>Standard</option>
-
-                      <option>Deluxe</option>
-
-                      <option>Superior</option>
-
-                      <option>Executive</option>
-
-                      <option>Suite</option>
-
-                      <option>Family</option>
-
-                      <option>Presidential</option>
+                      <option value="Standard">Standard</option>
+                      <option value="Deluxe">Deluxe</option>
+                      <option value="Executive">Executive</option>
+                      <option value="Suite">Suite</option>
+                      <option value="Family">Family</option>
+                      <option value="Presidential">Presidential</option>
                     </select>
                   </label>
 
@@ -2516,10 +2469,12 @@ const HotelAdminDashboard = () => {
                   </label>
 
                   <label>
-                    <span>Room size</span>
+                    <span>Room size (m²)</span>
 
                     <input
-                      type="text"
+                      type="number"
+                      min="0"
+                      step="0.1"
                       value={roomForm.roomSize}
                       onChange={(event) =>
                         setRoomForm({
@@ -2527,7 +2482,7 @@ const HotelAdminDashboard = () => {
                           roomSize: event.target.value,
                         })
                       }
-                      placeholder="e.g. 32 m²"
+                      placeholder="e.g. 32"
                     />
                   </label>
                 </div>
