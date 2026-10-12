@@ -300,42 +300,57 @@ const HotelAdminBookings = () => {
 
           .includes(query);
 
-      // Searching for a booking should find it regardless of the selected date/tab.
       let matchesTab = true;
-      if (!query) {
-        if (activeTab === "Check-ins") {
-          matchesTab = isSameDay(getCheckIn(booking), selectedDate);
-        } else if (activeTab === "Check-outs") {
-          matchesTab = isSameDay(getCheckOut(booking), selectedDate);
-        } else if (activeTab === "Stay-overs") {
-          const checkIn = toCalendarDay(getCheckIn(booking));
-          const checkOut = toCalendarDay(getCheckOut(booking));
-          const selected = toCalendarDay(selectedDate);
-          matchesTab =
-            checkIn !== null &&
-            checkOut !== null &&
-            selected !== null &&
-            checkIn <= selected &&
-            checkOut > selected;
-        }
-        // "All bookings" intentionally does not apply a date filter.
+
+      if (activeTab === "Check-ins") {
+        matchesTab = isSameDay(getCheckIn(booking), selectedDate);
+      } else if (activeTab === "Check-outs") {
+        matchesTab = isSameDay(getCheckOut(booking), selectedDate);
+      } else if (activeTab === "Stay-overs") {
+        const checkIn = toCalendarDay(getCheckIn(booking));
+        const checkOut = toCalendarDay(getCheckOut(booking));
+        const selected = toCalendarDay(selectedDate);
+        matchesTab =
+          checkIn !== null &&
+          checkOut !== null &&
+          selected !== null &&
+          checkIn <= selected &&
+          checkOut > selected;
       }
+
       return matchesSearch && matchesTab;
     });
   }, [bookings, searchTerm, activeTab, selectedDate, hotel]);
 
-  // Existing reservations remain visible in the popup until newer ones arrive.
+  const countForTab = (tab) =>
+    bookings.filter((booking) => {
+      if (tab === "Check-ins")
+        return isSameDay(getCheckIn(booking), selectedDate);
+      if (tab === "Check-outs")
+        return isSameDay(getCheckOut(booking), selectedDate);
+      const checkIn = toCalendarDay(getCheckIn(booking));
+      const checkOut = toCalendarDay(getCheckOut(booking));
+      const selected = toCalendarDay(selectedDate);
+      return (
+        checkIn !== null &&
+        checkOut !== null &&
+        selected !== null &&
+        checkIn <= selected &&
+        checkOut > selected
+      );
+    }).length;
+
   const recentBookings = useMemo(
     () =>
       [...bookings]
         .sort((a, b) => {
-          const dateA = new Date(
-            a.createdAt || a.created_at || a.bookingDate || 0,
+          const aDate = new Date(
+            a.createdAt || a.created_at || a.bookingDate || getCheckIn(a) || 0,
           ).getTime();
-          const dateB = new Date(
-            b.createdAt || b.created_at || b.bookingDate || 0,
+          const bDate = new Date(
+            b.createdAt || b.created_at || b.bookingDate || getCheckIn(b) || 0,
           ).getTime();
-          return dateB - dateA;
+          return bDate - aDate;
         })
         .slice(0, 5),
     [bookings],
@@ -419,6 +434,28 @@ const HotelAdminBookings = () => {
       {/* MAIN */}
 
       <main className="hotel-admin-main">
+        {/* GLOBAL TOP BAR */}
+        <div className="reservation-globalbar">
+          <label className="global-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search reservations, guests, or rooms..."
+              aria-label="Search reservations, guests, or rooms"
+            />
+          </label>
+          <span className="globalbar-spacer" />
+          <span className="globalbar-date">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            })}
+          </span>
+        </div>
+
         {/* HEADER */}
 
         <header className="hotel-admin-header">
@@ -431,6 +468,23 @@ const HotelAdminBookings = () => {
               Manage bookings for <strong>{hotel?.name || "your hotel"}</strong>
             </p>
           </div>
+
+          <article className="reservation-property-card">
+            <div className="reservation-property-image" aria-hidden="true">
+              ⌂
+            </div>
+            <div className="reservation-property-copy">
+              <span>WELCOME BACK,</span>
+              <strong>{hotel?.name || "Your Hotel"}</strong>
+              <small>{hotel?.location || "Property management"}</small>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/admin/hotel-dashboard")}
+            >
+              View Hotel ↗
+            </button>
+          </article>
 
           <div className="admin-welcome">
             <div className="welcome-avatar">👋</div>
@@ -450,7 +504,6 @@ const HotelAdminBookings = () => {
               className={`booking-notification-button ${newBookings.length ? "has-new" : ""}`}
               aria-label={`Notifications${newBookings.length ? `, ${newBookings.length} new bookings` : ""}`}
               aria-expanded={notificationsOpen}
-              title="Booking notifications"
               onClick={() => setNotificationsOpen((open) => !open)}
             >
               <span className="booking-bell" aria-hidden="true">
@@ -458,114 +511,95 @@ const HotelAdminBookings = () => {
               </span>
               {newBookings.length > 0 && (
                 <span className="booking-notification-count">
-                  {newBookings.length > 99 ? "99+" : newBookings.length}
+                  {newBookings.length}
                 </span>
               )}
             </button>
             {notificationsOpen && (
-              <div
-                className="booking-notification-panel"
-                role="dialog"
-                aria-label="Booking notifications"
-              >
+              <div className="booking-notification-panel">
                 <div className="booking-notification-panel-head">
-                  <div>
-                    <strong>Notifications</strong>
-                    <small>Your property updates</small>
-                  </div>
-                  <button
-                    type="button"
-                    className="booking-notification-close"
-                    aria-label="Close notifications"
-                    onClick={() => setNotificationsOpen(false)}
-                  >
-                    ×
+                  <strong>Booking notifications</strong>
+                  <button type="button" onClick={() => setNewBookings([])}>
+                    Clear
                   </button>
                 </div>
                 {notificationBookings.length === 0 ? (
-                  <div className="booking-notification-empty-wrap">
-                    <span
-                      className="booking-notification-empty-icon"
-                      aria-hidden="true"
-                    >
-                      🔔
-                    </span>
-                    <strong>You're all caught up</strong>
-                    <p>
-                      No bookings have been found yet. New reservations will
-                      appear here when the server returns them.
-                    </p>
-                  </div>
+                  <p className="booking-notification-empty">
+                    No reservations yet. New bookings will appear here
+                    automatically.
+                  </p>
                 ) : (
-                  <div className="booking-notification-list">
-                    {notificationBookings.map((booking) => {
-                      const bookingId = String(booking._id || booking.id || "");
-                      const isNew = newBookings.some(
-                        (item) =>
-                          String(item._id || item.id || "") === bookingId,
-                      );
-                      return (
-                        <button
-                          type="button"
-                          className="booking-notification-item"
-                          key={
-                            bookingId ||
-                            `${getGuestName(booking)}-${getCheckIn(booking)}`
-                          }
-                          onClick={() => {
-                            setSearchTerm(bookingId);
-                            setActiveTab("All bookings");
-                            setNotificationsOpen(false);
-                            setNewBookings((items) =>
-                              items.filter(
-                                (item) =>
-                                  String(item._id || item.id || "") !==
-                                  bookingId,
-                              ),
-                            );
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          }}
-                        >
-                          <span
-                            className="booking-notification-item-icon"
-                            aria-hidden="true"
-                          >
-                            {isNew ? "✦" : "▣"}
-                          </span>
-                          <span className="booking-notification-item-copy">
-                            <strong>
-                              {isNew ? "New reservation" : "Recent reservation"}
-                            </strong>
-                            <small>
-                              {getGuestName(booking)} · Check-in{" "}
-                              {formatDate(getCheckIn(booking))}
-                            </small>
-                            <small className="booking-notification-id">
-                              Booking #{bookingId.slice(-8) || "—"}
-                            </small>
-                          </span>
-                          {isNew && (
-                            <span className="booking-notification-new-label">
-                              NEW
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <>
+                    {newBookings.length > 0 && (
+                      <div className="notification-section-label">
+                        NEW BOOKINGS
+                      </div>
+                    )}
+                    {notificationBookings.map((booking) => (
+                      <button
+                        type="button"
+                        className="booking-notification-item"
+                        key={booking._id || booking.id}
+                        onClick={() => {
+                          setSearchTerm(
+                            String(booking._id || booking.id || ""),
+                          );
+                          setActiveTab("Check-ins");
+                          setSelectedDate(
+                            getCheckIn(booking)
+                              ? new Date(getCheckIn(booking))
+                              : new Date(),
+                          );
+                          setNotificationsOpen(false);
+                          setNewBookings((items) =>
+                            items.filter(
+                              (item) =>
+                                String(item._id || item.id) !==
+                                String(booking._id || booking.id),
+                            ),
+                          );
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                      >
+                        <span className="booking-notification-item-icon">
+                          ♧
+                        </span>
+                        <span>
+                          <strong>
+                            {newBookings.some(
+                              (item) =>
+                                String(item._id || item.id) ===
+                                String(booking._id || booking.id),
+                            )
+                              ? "New reservation"
+                              : "Recent booking"}
+                          </strong>
+                          <small>
+                            {getGuestName(booking)} ·{" "}
+                            {formatDate(getCheckIn(booking))}
+                          </small>
+                        </span>
+                        {newBookings.some(
+                          (item) =>
+                            String(item._id || item.id) ===
+                            String(booking._id || booking.id),
+                        ) && <em>NEW</em>}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="notification-view-all"
+                      onClick={() => {
+                        setNotificationsOpen(false);
+                        setSearchTerm("");
+                        setActiveTab("Check-ins");
+                        setSelectedDate(new Date());
+                      }}
+                    >
+                      View all reservations →
+                    </button>
+                  </>
                 )}
-                <button
-                  type="button"
-                  className="booking-notification-footer"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setActiveTab("All bookings");
-                    setNotificationsOpen(false);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                >
-                  View recent bookings <span aria-hidden="true">→</span>
-                </button>
               </div>
             )}
           </div>
@@ -607,7 +641,10 @@ const HotelAdminBookings = () => {
                   }`}
                   onClick={() => setActiveTab(tab)}
                 >
-                  {tab}
+                  <span>{tab}</span>
+                  <small className="reservation-tab-count">
+                    {countForTab(tab)}
+                  </small>
                 </button>
               ))}
             </div>
@@ -629,10 +666,8 @@ const HotelAdminBookings = () => {
 
               <p>
                 {filteredBookings.length} reservation
-                {filteredBookings.length === 1 ? "" : "s"}
-                {activeTab === "All bookings"
-                  ? " across all dates"
-                  : ` for ${formatLongDate(selectedDate)}`}
+                {filteredBookings.length === 1 ? "" : "s"} for{" "}
+                {formatLongDate(selectedDate)}
               </p>
             </div>
 
@@ -745,6 +780,26 @@ const HotelAdminBookings = () => {
           </div>
 
           {/* BOOKINGS TABLE */}
+          <div className="reservation-results-heading">
+            <div>
+              <h3>
+                {activeTab === "Check-ins"
+                  ? "Today's Check-ins"
+                  : activeTab === "Check-outs"
+                    ? "Today's Check-outs"
+                    : "Current Guest Stays"}
+              </h3>
+              <span>{filteredBookings.length} reservations found</span>
+            </div>
+            <button
+              type="button"
+              className="reservation-refresh-button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              {refreshing ? "Refreshing…" : "↻ Refresh"}
+            </button>
+          </div>
 
           {filteredBookings.length === 0 ? (
             <div className="empty-bookings">
