@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API, { getAuthToken } from "../api/axios";
 import "./HotelAdminDashboard.css";
@@ -403,6 +403,13 @@ const HotelAdminDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [unreadBookingCount, setUnreadBookingCount] = useState(0);
+  const [bellRinging, setBellRinging] = useState(false);
+  const knownBookingIds = useRef(new Set());
+  const bookingNotificationsInitialized = useRef(false);
+  const audioContextRef = useRef(null);
+  const audioEnabledRef = useRef(false);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -464,109 +471,179 @@ const HotelAdminDashboard = () => {
      Then we find the hotel belonging to the logged-in user.
   ======================================================= */
 
-const loadHotel = async () => {
-  try {
-    const token = getAuthToken();
-
-    if (!token) {
-      throw new Error("No login token found. Please sign in again.");
-    }
-
-    const response = await API.get("/hotels", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    const hotels = normalizeHotelArray(response);
-
-    let user = null;
-
+  const loadHotel = async () => {
     try {
-      user = JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      user = null;
-    }
+      const token = getAuthToken();
 
-    const userId = String(
-      user?._id || user?.id || user?.userId || ""
-    ).trim();
+      if (!token) {
+        throw new Error("No login token found. Please sign in again.");
+      }
 
-    const userEmail = String(user?.email || "")
-      .trim()
-      .toLowerCase();
-
-    const myHotel =
-      hotels.find((item) => {
-        const hotelAdminId = String(
-          item?.hotelAdmin?._id ||
-            item?.hotelAdmin?.id ||
-            item?.createdBy?._id ||
-            item?.createdBy?.id ||
-            item?.hotelAdmin ||
-            item?.createdBy ||
-            ""
-        ).trim();
-
-        const hotelAdminEmail = String(
-          item?.hotelAdmin?.email || item?.createdBy?.email || ""
-        )
-          .trim()
-          .toLowerCase();
-
-        return (
-          (Boolean(userId) && hotelAdminId === userId) ||
-          (Boolean(userEmail) && hotelAdminEmail === userEmail)
-        );
-      }) || null;
-
-    if (!myHotel) {
-      setHotel(null);
-      setFormData({
-        name: "",
-        location: "",
-        description: "",
-        price: "",
-        rooms: "",
-        image: "",
+      const response = await API.get("/hotels", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-      return null;
+
+      const hotels = normalizeHotelArray(response);
+
+      let user = null;
+
+      try {
+        user = JSON.parse(localStorage.getItem("user") || "null");
+      } catch {
+        user = null;
+      }
+
+      const userId = String(user?._id || user?.id || user?.userId || "").trim();
+
+      const userEmail = String(user?.email || "")
+        .trim()
+        .toLowerCase();
+
+      const myHotel =
+        hotels.find((item) => {
+          const hotelAdminId = String(
+            item?.hotelAdmin?._id ||
+              item?.hotelAdmin?.id ||
+              item?.createdBy?._id ||
+              item?.createdBy?.id ||
+              item?.hotelAdmin ||
+              item?.createdBy ||
+              "",
+          ).trim();
+
+          const hotelAdminEmail = String(
+            item?.hotelAdmin?.email || item?.createdBy?.email || "",
+          )
+            .trim()
+            .toLowerCase();
+
+          return (
+            (Boolean(userId) && hotelAdminId === userId) ||
+            (Boolean(userEmail) && hotelAdminEmail === userEmail)
+          );
+        }) || null;
+
+      if (!myHotel) {
+        setHotel(null);
+        setFormData({
+          name: "",
+          location: "",
+          description: "",
+          price: "",
+          rooms: "",
+          image: "",
+        });
+        return null;
+      }
+
+      setHotel(myHotel);
+
+      setFormData({
+        name: myHotel.name || "",
+        location: myHotel.location || "",
+        description: myHotel.description || "",
+        price: myHotel.price ?? "",
+        rooms: myHotel.rooms ?? "",
+        image: myHotel.image || "",
+      });
+
+      return myHotel;
+    } catch (requestError) {
+      console.error(
+        "Could not load hotel:",
+        requestError.response?.data || requestError.message,
+      );
+      throw requestError;
     }
-
-    setHotel(myHotel);
-
-    setFormData({
-      name: myHotel.name || "",
-      location: myHotel.location || "",
-      description: myHotel.description || "",
-      price: myHotel.price ?? "",
-      rooms: myHotel.rooms ?? "",
-      image: myHotel.image || "",
-    });
-
-    return myHotel;
-  } catch (requestError) {
-    console.error(
-      "Could not load hotel:",
-      requestError.response?.data || requestError.message
-    );
-    throw requestError;
-  }
-};
+  };
 
   /* =======================================================
      LOAD BOOKINGS
   ======================================================= */
 
+  const playBookingAlarm = () => {
+    if (!audioEnabledRef.current || !audioContextRef.current) return;
+
+    try {
+      const context = audioContextRef.current;
+      if (context.state === "suspended") context.resume();
+
+      const now = context.currentTime;
+      [880, 660].forEach((frequency, index) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const startAt = now + index * 0.19;
+
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, startAt);
+        gain.gain.setValueAtTime(0.0001, startAt);
+        gain.gain.exponentialRampToValueAtTime(0.18, startAt + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.16);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(startAt);
+        oscillator.stop(startAt + 0.17);
+      });
+    } catch (soundError) {
+      console.warn("The booking alarm could not play:", soundError);
+    }
+  };
+
+  const enableBookingAlarm = () => {
+    audioEnabledRef.current = true;
+    setAudioEnabled(true);
+
+    try {
+      const AudioContextClass =
+        window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+      if (audioContextRef.current.state === "suspended") {
+        audioContextRef.current.resume();
+      }
+    } catch (soundError) {
+      console.warn("Audio is not available in this browser:", soundError);
+    }
+  };
+
   const loadBookings = async () => {
     try {
       const response = await API.get("/bookings/my-hotel");
+      const nextBookings = normalizeBookingArray(response);
+      const nextIds = new Set(
+        nextBookings
+          .map((booking) => String(booking?._id || booking?.id || ""))
+          .filter(Boolean),
+      );
 
-      setBookings(normalizeBookingArray(response));
+      // The first successful fetch establishes a baseline. Existing bookings
+      // do not trigger an alarm when the dashboard first opens.
+      if (!bookingNotificationsInitialized.current) {
+        knownBookingIds.current = nextIds;
+        bookingNotificationsInitialized.current = true;
+      } else {
+        const newBookings = nextBookings.filter((booking) => {
+          const id = String(booking?._id || booking?.id || "");
+          return id && !knownBookingIds.current.has(id);
+        });
+
+        if (newBookings.length > 0) {
+          setUnreadBookingCount((count) => count + newBookings.length);
+          setBellRinging(true);
+          playBookingAlarm();
+        }
+
+        knownBookingIds.current = nextIds;
+      }
+
+      setBookings(nextBookings);
     } catch (requestError) {
       console.error("Could not load hotel bookings:", requestError);
-
-      setBookings([]);
     }
   };
 
@@ -617,7 +694,20 @@ const loadHotel = async () => {
 
   useEffect(() => {
     loadDashboard();
+
+    // Check periodically for new reservations while this dashboard is open.
+    const bookingPoll = window.setInterval(() => {
+      loadBookings();
+    }, 30000);
+
+    return () => window.clearInterval(bookingPoll);
   }, []);
+
+  useEffect(() => {
+    if (!bellRinging) return undefined;
+    const stopAnimation = window.setTimeout(() => setBellRinging(false), 5000);
+    return () => window.clearTimeout(stopAnimation);
+  }, [bellRinging, unreadBookingCount]);
 
   /* =======================================================
      BOOKING CALCULATIONS
@@ -1074,6 +1164,13 @@ const loadHotel = async () => {
     });
   };
 
+  const handleNotificationBellClick = () => {
+    enableBookingAlarm();
+    setUnreadBookingCount(0);
+    setBellRinging(false);
+    setShowNotifications((visible) => !visible);
+  };
+
   const handleRecentBookingClick = () => {
     setShowNotifications(false);
     // Open the bookings page in a separate tab and leave this dashboard open.
@@ -1318,17 +1415,37 @@ const loadHotel = async () => {
               View Website
             </button>
 
-            <div style={{ position: "relative" }}>
+            <div className="dashboard-notification-wrapper">
               <button
                 type="button"
-                className="dashboard-notification-button"
-                aria-label="Show notifications"
-                title="Notifications"
+                className={`dashboard-notification-button ${bellRinging ? "is-ringing" : ""}`}
+                aria-label={
+                  audioEnabled
+                    ? "Show notifications; booking alarm enabled"
+                    : "Show notifications; click to enable booking alarm"
+                }
+                title={
+                  audioEnabled
+                    ? "Notifications and booking alarm enabled"
+                    : "Click to enable booking alarm"
+                }
                 aria-expanded={showNotifications}
-                onClick={() => setShowNotifications((visible) => !visible)}
+                onClick={handleNotificationBellClick}
               >
-                <Icon name="bell" size={17} />
-                {(todayCheckIns.length + todayCheckOuts.length) > 0 && <span />}
+                <Icon name="bell" size={21} />
+                {unreadBookingCount +
+                  todayCheckIns.length +
+                  todayCheckOuts.length >
+                  0 && (
+                  <span className="notification-badge">
+                    {Math.min(
+                      unreadBookingCount +
+                        todayCheckIns.length +
+                        todayCheckOuts.length,
+                      99,
+                    )}
+                  </span>
+                )}
               </button>
 
               {showNotifications && (
@@ -1349,47 +1466,228 @@ const loadHotel = async () => {
                     overflow: "hidden",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderBottom: "1px solid #edf0f4" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "16px 18px",
+                      borderBottom: "1px solid #edf0f4",
+                    }}
+                  >
                     <div>
-                      <strong style={{ display: "block", fontSize: 15 }}>Notifications</strong>
-                      <span style={{ color: "#718096", fontSize: 12 }}>Your property updates</span>
+                      <strong style={{ display: "block", fontSize: 15 }}>
+                        Notifications
+                      </strong>
+                      <span style={{ color: "#718096", fontSize: 12 }}>
+                        Your property updates
+                      </span>
                     </div>
-                    <button type="button" onClick={() => setShowNotifications(false)} aria-label="Close notifications" style={{ border: 0, background: "#f1f5f9", borderRadius: 8, width: 30, height: 30, cursor: "pointer", fontSize: 19, color: "#475569" }}>×</button>
+                    <button
+                      type="button"
+                      onClick={() => setShowNotifications(false)}
+                      aria-label="Close notifications"
+                      style={{
+                        border: 0,
+                        background: "#f1f5f9",
+                        borderRadius: 8,
+                        width: 30,
+                        height: 30,
+                        cursor: "pointer",
+                        fontSize: 19,
+                        color: "#475569",
+                      }}
+                    >
+                      ×
+                    </button>
                   </div>
 
-                  <div style={{ padding: 10, maxHeight: 330, overflowY: "auto" }}>
-                    {todayCheckIns.length === 0 && todayCheckOuts.length === 0 ? (
-                      <div style={{ padding: "22px 12px", textAlign: "center" }}>
+                  <div
+                    style={{ padding: 10, maxHeight: 330, overflowY: "auto" }}
+                  >
+                    {unreadBookingCount > 0 && (
+                      <div className="new-booking-alert" role="status">
+                        <span className="new-booking-alert-icon">
+                          <Icon name="bell" size={17} />
+                        </span>
+                        <span>
+                          <strong>
+                            {unreadBookingCount} new booking
+                            {unreadBookingCount === 1 ? "" : "s"} received
+                          </strong>
+                          <small>Click below to view your reservations.</small>
+                        </span>
+                      </div>
+                    )}
+                    {todayCheckIns.length === 0 &&
+                    todayCheckOuts.length === 0 ? (
+                      <div
+                        style={{ padding: "22px 12px", textAlign: "center" }}
+                      >
                         <div style={{ fontSize: 25, marginBottom: 8 }}>🔔</div>
-                        <strong style={{ display: "block", fontSize: 13 }}>You're all caught up</strong>
-                        <span style={{ color: "#718096", fontSize: 12 }}>No check-ins or check-outs scheduled for today.</span>
+                        <strong style={{ display: "block", fontSize: 13 }}>
+                          You're all caught up
+                        </strong>
+                        <span style={{ color: "#718096", fontSize: 12 }}>
+                          No check-ins or check-outs scheduled for today.
+                        </span>
                       </div>
                     ) : (
                       <>
                         {todayCheckIns.map((booking, index) => (
-                          <button key={booking._id || booking.id || `checkin-${index}`} type="button" onClick={handleRecentBookingClick} style={{ display: "flex", width: "100%", gap: 11, alignItems: "flex-start", textAlign: "left", padding: 12, border: 0, borderRadius: 10, background: "transparent", cursor: "pointer" }}>
-                            <span style={{ display: "grid", placeItems: "center", flexShrink: 0, width: 34, height: 34, borderRadius: 10, background: "#e8f8ef", color: "#18834b", fontSize: 17 }}>↘</span>
+                          <button
+                            key={
+                              booking._id || booking.id || `checkin-${index}`
+                            }
+                            type="button"
+                            onClick={handleRecentBookingClick}
+                            style={{
+                              display: "flex",
+                              width: "100%",
+                              gap: 11,
+                              alignItems: "flex-start",
+                              textAlign: "left",
+                              padding: 12,
+                              border: 0,
+                              borderRadius: 10,
+                              background: "transparent",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <span
+                              style={{
+                                display: "grid",
+                                placeItems: "center",
+                                flexShrink: 0,
+                                width: 34,
+                                height: 34,
+                                borderRadius: 10,
+                                background: "#e8f8ef",
+                                color: "#18834b",
+                                fontSize: 17,
+                              }}
+                            >
+                              ↘
+                            </span>
                             <span>
-                              <strong style={{ display: "block", fontSize: 13 }}>Check-in today</strong>
-                              <span style={{ display: "block", color: "#64748b", fontSize: 12, marginTop: 3 }}>{booking.guestName || booking.guest?.name || booking.user?.name || booking.customerName || "Guest reservation"}</span>
-                              <span style={{ display: "block", color: "#94a3b8", fontSize: 11, marginTop: 3 }}>View recent bookings</span>
+                              <strong
+                                style={{ display: "block", fontSize: 13 }}
+                              >
+                                Check-in today
+                              </strong>
+                              <span
+                                style={{
+                                  display: "block",
+                                  color: "#64748b",
+                                  fontSize: 12,
+                                  marginTop: 3,
+                                }}
+                              >
+                                {booking.guestName ||
+                                  booking.guest?.name ||
+                                  booking.user?.name ||
+                                  booking.customerName ||
+                                  "Guest reservation"}
+                              </span>
+                              <span
+                                style={{
+                                  display: "block",
+                                  color: "#94a3b8",
+                                  fontSize: 11,
+                                  marginTop: 3,
+                                }}
+                              >
+                                View recent bookings
+                              </span>
                             </span>
                           </button>
                         ))}
                         {todayCheckOuts.map((booking, index) => (
-                          <button key={booking._id || booking.id || `checkout-${index}`} type="button" onClick={handleRecentBookingClick} style={{ display: "flex", width: "100%", gap: 11, alignItems: "flex-start", textAlign: "left", padding: 12, border: 0, borderRadius: 10, background: "transparent", cursor: "pointer" }}>
-                            <span style={{ display: "grid", placeItems: "center", flexShrink: 0, width: 34, height: 34, borderRadius: 10, background: "#fff4e5", color: "#b66a12", fontSize: 17 }}>↗</span>
+                          <button
+                            key={
+                              booking._id || booking.id || `checkout-${index}`
+                            }
+                            type="button"
+                            onClick={handleRecentBookingClick}
+                            style={{
+                              display: "flex",
+                              width: "100%",
+                              gap: 11,
+                              alignItems: "flex-start",
+                              textAlign: "left",
+                              padding: 12,
+                              border: 0,
+                              borderRadius: 10,
+                              background: "transparent",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <span
+                              style={{
+                                display: "grid",
+                                placeItems: "center",
+                                flexShrink: 0,
+                                width: 34,
+                                height: 34,
+                                borderRadius: 10,
+                                background: "#fff4e5",
+                                color: "#b66a12",
+                                fontSize: 17,
+                              }}
+                            >
+                              ↗
+                            </span>
                             <span>
-                              <strong style={{ display: "block", fontSize: 13 }}>Check-out today</strong>
-                              <span style={{ display: "block", color: "#64748b", fontSize: 12, marginTop: 3 }}>{booking.guestName || booking.guest?.name || booking.user?.name || booking.customerName || "Guest reservation"}</span>
-                              <span style={{ display: "block", color: "#94a3b8", fontSize: 11, marginTop: 3 }}>View recent bookings</span>
+                              <strong
+                                style={{ display: "block", fontSize: 13 }}
+                              >
+                                Check-out today
+                              </strong>
+                              <span
+                                style={{
+                                  display: "block",
+                                  color: "#64748b",
+                                  fontSize: 12,
+                                  marginTop: 3,
+                                }}
+                              >
+                                {booking.guestName ||
+                                  booking.guest?.name ||
+                                  booking.user?.name ||
+                                  booking.customerName ||
+                                  "Guest reservation"}
+                              </span>
+                              <span
+                                style={{
+                                  display: "block",
+                                  color: "#94a3b8",
+                                  fontSize: 11,
+                                  marginTop: 3,
+                                }}
+                              >
+                                View recent bookings
+                              </span>
                             </span>
                           </button>
                         ))}
                       </>
                     )}
                   </div>
-                  <button type="button" onClick={handleRecentBookingClick} style={{ width: "100%", padding: "13px 16px", border: 0, borderTop: "1px solid #edf0f4", background: "#f8fafc", color: "#9a7526", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                  <button
+                    type="button"
+                    onClick={handleRecentBookingClick}
+                    style={{
+                      width: "100%",
+                      padding: "13px 16px",
+                      border: 0,
+                      borderTop: "1px solid #edf0f4",
+                      background: "#f8fafc",
+                      color: "#9a7526",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
                     View recent bookings →
                   </button>
                 </div>
