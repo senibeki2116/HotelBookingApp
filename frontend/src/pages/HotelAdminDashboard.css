@@ -3513,3 +3513,69 @@
 .notification-view-all:hover {
   background: #1d4ed8;
 }
+/* RINGING NOTIFICATION BELL */
+
+.dashboard-notification-button {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #fee2e2;
+  border-radius: 15px;
+  background: #fff;
+  color: #dc2626;
+  box-shadow: 0 5px 18px rgba(220, 38, 38, 0.1);
+  transition: all 0.25s ease;
+}
+
+.dashboard-notification-button:hover {
+  background: #fff5f5;
+  border-color: #fca5a5;
+  transform: translateY(-2px);
+}
+
+.dashboard-notification-button.is-ringing svg {
+  animation: bell-ring 0.8s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+.dashboard-notification-button .notification-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+@keyframes bell-ring {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  15%,
+  45%,
+  75% {
+    transform: rotate(12deg);
+  }
+  30%,
+  60%,
+  90% {
+    transform: rotate(-12deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-notification-button.is-ringing svg {
+    animation: none;
+  }
+}
