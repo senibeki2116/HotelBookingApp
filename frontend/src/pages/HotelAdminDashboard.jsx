@@ -403,16 +403,63 @@ const HotelAdminDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [newBookingAlert, setNewBookingAlert] = useState(false);
   const [unreadBookingCount, setUnreadBookingCount] = useState(0);
-  const [bellRinging, setBellRinging] = useState(false);
-  const knownBookingIds = useRef(new Set());
-  const bookingNotificationsInitialized = useRef(false);
+  const knownBookingIdsRef = useRef(null);
+  const audioReadyRef = useRef(false);
   const audioContextRef = useRef(null);
-  const audioEnabledRef = useRef(false);
+
+  const enableNotificationAudio = () => {
+    try {
+      const AudioContextClass =
+        window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      if (!audioContextRef.current)
+        audioContextRef.current = new AudioContextClass();
+      if (audioContextRef.current.state === "suspended")
+        audioContextRef.current.resume();
+      audioReadyRef.current = true;
+    } catch (error) {
+      console.warn("Notification audio is unavailable:", error);
+    }
+  };
+
+  const playBookingAlarm = () => {
+    if (!audioReadyRef.current || !audioContextRef.current) return;
+    try {
+      const context = audioContextRef.current;
+      [880, 1175].forEach((frequency, index) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const start = context.currentTime + index * 0.18;
+        oscillator.type = "sine";
+        oscillator.frequency.value = frequency;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.18, start + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 0.24);
+      });
+    } catch (error) {
+      console.warn("Could not play booking alarm:", error);
+    }
+  };
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Automatically dismiss success messages after 3 seconds.
+  useEffect(() => {
+    if (!success) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setSuccess("");
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [success]);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRoomModal, setShowRoomModal] = useState(false);
@@ -563,54 +610,6 @@ const HotelAdminDashboard = () => {
      LOAD BOOKINGS
   ======================================================= */
 
-  const playBookingAlarm = () => {
-    if (!audioEnabledRef.current || !audioContextRef.current) return;
-
-    try {
-      const context = audioContextRef.current;
-      if (context.state === "suspended") context.resume();
-
-      const now = context.currentTime;
-      [880, 660].forEach((frequency, index) => {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        const startAt = now + index * 0.19;
-
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(frequency, startAt);
-        gain.gain.setValueAtTime(0.0001, startAt);
-        gain.gain.exponentialRampToValueAtTime(0.18, startAt + 0.025);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.16);
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start(startAt);
-        oscillator.stop(startAt + 0.17);
-      });
-    } catch (soundError) {
-      console.warn("The booking alarm could not play:", soundError);
-    }
-  };
-
-  const enableBookingAlarm = () => {
-    audioEnabledRef.current = true;
-    setAudioEnabled(true);
-
-    try {
-      const AudioContextClass =
-        window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) return;
-
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContextClass();
-      }
-      if (audioContextRef.current.state === "suspended") {
-        audioContextRef.current.resume();
-      }
-    } catch (soundError) {
-      console.warn("Audio is not available in this browser:", soundError);
-    }
-  };
-
   const loadBookings = async () => {
     try {
       const response = await API.get("/bookings/my-hotel");
@@ -621,29 +620,25 @@ const HotelAdminDashboard = () => {
           .filter(Boolean),
       );
 
-      // The first successful fetch establishes a baseline. Existing bookings
-      // do not trigger an alarm when the dashboard first opens.
-      if (!bookingNotificationsInitialized.current) {
-        knownBookingIds.current = nextIds;
-        bookingNotificationsInitialized.current = true;
+      if (knownBookingIdsRef.current === null) {
+        // Establish the initial baseline without sounding an alarm on page load.
+        knownBookingIdsRef.current = nextIds;
       } else {
-        const newBookings = nextBookings.filter((booking) => {
-          const id = String(booking?._id || booking?.id || "");
-          return id && !knownBookingIds.current.has(id);
-        });
-
-        if (newBookings.length > 0) {
-          setUnreadBookingCount((count) => count + newBookings.length);
-          setBellRinging(true);
+        const addedIds = [...nextIds].filter(
+          (id) => !knownBookingIdsRef.current.has(id),
+        );
+        if (addedIds.length > 0) {
+          setNewBookingAlert(true);
+          setUnreadBookingCount((count) => count + addedIds.length);
           playBookingAlarm();
         }
-
-        knownBookingIds.current = nextIds;
+        knownBookingIdsRef.current = nextIds;
       }
-
       setBookings(nextBookings);
     } catch (requestError) {
       console.error("Could not load hotel bookings:", requestError);
+
+      setBookings([]);
     }
   };
 
@@ -694,20 +689,11 @@ const HotelAdminDashboard = () => {
 
   useEffect(() => {
     loadDashboard();
-
-    // Check periodically for new reservations while this dashboard is open.
-    const bookingPoll = window.setInterval(() => {
+    const pollId = window.setInterval(() => {
       loadBookings();
     }, 30000);
-
-    return () => window.clearInterval(bookingPoll);
+    return () => window.clearInterval(pollId);
   }, []);
-
-  useEffect(() => {
-    if (!bellRinging) return undefined;
-    const stopAnimation = window.setTimeout(() => setBellRinging(false), 5000);
-    return () => window.clearTimeout(stopAnimation);
-  }, [bellRinging, unreadBookingCount]);
 
   /* =======================================================
      BOOKING CALCULATIONS
@@ -1164,13 +1150,6 @@ const HotelAdminDashboard = () => {
     });
   };
 
-  const handleNotificationBellClick = () => {
-    enableBookingAlarm();
-    setUnreadBookingCount(0);
-    setBellRinging(false);
-    setShowNotifications((visible) => !visible);
-  };
-
   const handleRecentBookingClick = () => {
     setShowNotifications(false);
     // Open the bookings page in a separate tab and leave this dashboard open.
@@ -1415,37 +1394,34 @@ const HotelAdminDashboard = () => {
               View Website
             </button>
 
-            <div className="dashboard-notification-wrapper">
+            <div style={{ position: "relative" }}>
               <button
                 type="button"
-                className={`dashboard-notification-button ${bellRinging ? "is-ringing" : ""}`}
-                aria-label={
-                  audioEnabled
-                    ? "Show notifications; booking alarm enabled"
-                    : "Show notifications; click to enable booking alarm"
-                }
-                title={
-                  audioEnabled
-                    ? "Notifications and booking alarm enabled"
-                    : "Click to enable booking alarm"
-                }
+                className={`dashboard-notification-button ${newBookingAlert ? "is-ringing" : ""}`}
+                aria-label="Show notifications"
+                title="Notifications (click to enable alarm sound)"
                 aria-expanded={showNotifications}
-                onClick={handleNotificationBellClick}
+                onClick={() => {
+                  enableNotificationAudio();
+                  setShowNotifications((visible) => !visible);
+                  setNewBookingAlert(false);
+                  setUnreadBookingCount(0);
+                }}
               >
-                <Icon name="bell" size={21} />
-                {unreadBookingCount +
-                  todayCheckIns.length +
-                  todayCheckOuts.length >
-                  0 && (
+                <span className="dashboard-bell-waves" aria-hidden="true">
+                  <i />
+                  <i />
+                </span>
+                <Icon name="bell" size={22} />
+                {unreadBookingCount > 0 ? (
                   <span className="notification-badge">
-                    {Math.min(
-                      unreadBookingCount +
-                        todayCheckIns.length +
-                        todayCheckOuts.length,
-                      99,
-                    )}
+                    {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
                   </span>
-                )}
+                ) : todayCheckIns.length + todayCheckOuts.length > 0 ? (
+                  <span className="notification-badge">
+                    {todayCheckIns.length + todayCheckOuts.length}
+                  </span>
+                ) : null}
               </button>
 
               {showNotifications && (
@@ -1503,175 +1479,296 @@ const HotelAdminDashboard = () => {
                   </div>
 
                   <div
-                    style={{ padding: 10, maxHeight: 330, overflowY: "auto" }}
+                    style={{ padding: 10, maxHeight: 360, overflowY: "auto" }}
                   >
                     {unreadBookingCount > 0 && (
-                      <div className="new-booking-alert" role="status">
-                        <span className="new-booking-alert-icon">
+                      <div
+                        className="new-booking-alert"
+                        role="status"
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          alignItems: "center",
+                          padding: 12,
+                          margin: "2px 2px 8px",
+                          borderRadius: 10,
+                          background: "#fff7e6",
+                          color: "#8a5a00",
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "grid",
+                            placeItems: "center",
+                            width: 34,
+                            height: 34,
+                            flexShrink: 0,
+                            borderRadius: 10,
+                            background: "#ffedbd",
+                          }}
+                        >
                           <Icon name="bell" size={17} />
                         </span>
                         <span>
-                          <strong>
+                          <strong style={{ display: "block", fontSize: 13 }}>
                             {unreadBookingCount} new booking
                             {unreadBookingCount === 1 ? "" : "s"} received
                           </strong>
-                          <small>Click below to view your reservations.</small>
+                          <small
+                            style={{
+                              display: "block",
+                              marginTop: 3,
+                              fontSize: 11,
+                            }}
+                          >
+                            Open recent bookings to review them.
+                          </small>
                         </span>
                       </div>
                     )}
-                    {todayCheckIns.length === 0 &&
-                    todayCheckOuts.length === 0 ? (
-                      <div
-                        style={{ padding: "22px 12px", textAlign: "center" }}
+
+                    {todayCheckIns.map((booking, index) => (
+                      <button
+                        key={booking._id || booking.id || `checkin-${index}`}
+                        type="button"
+                        onClick={handleRecentBookingClick}
+                        style={{
+                          display: "flex",
+                          width: "100%",
+                          gap: 11,
+                          alignItems: "flex-start",
+                          textAlign: "left",
+                          padding: 12,
+                          border: 0,
+                          borderRadius: 10,
+                          background: "transparent",
+                          cursor: "pointer",
+                        }}
                       >
-                        <div style={{ fontSize: 25, marginBottom: 8 }}>🔔</div>
-                        <strong style={{ display: "block", fontSize: 13 }}>
-                          You're all caught up
-                        </strong>
-                        <span style={{ color: "#718096", fontSize: 12 }}>
-                          No check-ins or check-outs scheduled for today.
+                        <span
+                          style={{
+                            display: "grid",
+                            placeItems: "center",
+                            flexShrink: 0,
+                            width: 34,
+                            height: 34,
+                            borderRadius: 10,
+                            background: "#e8f8ef",
+                            color: "#18834b",
+                            fontSize: 17,
+                          }}
+                        >
+                          ↘
                         </span>
-                      </div>
-                    ) : (
+                        <span>
+                          <strong style={{ display: "block", fontSize: 13 }}>
+                            Check-in today
+                          </strong>
+                          <span
+                            style={{
+                              display: "block",
+                              color: "#64748b",
+                              fontSize: 12,
+                              marginTop: 3,
+                            }}
+                          >
+                            {booking.guestName ||
+                              booking.guest?.name ||
+                              booking.user?.name ||
+                              booking.customerName ||
+                              "Guest reservation"}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+
+                    {todayCheckOuts.map((booking, index) => (
+                      <button
+                        key={booking._id || booking.id || `checkout-${index}`}
+                        type="button"
+                        onClick={handleRecentBookingClick}
+                        style={{
+                          display: "flex",
+                          width: "100%",
+                          gap: 11,
+                          alignItems: "flex-start",
+                          textAlign: "left",
+                          padding: 12,
+                          border: 0,
+                          borderRadius: 10,
+                          background: "transparent",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "grid",
+                            placeItems: "center",
+                            flexShrink: 0,
+                            width: 34,
+                            height: 34,
+                            borderRadius: 10,
+                            background: "#fff4e5",
+                            color: "#b66a12",
+                            fontSize: 17,
+                          }}
+                        >
+                          ↗
+                        </span>
+                        <span>
+                          <strong style={{ display: "block", fontSize: 13 }}>
+                            Check-out today
+                          </strong>
+                          <span
+                            style={{
+                              display: "block",
+                              color: "#64748b",
+                              fontSize: 12,
+                              marginTop: 3,
+                            }}
+                          >
+                            {booking.guestName ||
+                              booking.guest?.name ||
+                              booking.user?.name ||
+                              booking.customerName ||
+                              "Guest reservation"}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+
+                    {bookings.length > 0 && (
                       <>
-                        {todayCheckIns.map((booking, index) => (
-                          <button
-                            key={
-                              booking._id || booking.id || `checkin-${index}`
-                            }
-                            type="button"
-                            onClick={handleRecentBookingClick}
-                            style={{
-                              display: "flex",
-                              width: "100%",
-                              gap: 11,
-                              alignItems: "flex-start",
-                              textAlign: "left",
-                              padding: 12,
-                              border: 0,
-                              borderRadius: 10,
-                              background: "transparent",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <span
+                        <div
+                          style={{
+                            padding: "12px 10px 6px",
+                            borderTop: "1px solid #edf0f4",
+                            marginTop: 5,
+                            color: "#64748b",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: ".06em",
+                          }}
+                        >
+                          Recent bookings ({bookings.length})
+                        </div>
+                        {[...bookings]
+                          .sort(
+                            (a, b) =>
+                              new Date(
+                                b.createdAt ||
+                                  b.bookingDate ||
+                                  b.updatedAt ||
+                                  0,
+                              ).getTime() -
+                              new Date(
+                                a.createdAt ||
+                                  a.bookingDate ||
+                                  a.updatedAt ||
+                                  0,
+                              ).getTime(),
+                          )
+                          .slice(0, 5)
+                          .map((booking, index) => (
+                            <button
+                              key={
+                                booking._id || booking.id || `recent-${index}`
+                              }
+                              type="button"
+                              onClick={handleRecentBookingClick}
                               style={{
-                                display: "grid",
-                                placeItems: "center",
-                                flexShrink: 0,
-                                width: 34,
-                                height: 34,
+                                display: "flex",
+                                width: "100%",
+                                gap: 11,
+                                alignItems: "flex-start",
+                                textAlign: "left",
+                                padding: 12,
+                                border: 0,
                                 borderRadius: 10,
-                                background: "#e8f8ef",
-                                color: "#18834b",
-                                fontSize: 17,
+                                background: "transparent",
+                                cursor: "pointer",
                               }}
                             >
-                              ↘
-                            </span>
-                            <span>
-                              <strong
-                                style={{ display: "block", fontSize: 13 }}
-                              >
-                                Check-in today
-                              </strong>
                               <span
                                 style={{
-                                  display: "block",
-                                  color: "#64748b",
-                                  fontSize: 12,
-                                  marginTop: 3,
+                                  display: "grid",
+                                  placeItems: "center",
+                                  flexShrink: 0,
+                                  width: 34,
+                                  height: 34,
+                                  borderRadius: 10,
+                                  background: "#eef2ff",
+                                  color: "#405fc2",
+                                  fontSize: 16,
                                 }}
                               >
-                                {booking.guestName ||
-                                  booking.guest?.name ||
-                                  booking.user?.name ||
-                                  booking.customerName ||
-                                  "Guest reservation"}
+                                ▣
+                              </span>
+                              <span style={{ minWidth: 0, flex: 1 }}>
+                                <strong
+                                  style={{
+                                    display: "block",
+                                    fontSize: 13,
+                                    color: "#172033",
+                                  }}
+                                >
+                                  {booking.guestName ||
+                                    booking.guest?.name ||
+                                    booking.user?.name ||
+                                    booking.customerName ||
+                                    booking.customer?.name ||
+                                    "Guest reservation"}
+                                </strong>
+                                <span
+                                  style={{
+                                    display: "block",
+                                    color: "#64748b",
+                                    fontSize: 11,
+                                    marginTop: 3,
+                                  }}
+                                >
+                                  Booking #
+                                  {String(
+                                    booking._id || booking.id || "",
+                                  ).slice(-7) || "—"}{" "}
+                                  · {getBookingStatus(booking) || "pending"}
+                                </span>
                               </span>
                               <span
                                 style={{
-                                  display: "block",
-                                  color: "#94a3b8",
+                                  color: "#a87516",
                                   fontSize: 11,
-                                  marginTop: 3,
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
                                 }}
                               >
-                                View recent bookings
+                                View →
                               </span>
-                            </span>
-                          </button>
-                        ))}
-                        {todayCheckOuts.map((booking, index) => (
-                          <button
-                            key={
-                              booking._id || booking.id || `checkout-${index}`
-                            }
-                            type="button"
-                            onClick={handleRecentBookingClick}
-                            style={{
-                              display: "flex",
-                              width: "100%",
-                              gap: 11,
-                              alignItems: "flex-start",
-                              textAlign: "left",
-                              padding: 12,
-                              border: 0,
-                              borderRadius: 10,
-                              background: "transparent",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <span
-                              style={{
-                                display: "grid",
-                                placeItems: "center",
-                                flexShrink: 0,
-                                width: 34,
-                                height: 34,
-                                borderRadius: 10,
-                                background: "#fff4e5",
-                                color: "#b66a12",
-                                fontSize: 17,
-                              }}
-                            >
-                              ↗
-                            </span>
-                            <span>
-                              <strong
-                                style={{ display: "block", fontSize: 13 }}
-                              >
-                                Check-out today
-                              </strong>
-                              <span
-                                style={{
-                                  display: "block",
-                                  color: "#64748b",
-                                  fontSize: 12,
-                                  marginTop: 3,
-                                }}
-                              >
-                                {booking.guestName ||
-                                  booking.guest?.name ||
-                                  booking.user?.name ||
-                                  booking.customerName ||
-                                  "Guest reservation"}
-                              </span>
-                              <span
-                                style={{
-                                  display: "block",
-                                  color: "#94a3b8",
-                                  fontSize: 11,
-                                  marginTop: 3,
-                                }}
-                              >
-                                View recent bookings
-                              </span>
-                            </span>
-                          </button>
-                        ))}
+                            </button>
+                          ))}
                       </>
                     )}
+
+                    {bookings.length === 0 &&
+                      unreadBookingCount === 0 &&
+                      todayCheckIns.length === 0 &&
+                      todayCheckOuts.length === 0 && (
+                        <div
+                          style={{ padding: "22px 12px", textAlign: "center" }}
+                        >
+                          <div style={{ fontSize: 25, marginBottom: 8 }}>
+                            🔔
+                          </div>
+                          <strong style={{ display: "block", fontSize: 13 }}>
+                            No bookings found
+                          </strong>
+                          <span style={{ color: "#718096", fontSize: 12 }}>
+                            Your recent reservations will appear here after they
+                            are loaded.
+                          </span>
+                        </div>
+                      )}
                   </div>
                   <button
                     type="button"

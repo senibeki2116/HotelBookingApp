@@ -3579,3 +3579,63 @@
     animation: none;
   }
 }
+.notification-booking-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notification-booking-item:hover {
+  background: #f5f8ff;
+}
+
+.notification-booking-item > span:first-child {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #e8f8ef;
+  color: #18834b;
+}
+
+.notification-booking-item strong,
+.notification-booking-item small {
+  display: block;
+}
+
+.notification-booking-item strong {
+  color: #172033;
+  font-size: 13px;
+}
+
+.notification-booking-item small {
+  margin-top: 4px;
+  color: #718096;
+  font-size: 12px;
+}
+
+.notification-view-bookings {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #a87516;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notification-view-bookings:hover {
+  background: #eef3ff;
+}
