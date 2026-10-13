@@ -404,9 +404,54 @@ const HotelAdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationPanelRef = useRef(null);
+  const [notificationFilter, setNotificationFilter] = useState("all");
+  const [readBookingIds, setReadBookingIds] = useState(() => {
+    try {
+      const stored = JSON.parse(
+        localStorage.getItem("hotelAdminReadBookingIds") || "[]",
+      );
+      return Array.isArray(stored) ? stored.map(String) : [];
+    } catch {
+      return [];
+    }
+  });
   const [newBookingAlert, setNewBookingAlert] = useState(false);
-  const [unreadBookingCount, setUnreadBookingCount] = useState(0);
   const knownBookingIdsRef = useRef(null);
+  const unreadBookingCount = bookings.filter((booking) => {
+    const id = String(booking?._id || booking?.id || "");
+    return Boolean(id) && !readBookingIds.includes(id);
+  }).length;
+
+  const persistReadBookingIds = (ids) => {
+    const uniqueIds = [...new Set(ids.map(String).filter(Boolean))];
+    setReadBookingIds(uniqueIds);
+    try {
+      localStorage.setItem(
+        "hotelAdminReadBookingIds",
+        JSON.stringify(uniqueIds),
+      );
+    } catch (storageError) {
+      console.warn("Could not save notification read status:", storageError);
+    }
+  };
+
+  const markAllNotificationsRead = () => {
+    const allIds = bookings
+      .map((booking) => String(booking?._id || booking?.id || ""))
+      .filter(Boolean);
+    persistReadBookingIds([...readBookingIds, ...allIds]);
+    setNewBookingAlert(false);
+  };
+
+  const toggleBookingRead = (bookingId) => {
+    const id = String(bookingId || "");
+    if (!id) return;
+    persistReadBookingIds(
+      readBookingIds.includes(id)
+        ? readBookingIds.filter((savedId) => savedId !== id)
+        : [...readBookingIds, id],
+    );
+  };
   const audioReadyRef = useRef(false);
   const audioContextRef = useRef(null);
 
@@ -656,7 +701,6 @@ const HotelAdminDashboard = () => {
         );
         if (addedIds.length > 0) {
           setNewBookingAlert(true);
-          setUnreadBookingCount((count) => count + addedIds.length);
           playBookingAlarm();
         }
         knownBookingIdsRef.current = nextIds;
@@ -1439,14 +1483,10 @@ const HotelAdminDashboard = () => {
                 title="Notifications (click to enable alarm sound)"
                 aria-expanded={showNotifications}
                 onClick={() => {
+                  enableNotificationAudio();
                   const opening = !showNotifications;
-
                   setShowNotifications(opening);
-
-                  if (opening) {
-                    setNewBookingAlert(false);
-                    setUnreadBookingCount(0);
-                  }
+                  if (opening) setNewBookingAlert(false);
                 }}
               >
                 <span className="dashboard-bell-waves" aria-hidden="true">
@@ -1463,366 +1503,151 @@ const HotelAdminDashboard = () => {
 
               {showNotifications && (
                 <div
+                  className="modern-notification-panel"
                   role="dialog"
                   aria-label="Notifications"
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 12px)",
-                    right: 0,
-                    width: "min(340px, calc(100vw - 32px))",
-                    zIndex: 1000,
-                    background: "#ffffff",
-                    color: "#172033",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 16,
-                    boxShadow: "0 18px 50px rgba(15, 23, 42, 0.20)",
-                    overflow: "hidden",
-                  }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "16px 18px",
-                      borderBottom: "1px solid #edf0f4",
-                    }}
-                  >
+                  <div className="modern-notification-header">
                     <div>
-                      <strong style={{ display: "block", fontSize: 15 }}>
-                        Notifications
-                      </strong>
-                      <span style={{ color: "#718096", fontSize: 12 }}>
-                        Your property updates
-                      </span>
+                      <strong>Notifications</strong>
+                      <p>Your hotel activity at a glance</p>
                     </div>
                     <button
                       type="button"
+                      className="notification-close"
                       onClick={() => setShowNotifications(false)}
                       aria-label="Close notifications"
-                      style={{
-                        border: 0,
-                        background: "#f1f5f9",
-                        borderRadius: 8,
-                        width: 30,
-                        height: 30,
-                        cursor: "pointer",
-                        fontSize: 19,
-                        color: "#475569",
-                      }}
                     >
                       ×
                     </button>
                   </div>
 
-                  <div
-                    style={{ padding: 10, maxHeight: 360, overflowY: "auto" }}
-                  >
-                    {unreadBookingCount > 0 && (
-                      <div
-                        className="new-booking-alert"
-                        role="status"
-                        style={{
-                          display: "flex",
-                          gap: 10,
-                          alignItems: "center",
-                          padding: 12,
-                          margin: "2px 2px 8px",
-                          borderRadius: 10,
-                          background: "#fff7e6",
-                          color: "#8a5a00",
-                        }}
-                      >
-                        <span
-                          style={{
-                            display: "grid",
-                            placeItems: "center",
-                            width: 34,
-                            height: 34,
-                            flexShrink: 0,
-                            borderRadius: 10,
-                            background: "#ffedbd",
-                          }}
+                  <div className="notification-toolbar">
+                    <div
+                      className="notification-tabs"
+                      role="tablist"
+                      aria-label="Notification filters"
+                    >
+                      {[
+                        { value: "all", label: "All" },
+                        { value: "unread", label: "Unread" },
+                        { value: "bookings", label: "Bookings" },
+                      ].map((filter) => (
+                        <button
+                          key={filter.value}
+                          type="button"
+                          role="tab"
+                          aria-selected={notificationFilter === filter.value}
+                          className={
+                            notificationFilter === filter.value ? "active" : ""
+                          }
+                          onClick={() => setNotificationFilter(filter.value)}
                         >
-                          <Icon name="bell" size={17} />
-                        </span>
-                        <span>
-                          <strong style={{ display: "block", fontSize: 13 }}>
-                            {unreadBookingCount} new booking
-                            {unreadBookingCount === 1 ? "" : "s"} received
-                          </strong>
-                          <small
-                            style={{
-                              display: "block",
-                              marginTop: 3,
-                              fontSize: 11,
-                            }}
+                          {filter.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="mark-read-button"
+                      onClick={markAllNotificationsRead}
+                    >
+                      Mark all read
+                    </button>
+                  </div>
+
+                  <div className="modern-notification-list">
+                    {bookings
+                      .filter((booking) => {
+                        const id = String(booking?._id || booking?.id || "");
+                        return (
+                          notificationFilter !== "unread" ||
+                          (id && !readBookingIds.includes(id))
+                        );
+                      })
+                      .slice()
+                      .sort(
+                        (a, b) =>
+                          new Date(
+                            b?.createdAt || b?.bookingDate || b?.updatedAt || 0,
+                          ).getTime() -
+                          new Date(
+                            a?.createdAt || a?.bookingDate || a?.updatedAt || 0,
+                          ).getTime(),
+                      )
+                      .slice(0, 12)
+                      .map((booking, index) => {
+                        const id = String(
+                          booking?._id || booking?.id || `booking-${index}`,
+                        );
+                        const isUnread = !readBookingIds.includes(id);
+                        const guestName = getGuestName(booking);
+                        return (
+                          <div
+                            key={id}
+                            className={`modern-notification-item ${isUnread ? "unread" : ""}`}
                           >
-                            Open recent bookings to review them.
-                          </small>
-                        </span>
+                            <span className="notification-icon">
+                              <Icon name="calendar" size={19} />
+                            </span>
+                            <div className="notification-content">
+                              <div className="notification-title-row">
+                                <strong>Reservation update</strong>
+                                {isUnread && (
+                                  <span
+                                    className="unread-dot"
+                                    aria-label="Unread"
+                                  />
+                                )}
+                              </div>
+                              <p>{guestName}</p>
+                              <small>
+                                Booking #{id.slice(-7)} ·{" "}
+                                {getBookingStatus(booking)}
+                              </small>
+                              <div className="notification-actions">
+                                <button
+                                  type="button"
+                                  onClick={handleRecentBookingClick}
+                                >
+                                  View booking →
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleBookingRead(id)}
+                                >
+                                  {isUnread ? "Mark read" : "Mark unread"}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {bookings.filter((booking) => {
+                      const id = String(booking?._id || booking?.id || "");
+                      return (
+                        notificationFilter !== "unread" ||
+                        (id && !readBookingIds.includes(id))
+                      );
+                    }).length === 0 && (
+                      <div className="notification-empty">
+                        <Icon name="bell" size={27} />
+                        <strong>
+                          {notificationFilter === "unread"
+                            ? "You're all caught up!"
+                            : "No notifications yet"}
+                        </strong>
+                        <p>New reservations will appear here automatically.</p>
                       </div>
                     )}
-
-                    {todayCheckIns.map((booking, index) => (
-                      <button
-                        key={booking._id || booking.id || `checkin-${index}`}
-                        type="button"
-                        onClick={handleRecentBookingClick}
-                        style={{
-                          display: "flex",
-                          width: "100%",
-                          gap: 11,
-                          alignItems: "flex-start",
-                          textAlign: "left",
-                          padding: 12,
-                          border: 0,
-                          borderRadius: 10,
-                          background: "transparent",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <span
-                          style={{
-                            display: "grid",
-                            placeItems: "center",
-                            flexShrink: 0,
-                            width: 34,
-                            height: 34,
-                            borderRadius: 10,
-                            background: "#e8f8ef",
-                            color: "#18834b",
-                            fontSize: 17,
-                          }}
-                        >
-                          ↘
-                        </span>
-                        <span>
-                          <strong style={{ display: "block", fontSize: 13 }}>
-                            Check-in today
-                          </strong>
-                          <span
-                            style={{
-                              display: "block",
-                              color: "#64748b",
-                              fontSize: 12,
-                              marginTop: 3,
-                            }}
-                          >
-                            {booking.guestName ||
-                              booking.guest?.name ||
-                              booking.user?.name ||
-                              booking.customerName ||
-                              "Guest reservation"}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-
-                    {todayCheckOuts.map((booking, index) => (
-                      <button
-                        key={booking._id || booking.id || `checkout-${index}`}
-                        type="button"
-                        onClick={handleRecentBookingClick}
-                        style={{
-                          display: "flex",
-                          width: "100%",
-                          gap: 11,
-                          alignItems: "flex-start",
-                          textAlign: "left",
-                          padding: 12,
-                          border: 0,
-                          borderRadius: 10,
-                          background: "transparent",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <span
-                          style={{
-                            display: "grid",
-                            placeItems: "center",
-                            flexShrink: 0,
-                            width: 34,
-                            height: 34,
-                            borderRadius: 10,
-                            background: "#fff4e5",
-                            color: "#b66a12",
-                            fontSize: 17,
-                          }}
-                        >
-                          ↗
-                        </span>
-                        <span>
-                          <strong style={{ display: "block", fontSize: 13 }}>
-                            Check-out today
-                          </strong>
-                          <span
-                            style={{
-                              display: "block",
-                              color: "#64748b",
-                              fontSize: 12,
-                              marginTop: 3,
-                            }}
-                          >
-                            {booking.guestName ||
-                              booking.guest?.name ||
-                              booking.user?.name ||
-                              booking.customerName ||
-                              "Guest reservation"}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-
-                    {bookings.length > 0 && (
-                      <>
-                        <div
-                          style={{
-                            padding: "12px 10px 6px",
-                            borderTop: "1px solid #edf0f4",
-                            marginTop: 5,
-                            color: "#64748b",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: ".06em",
-                          }}
-                        >
-                          Recent bookings ({bookings.length})
-                        </div>
-                        {[...bookings]
-                          .sort(
-                            (a, b) =>
-                              new Date(
-                                b.createdAt ||
-                                  b.bookingDate ||
-                                  b.updatedAt ||
-                                  0,
-                              ).getTime() -
-                              new Date(
-                                a.createdAt ||
-                                  a.bookingDate ||
-                                  a.updatedAt ||
-                                  0,
-                              ).getTime(),
-                          )
-                          .slice(0, 5)
-                          .map((booking, index) => (
-                            <button
-                              key={
-                                booking._id || booking.id || `recent-${index}`
-                              }
-                              type="button"
-                              onClick={handleRecentBookingClick}
-                              style={{
-                                display: "flex",
-                                width: "100%",
-                                gap: 11,
-                                alignItems: "flex-start",
-                                textAlign: "left",
-                                padding: 12,
-                                border: 0,
-                                borderRadius: 10,
-                                background: "transparent",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  display: "grid",
-                                  placeItems: "center",
-                                  flexShrink: 0,
-                                  width: 34,
-                                  height: 34,
-                                  borderRadius: 10,
-                                  background: "#eef2ff",
-                                  color: "#405fc2",
-                                  fontSize: 16,
-                                }}
-                              >
-                                ▣
-                              </span>
-                              <span style={{ minWidth: 0, flex: 1 }}>
-                                <strong
-                                  style={{
-                                    display: "block",
-                                    fontSize: 13,
-                                    color: "#172033",
-                                  }}
-                                >
-                                  {booking.guestName ||
-                                    booking.guest?.name ||
-                                    booking.user?.name ||
-                                    booking.customerName ||
-                                    booking.customer?.name ||
-                                    "Guest reservation"}
-                                </strong>
-                                <span
-                                  style={{
-                                    display: "block",
-                                    color: "#64748b",
-                                    fontSize: 11,
-                                    marginTop: 3,
-                                  }}
-                                >
-                                  Booking #
-                                  {String(
-                                    booking._id || booking.id || "",
-                                  ).slice(-7) || "—"}{" "}
-                                  · {getBookingStatus(booking) || "pending"}
-                                </span>
-                              </span>
-                              <span
-                                style={{
-                                  color: "#a87516",
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                View →
-                              </span>
-                            </button>
-                          ))}
-                      </>
-                    )}
-
-                    {bookings.length === 0 &&
-                      unreadBookingCount === 0 &&
-                      todayCheckIns.length === 0 &&
-                      todayCheckOuts.length === 0 && (
-                        <div
-                          style={{ padding: "22px 12px", textAlign: "center" }}
-                        >
-                          <div style={{ fontSize: 25, marginBottom: 8 }}>
-                            🔔
-                          </div>
-                          <strong style={{ display: "block", fontSize: 13 }}>
-                            No bookings found
-                          </strong>
-                          <span style={{ color: "#718096", fontSize: 12 }}>
-                            Your recent reservations will appear here after they
-                            are loaded.
-                          </span>
-                        </div>
-                      )}
                   </div>
+
                   <button
                     type="button"
+                    className="notification-footer"
                     onClick={handleRecentBookingClick}
-                    style={{
-                      width: "100%",
-                      padding: "13px 16px",
-                      border: 0,
-                      borderTop: "1px solid #edf0f4",
-                      background: "#f8fafc",
-                      color: "#9a7526",
-                      fontWeight: 700,
-                      fontSize: 12,
-                      cursor: "pointer",
-                    }}
                   >
-                    View recent bookings →
+                    View all reservations <span>→</span>
                   </button>
                 </div>
               )}
