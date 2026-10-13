@@ -403,6 +403,7 @@ const HotelAdminDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notificationPanelRef = useRef(null);
   const [newBookingAlert, setNewBookingAlert] = useState(false);
   const [unreadBookingCount, setUnreadBookingCount] = useState(0);
   const knownBookingIdsRef = useRef(null);
@@ -460,6 +461,32 @@ const HotelAdminDashboard = () => {
 
     return () => window.clearTimeout(timeoutId);
   }, [success]);
+
+  // Close the notification popup when the user clicks elsewhere or presses Escape.
+  useEffect(() => {
+    if (!showNotifications) return undefined;
+
+    const handleOutsidePointer = (event) => {
+      if (
+        notificationPanelRef.current &&
+        !notificationPanelRef.current.contains(event.target)
+      ) {
+        setShowNotifications(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setShowNotifications(false);
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointer);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointer);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showNotifications]);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRoomModal, setShowRoomModal] = useState(false);
@@ -1152,8 +1179,14 @@ const HotelAdminDashboard = () => {
 
   const handleRecentBookingClick = () => {
     setShowNotifications(false);
-    // Open the bookings page in a separate tab and leave this dashboard open.
-    window.open("/admin/hotel-bookings", "_blank", "noopener,noreferrer");
+
+    // Use an absolute same-origin URL so the new tab opens the app route,
+    // regardless of the current dashboard URL.
+    const bookingsUrl = new URL(
+      "/admin/hotel-bookings",
+      window.location.origin,
+    );
+    window.open(bookingsUrl.href, "_blank", "noopener,noreferrer");
   };
 
   /* =======================================================
@@ -1394,7 +1427,11 @@ const HotelAdminDashboard = () => {
               View Website
             </button>
 
-            <div style={{ position: "relative" }}>
+            <div
+              ref={notificationPanelRef}
+              className="dashboard-notification-wrapper"
+              style={{ position: "relative" }}
+            >
               <button
                 type="button"
                 className={`dashboard-notification-button ${newBookingAlert ? "is-ringing" : ""}`}
@@ -1404,8 +1441,6 @@ const HotelAdminDashboard = () => {
                 onClick={() => {
                   enableNotificationAudio();
                   setShowNotifications((visible) => !visible);
-                  setNewBookingAlert(false);
-                  setUnreadBookingCount(0);
                 }}
               >
                 <span className="dashboard-bell-waves" aria-hidden="true">
