@@ -1439,8 +1439,14 @@ const HotelAdminDashboard = () => {
                 title="Notifications (click to enable alarm sound)"
                 aria-expanded={showNotifications}
                 onClick={() => {
-                  enableNotificationAudio();
-                  setShowNotifications((visible) => !visible);
+                  const opening = !showNotifications;
+
+                  setShowNotifications(opening);
+
+                  if (opening) {
+                    setNewBookingAlert(false);
+                    setUnreadBookingCount(0);
+                  }
                 }}
               >
                 <span className="dashboard-bell-waves" aria-hidden="true">
@@ -1448,15 +1454,11 @@ const HotelAdminDashboard = () => {
                   <i />
                 </span>
                 <Icon name="bell" size={22} />
-                {unreadBookingCount > 0 ? (
+                {unreadBookingCount > 0 && (
                   <span className="notification-badge">
                     {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
                   </span>
-                ) : todayCheckIns.length + todayCheckOuts.length > 0 ? (
-                  <span className="notification-badge">
-                    {todayCheckIns.length + todayCheckOuts.length}
-                  </span>
-                ) : null}
+                )}
               </button>
 
               {showNotifications && (
