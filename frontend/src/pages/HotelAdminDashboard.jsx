@@ -245,16 +245,25 @@ const Icon = ({ name, size = 18 }) => {
 ========================================================= */
 
 const getImage = (image) => {
-  if (!image) return FALLBACK_HERO;
+  if (typeof image !== "string" || !image.trim()) return FALLBACK_HERO;
 
-  const value = String(image);
+  const value = image.trim();
 
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
-  }
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
 
-  return `${API_URL}${value.startsWith("/") ? "" : "/"}${value}`;
+  // Support backend paths such as /uploads/hotel.jpg and uploads/hotel.jpg.
+  return `${API_URL}/${value.replace(/^\/+/, "")}`;
 };
+
+const getHotelImage = (hotel) =>
+  getImage(
+    hotel?.image ||
+      hotel?.imageUrl ||
+      hotel?.imageURL ||
+      hotel?.coverImage ||
+      hotel?.photo ||
+      (Array.isArray(hotel?.images) ? hotel.images[0] : ""),
+  );
 
 const getUserInitials = (name = "Hotel Admin") => {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -1705,7 +1714,7 @@ const HotelAdminDashboard = () => {
           <section
             className="hotel-property-hero"
             style={{
-              backgroundImage: `url("${getImage(hotel.image)}")`,
+              backgroundImage: `url("${getHotelImage(hotel)}"), url("${FALLBACK_HERO}")`,
             }}
           >
             <div className="property-hero-overlay" />
@@ -2373,8 +2382,13 @@ const HotelAdminDashboard = () => {
             <article className="dashboard-panel property-summary-card">
               <div className="property-summary-image">
                 <img
-                  src={getImage(hotel?.image)}
+                  src={getHotelImage(hotel)}
                   alt={hotel?.name || "Hotel"}
+                  loading="lazy"
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = FALLBACK_HERO;
+                  }}
                 />
 
                 <span>
