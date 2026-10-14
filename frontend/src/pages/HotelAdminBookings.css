@@ -1,3 +1,8 @@
+/* =========================================================
+   STAYORA — HOTEL ADMIN RESERVATIONS
+   Clean, responsive stylesheet
+   ========================================================= */
+
 :root {
   --ha-navy: #0c1830;
   --ha-navy-light: #152747;
@@ -12,11 +17,13 @@
   --ha-white: #ffffff;
   --ha-green: #168052;
   --ha-red: #dc3545;
-  --ha-radius: 12px;
+  --ha-radius: 13px;
   --ha-shadow: 0 5px 20px rgba(20, 40, 75, 0.045);
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -48,7 +55,7 @@
   cursor: not-allowed;
 }
 
-/* ---------- 2. SIDEBAR ---------- */
+/* -------------------- SIDEBAR -------------------- */
 
 .hotel-admin-sidebar {
   position: fixed;
@@ -56,83 +63,83 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  width: 260px;
+  width: 250px;
   overflow-x: hidden;
   overflow-y: auto;
   background: linear-gradient(180deg, #0c1830 0%, #091326 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
-  color: white;
+  color: #fff;
 }
 
 .sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 23px 18px;
+  gap: 13px;
+  padding: 22px 17px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-logo-icon {
   display: grid;
   place-items: center;
-  width: 58px;
-  height: 58px;
+  width: 48px;
+  height: 48px;
   flex-shrink: 0;
-  border-radius: 16px;
+  border-radius: 14px;
   background: linear-gradient(145deg, #f3d782, #c59a35);
   box-shadow: 0 8px 20px rgba(213, 173, 72, 0.2);
   color: #12274a;
-  font-size: 23px;
+  font-size: 21px;
   font-weight: 900;
 }
 
 .sidebar-logo h2 {
   margin: 0;
   color: #fff;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 850;
   letter-spacing: 0.2px;
 }
 
 .sidebar-logo span {
   display: block;
-  margin-top: 7px;
+  margin-top: 6px;
   color: #899dbd;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 750;
-  letter-spacing: 1.6px;
+  letter-spacing: 1.5px;
   white-space: nowrap;
 }
 
 .sidebar-menu {
   flex: 1;
-  padding: 30px 13px 20px;
+  padding: 25px 12px 18px;
 }
 
 .sidebar-menu::before {
   display: block;
-  margin: 0 0 21px 4px;
+  margin: 0 0 17px 4px;
   color: #7d91b3;
   content: "WORKSPACE";
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 1.8px;
 }
 
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  min-height: 55px;
-  margin-bottom: 8px;
-  padding: 13px 15px;
+  min-height: 49px;
+  margin-bottom: 7px;
+  padding: 11px 13px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 11px;
   background: transparent;
   color: #96a8c5;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 550;
   text-align: left;
   cursor: pointer;
   transition:
@@ -162,13 +169,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 35px;
+  width: 29px;
+  height: 32px;
   flex-shrink: 0;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.09);
   color: #a0b0c8;
-  font-size: 19px;
+  font-size: 18px;
 }
 
 .sidebar-item.active .sidebar-icon {
@@ -177,7 +184,7 @@
 }
 
 .sidebar-bottom {
-  padding: 14px 13px;
+  padding: 13px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
@@ -186,25 +193,25 @@
   color: #fca5a5;
 }
 
-/* ---------- 3. MAIN LAYOUT ---------- */
+/* -------------------- MAIN LAYOUT -------------------- */
 
 .hotel-admin-main {
   flex: 1;
   min-width: 0;
-  margin-left: 260px;
-  padding: 0 28px 35px;
+  margin-left: 250px;
+  padding: 0 26px 32px;
   background: var(--ha-bg);
 }
 
-/* ---------- 4. TOP SEARCH BAR ---------- */
+/* -------------------- GLOBAL SEARCH BAR -------------------- */
 
 .reservation-globalbar {
   display: flex;
   align-items: center;
-  gap: 18px;
-  min-height: 76px;
-  margin: 0 -28px;
-  padding: 14px 30px;
+  gap: 16px;
+  min-height: 70px;
+  margin: 0 -26px;
+  padding: 12px 28px;
   border-bottom: 1px solid #e8edf5;
   background: #fff;
 }
@@ -212,12 +219,12 @@
 .global-search {
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: min(530px, 65%);
-  height: 48px;
-  padding: 0 16px;
+  gap: 11px;
+  width: min(520px, 65%);
+  height: 44px;
+  padding: 0 14px;
   border: 1px solid transparent;
-  border-radius: 11px;
+  border-radius: 10px;
   background: #f3f5fa;
   color: #8492a8;
   transition:
@@ -231,19 +238,19 @@
 }
 
 .global-search > span {
-  font-size: 23px;
+  font-size: 21px;
   line-height: 1;
 }
 
 .global-search input {
   width: 100%;
   min-width: 0;
-  padding: 10px 0;
+  padding: 9px 0;
   border: 0;
   outline: none;
   background: transparent;
   color: var(--ha-ink);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .global-search input::placeholder {
@@ -256,21 +263,21 @@
 
 .globalbar-date {
   color: #7787a2;
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
-/* ---------- 5. PAGE HEADER ---------- */
+/* -------------------- PAGE HEADER -------------------- */
 
 .hotel-admin-header {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(175px, 1fr) minmax(230px, 340px) auto auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 310px) auto auto;
   align-items: center;
-  gap: 16px;
-  min-height: 142px;
-  margin: 0 -28px 26px;
-  padding: 23px 30px;
+  gap: 14px;
+  min-height: 130px;
+  margin: 0 -26px 23px;
+  padding: 20px 28px;
   border-bottom: 1px solid #e8edf5;
   background: #fff;
 }
@@ -281,42 +288,42 @@
 
 .header-eyebrow {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
   color: #b18a2f;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 850;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.4px;
 }
 
 .hotel-admin-header h1 {
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   color: #10264a;
-  font-size: 31px;
+  font-size: 29px;
   font-weight: 800;
-  letter-spacing: -0.8px;
+  letter-spacing: -0.7px;
 }
 
 .hotel-admin-header p {
   margin: 0;
   color: #72819b;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .hotel-admin-header p strong {
   color: #243c63;
 }
 
-/* Property card */
+/* Property summary card */
 
 .reservation-property-card {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
   min-width: 0;
-  padding: 11px;
+  padding: 10px;
   border: 1px solid #e6ecf5;
-  border-radius: 14px;
+  border-radius: 12px;
   background: #fff;
   box-shadow: var(--ha-shadow);
 }
@@ -324,13 +331,13 @@
 .reservation-property-image {
   display: grid;
   place-items: center;
-  width: 65px;
-  height: 65px;
+  width: 54px;
+  height: 56px;
   flex-shrink: 0;
-  border-radius: 11px;
+  border-radius: 10px;
   background: linear-gradient(145deg, #ebd7a4, #ac7c2d);
   color: #fff;
-  font-size: 30px;
+  font-size: 26px;
 }
 
 .reservation-property-copy {
@@ -338,19 +345,19 @@
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .reservation-property-copy span {
   color: #8b98ac;
   font-size: 9px;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.6px;
 }
 
 .reservation-property-copy strong {
   overflow: hidden;
   color: #1b2d4b;
-  font-size: 13px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -365,7 +372,7 @@
 
 .reservation-property-card > button {
   flex-shrink: 0;
-  padding: 9px 10px;
+  padding: 8px 9px;
   border: 1px solid #ecdba9;
   border-radius: 8px;
   background: #fffaf0;
@@ -373,35 +380,34 @@
   font-size: 10px;
   font-weight: 750;
   cursor: pointer;
-  transition: background 0.2s;
 }
 
 .reservation-property-card > button:hover {
   background: #fff0c9;
 }
 
-/* Administrator profile */
+/* Admin profile */
 
 .admin-welcome {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   flex-shrink: 0;
-  padding: 9px 11px;
+  padding: 8px 10px;
   border: 1px solid #e7ecf4;
-  border-radius: 12px;
+  border-radius: 11px;
   background: #fafbfe;
 }
 
 .welcome-avatar {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 37px;
+  height: 37px;
   flex-shrink: 0;
   border-radius: 10px;
   background: #e7efff;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .welcome-text {
@@ -413,24 +419,24 @@
 
 .welcome-text span {
   color: #7c8ba4;
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .welcome-text strong {
   overflow: hidden;
   color: #20385e;
-  font-size: 12px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .welcome-text small {
   color: #5578ba;
-  font-size: 10px;
+  font-size: 9px;
   white-space: nowrap;
 }
 
-/* ---------- 6. NOTIFICATION BELL ---------- */
+/* -------------------- NOTIFICATIONS -------------------- */
 
 .booking-notification-wrap {
   position: relative;
@@ -442,10 +448,10 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border: 1px solid #e4eaf3;
-  border-radius: 13px;
+  border-radius: 12px;
   background: #fff;
   color: #bc902e;
   box-shadow: 0 4px 12px rgba(24, 52, 91, 0.04);
@@ -464,7 +470,7 @@
 
 .booking-bell {
   display: inline-block;
-  font-size: 22px;
+  font-size: 21px;
   line-height: 1;
 }
 
@@ -481,18 +487,18 @@
 
 .booking-notification-count {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: -5px;
+  right: -5px;
   display: grid;
   place-items: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 4px;
   border: 2px solid #fff;
   border-radius: 20px;
   background: #d9273c;
   color: #fff;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 850;
   line-height: 1;
   box-shadow: 0 2px 5px rgba(217, 39, 60, 0.2);
@@ -528,21 +534,19 @@
   }
 }
 
-/* Compact notification dropdown */
-
 .booking-notification-panel {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 9px);
   right: 0;
   z-index: 500;
-  width: 330px;
-  max-width: calc(100vw - 32px);
-  max-height: min(390px, calc(100vh - 120px));
+  width: 320px;
+  max-width: calc(100vw - 30px);
+  max-height: min(360px, calc(100vh - 110px));
   overflow-x: hidden;
   overflow-y: auto;
   padding: 8px;
   border: 1px solid #e5eaf2;
-  border-radius: 14px;
+  border-radius: 13px;
   background: #fff;
   box-shadow: 0 18px 45px rgba(12, 24, 48, 0.16);
   animation: stayoraPanelIn 0.18s ease-out;
@@ -567,19 +571,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 11px 10px;
+  padding: 10px;
   border-bottom: 1px solid #edf1f6;
   background: #fff;
 }
 
 .booking-notification-panel-head strong {
   color: #172b49;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 
 .booking-notification-panel-head button {
-  padding: 6px 9px;
+  padding: 6px 8px;
   border: 1px solid #e6ebf4;
   border-radius: 7px;
   background: #f7f9fc;
@@ -597,15 +601,15 @@
 
 .booking-notification-empty {
   margin: 0;
-  padding: 20px 12px;
+  padding: 19px 11px;
   color: #7c8ba3;
-  font-size: 12px;
-  line-height: 1.65;
+  font-size: 11px;
+  line-height: 1.6;
   text-align: center;
 }
 
 .notification-section-label {
-  padding: 11px 9px 5px;
+  padding: 10px 8px 5px;
   color: #9b792c;
   font-size: 9px;
   font-weight: 850;
@@ -615,10 +619,10 @@
 .booking-notification-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   width: 100%;
   min-width: 0;
-  padding: 10px 8px;
+  padding: 9px 7px;
   border: 0;
   border-bottom: 1px solid #f0f2f6;
   border-radius: 8px;
@@ -635,13 +639,13 @@
 .booking-notification-item-icon {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 9px;
   background: #fff1ce;
   color: #a67c20;
-  font-size: 17px;
+  font-size: 16px;
 }
 
 .booking-notification-item > span:nth-child(2) {
@@ -654,14 +658,14 @@
 
 .booking-notification-item strong {
   color: #243651;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 750;
 }
 
 .booking-notification-item small {
   overflow: hidden;
   color: #7c8ba3;
-  font-size: 10px;
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -680,40 +684,38 @@
 .notification-view-all {
   width: 100%;
   margin-top: 7px;
-  padding: 10px;
+  padding: 9px;
   border: 1px solid #efdfb7;
   border-radius: 8px;
   background: #fff9ec;
   color: #926c1c;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   cursor: pointer;
-  transition: background 0.2s;
 }
 
 .notification-view-all:hover {
   background: #fff0c9;
 }
 
-/* ---------- 7. RESERVATION WORKSPACE ---------- */
+/* -------------------- RESERVATION TABS -------------------- */
 
 .reservation-workspace {
   min-width: 0;
-  margin: 0 0 28px;
-  padding: 0;
+  margin: 0 0 26px;
+  padding: 0 0 20px;
+  color: #172b49;
 }
-
-/* Reservation tabs */
 
 .reservation-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 78px;
-  margin-bottom: 23px;
+  min-height: 76px;
+  margin: 0 0 22px;
   padding: 0 20px;
-  border: 1px solid #e7ecf4;
+  border: 1px solid #e6ebf4;
   border-radius: 13px;
   background: #fff;
   box-shadow: var(--ha-shadow);
@@ -723,7 +725,7 @@
   display: flex;
   align-self: stretch;
   align-items: stretch;
-  gap: 20px;
+  gap: 18px;
   min-width: 0;
 }
 
@@ -732,13 +734,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-height: 76px;
-  padding: 0 10px;
+  gap: 8px;
+  min-height: 74px;
+  padding: 0 9px;
   border: 0;
   background: transparent;
-  color: #6d7d96;
-  font-size: 13px;
+  color: #697b96;
+  font-size: 12px;
   white-space: nowrap;
   cursor: pointer;
   transition: color 0.2s;
@@ -746,7 +748,7 @@
 
 .reservation-tab:hover,
 .reservation-tab.active {
-  color: #142b4d;
+  color: #132a4d;
 }
 
 .reservation-tab.active {
@@ -759,7 +761,7 @@
   bottom: 0;
   left: 0;
   height: 3px;
-  border-radius: 3px 3px 0 0;
+  border-radius: 4px 4px 0 0;
   background: var(--ha-blue);
   content: "";
 }
@@ -767,13 +769,13 @@
 .reservation-tab-count {
   display: grid;
   place-items: center;
-  min-width: 23px;
-  height: 23px;
-  padding: 0 6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
   border-radius: 50px;
   background: #fff0cb;
-  color: #956b16;
-  font-size: 11px;
+  color: #946a12;
+  font-size: 10px;
   font-weight: 850;
 }
 
@@ -782,18 +784,16 @@
   color: #8d6617;
 }
 
-/* Dashboard button */
-
 .create-reservation-btn {
   flex-shrink: 0;
   margin: 8px 0;
-  padding: 13px 17px;
+  padding: 12px 16px;
   border: 0;
   border-radius: 9px;
-  background: linear-gradient(135deg, #dcb951, #b88a27);
-  box-shadow: 0 5px 12px rgba(195, 155, 58, 0.16);
+  background: linear-gradient(135deg, #dfbd60, #b88927);
+  box-shadow: 0 5px 13px rgba(195, 155, 58, 0.13);
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   cursor: pointer;
   transition:
@@ -803,15 +803,15 @@
 
 .create-reservation-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 7px 16px rgba(195, 155, 58, 0.24);
+  box-shadow: 0 7px 16px rgba(195, 155, 58, 0.22);
 }
 
-/* ---------- 8. DATE AND VIEW TOOLBAR ---------- */
+/* -------------------- DATE / VIEW TOOLBAR -------------------- */
 
 .reservation-toolbar {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(240px, 330px) minmax(
-      160px,
+  grid-template-columns: minmax(170px, 1fr) minmax(245px, 330px) minmax(
+      165px,
       1fr
     );
   align-items: center;
@@ -825,31 +825,29 @@
 }
 
 .reservation-heading h2 {
-  margin: 0 0 8px;
-  color: #152b4c;
-  font-size: 22px;
+  margin: 0 0 7px;
+  color: #132a4d;
+  font-size: 23px;
   font-weight: 800;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.45px;
 }
 
 .reservation-heading p {
   margin: 0;
-  color: #7c8ca5;
-  font-size: 12px;
-  line-height: 1.5;
+  color: #7b8ba5;
+  font-size: 11px;
+  line-height: 1.55;
 }
-
-/* Date picker */
 
 .reservation-date-picker {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  gap: 9px;
-  min-height: 76px;
-  padding: 9px 12px;
-  border: 1px solid #e1e7f0;
-  border-radius: 13px;
+  gap: 8px;
+  min-height: 70px;
+  padding: 8px 10px;
+  border: 1px solid #e2e9f4;
+  border-radius: 12px;
   background: #fff;
   box-shadow: var(--ha-shadow);
 }
@@ -858,81 +856,80 @@
   display: grid;
   place-items: center;
   width: 29px;
-  height: 35px;
+  height: 32px;
   flex-shrink: 0;
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #29466d;
-  font-size: 24px;
+  color: #315782;
+  font-size: 22px;
   cursor: pointer;
 }
 
 .reservation-date-picker > button:hover {
   background: #edf3ff;
-  color: var(--ha-blue);
+  color: #275fe8;
 }
 
 .reservation-today {
   display: flex;
   min-width: 0;
+  flex: 1;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   text-align: center;
 }
 
 .reservation-today strong {
-  color: var(--ha-blue);
+  color: #275fe8;
   font-size: 12px;
   font-weight: 850;
 }
 
 .reservation-today span {
-  color: #72819b;
-  font-size: 11px;
+  color: #74839b;
+  font-size: 10px;
   white-space: nowrap;
 }
 
 .reservation-date-picker input {
   width: 28px;
   max-width: 32px;
-  min-width: 25px;
+  min-width: 24px;
   padding: 3px 0;
   border: 0;
   background: transparent;
-  color: #52647e;
-  font-size: 11px;
+  color: #243c5c;
+  font-size: 10px;
   cursor: pointer;
 }
-
-/* View actions */
 
 .reservation-view-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 .reservation-view-actions > span {
-  margin-right: 6px;
-  color: #62738e;
-  font-size: 12px;
+  margin-right: 4px;
+  color: #60738f;
+  font-size: 11px;
   white-space: nowrap;
 }
 
 .reservation-view-actions > button {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 39px;
+  height: 39px;
   flex-shrink: 0;
   border: 1px solid #e0e7f1;
-  border-radius: 10px;
+  border-radius: 9px;
   background: #fff;
-  color: #566b88;
-  font-size: 17px;
+  color: #526987;
+  font-size: 16px;
   cursor: pointer;
   transition:
     background 0.2s,
@@ -942,16 +939,14 @@
 
 .reservation-view-actions > button:hover,
 .reservation-view-actions > button.selected {
-  border-color: #a9bfff;
-  background: var(--ha-blue-light);
-  color: var(--ha-blue);
+  border-color: #9bb7ff;
+  background: #edf3ff;
+  color: #275fe8;
 }
 
-/* ---------- 9. SEARCH AND ERROR ---------- */
+/* -------------------- SEARCH / ERRORS -------------------- */
 
-/* Hidden to avoid duplicating the global search bar.
-   Remove display:none if you want the second search field. */
-
+/* Uses the global search bar above, avoiding a duplicate search field. */
 .reservation-search-row {
   display: none;
 }
@@ -959,44 +954,54 @@
 .reservation-search {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: min(650px, 100%);
-  min-height: 47px;
-  padding: 0 15px;
+  min-height: 46px;
+  padding: 0 14px;
   border: 1px solid #dce4f0;
-  border-radius: 30px;
+  border-radius: 12px;
   background: #fff;
 }
 
+.reservation-search:focus-within {
+  border-color: #9db7f4;
+  box-shadow: 0 0 0 3px rgba(49, 102, 237, 0.07);
+}
+
 .reservation-search > span {
-  color: #4776c9;
-  font-size: 22px;
+  color: #54749e;
+  font-size: 20px;
 }
 
 .reservation-search input {
   flex: 1;
   min-width: 0;
-  padding: 12px 0;
+  padding: 11px 0;
   border: 0;
   outline: none;
   background: transparent;
-  color: #24364f;
+  color: #243953;
   font-size: 12px;
+}
+
+.reservation-search input::placeholder {
+  color: #94a1b4;
 }
 
 .reservation-search > button {
   border: 0;
   background: transparent;
-  color: #71809a;
-  font-size: 20px;
+  color: #72839b;
+  font-size: 19px;
   cursor: pointer;
 }
 
 .reservation-updated {
   display: flex;
   align-items: center;
-  color: #8794a9;
+  color: #657791;
   font-size: 10px;
+  white-space: nowrap;
 }
 
 .online-dot {
@@ -1009,27 +1014,27 @@
 }
 
 .booking-error {
-  margin: 0 0 18px;
-  padding: 13px 15px;
+  margin: 0 0 17px;
+  padding: 12px 14px;
   border: 1px solid #fecaca;
   border-radius: 10px;
   background: #fff1f2;
   color: #a51d39;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
-/* ---------- 10. RESULTS HEADING ---------- */
+/* -------------------- RESULTS HEADING -------------------- */
 
 .reservation-results-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin: 18px 0 0;
-  padding: 19px 20px;
-  border: 1px solid #e7ecf4;
-  border-radius: 13px 13px 0 0;
+  gap: 14px;
+  margin: 0;
+  padding: 17px 18px;
+  border: 1px solid #e5eaf3;
+  border-radius: 12px 12px 0 0;
   background: #fff;
 }
 
@@ -1038,16 +1043,15 @@
 }
 
 .reservation-results-heading h3 {
-  margin: 0 0 7px;
-  color: #152b4c;
-  font-size: 19px;
+  margin: 0 0 6px;
+  color: #162d4f;
+  font-size: 17px;
   font-weight: 800;
-  letter-spacing: -0.3px;
 }
 
 .reservation-results-heading span {
-  color: #7a8ba4;
-  font-size: 12px;
+  color: #7b8ba4;
+  font-size: 11px;
 }
 
 .reservation-refresh-button {
@@ -1056,13 +1060,13 @@
   justify-content: center;
   gap: 6px;
   flex-shrink: 0;
-  min-height: 41px;
-  padding: 10px 13px;
+  min-height: 38px;
+  padding: 9px 12px;
   border: 1px solid #dfe7f2;
   border-radius: 9px;
   background: #fff;
-  color: #304761;
-  font-size: 12px;
+  color: #294362;
+  font-size: 11px;
   font-weight: 750;
   cursor: pointer;
   transition:
@@ -1071,12 +1075,16 @@
 }
 
 .reservation-refresh-button:hover:not(:disabled) {
-  border-color: #b6c9f4;
-  background: #f2f6ff;
-  color: var(--ha-blue);
+  border-color: #b6c8ec;
+  background: #f5f8ff;
 }
 
-/* ---------- 11. BOOKINGS TABLE ---------- */
+.reservation-refresh-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* -------------------- BOOKINGS TABLE -------------------- */
 
 .bookings-section {
   padding: 0;
@@ -1087,9 +1095,9 @@
   width: 100%;
   margin-bottom: 18px;
   overflow-x: auto;
-  border: 1px solid #e5eaf2;
+  border: 1px solid #e5eaf3;
   border-top: 0;
-  border-radius: 0 0 13px 13px;
+  border-radius: 0 0 12px 12px;
   background: #fff;
   box-shadow: var(--ha-shadow);
   scrollbar-color: #c8d2e2 #f4f7fc;
@@ -1098,18 +1106,18 @@
 
 .bookings-table {
   width: 100%;
-  min-width: 1020px;
+  min-width: 980px;
   border-collapse: separate;
   border-spacing: 0;
   background: #fff;
 }
 
 .bookings-table th {
-  padding: 15px 13px;
-  border-bottom: 1px solid #e5eaf2;
+  padding: 14px 12px;
+  border-bottom: 1px solid #e8edf5;
   background: #f7f9fc;
-  color: #6e7e97;
-  font-size: 10px;
+  color: #71809a;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.45px;
   text-align: left;
@@ -1118,10 +1126,10 @@
 }
 
 .bookings-table td {
-  padding: 16px 13px;
+  padding: 15px 12px;
   border-bottom: 1px solid #edf1f6;
-  color: #465771;
-  font-size: 12px;
+  color: #435671;
+  font-size: 11px;
   vertical-align: middle;
 }
 
@@ -1137,26 +1145,24 @@
   border-bottom: 0;
 }
 
-/* Guest details */
-
 .guest-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   min-width: 140px;
 }
 
 .guest-avatar {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: linear-gradient(145deg, #f0dba8, #d9ad53);
-  color: #6e5018;
-  font-size: 12px;
-  font-weight: 850;
+  background: linear-gradient(145deg, #f3dda0, #d1a345);
+  color: #243753;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .reservation-guest-details,
@@ -1164,29 +1170,27 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .reservation-guest-details strong,
 .reservation-detail-cell strong {
-  color: #203451;
-  font-size: 12px;
+  color: #172c4a;
+  font-size: 11px;
   font-weight: 800;
 }
 
 .reservation-guest-details span,
 .reservation-detail-cell span {
-  color: #8a98ac;
-  font-size: 10px;
+  color: #8997ab;
+  font-size: 9px;
 }
 
 .reservation-amount {
-  color: #182e50;
+  color: #172d4e;
   font-weight: 850;
   white-space: nowrap;
 }
-
-/* Booking statuses */
 
 .booking-status {
   display: inline-flex;
@@ -1195,7 +1199,7 @@
   padding: 5px 9px;
   border: 1px solid transparent;
   border-radius: 20px;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 750;
   text-transform: capitalize;
   white-space: nowrap;
@@ -1204,37 +1208,37 @@
 .booking-status.confirmed,
 .booking-status.completed,
 .booking-status.checked-in {
-  border-color: #b5e9d0;
-  background: #e4f8ed;
+  border-color: #b9ead1;
+  background: #e6f8ef;
   color: #168052;
 }
 
 .booking-status.pending {
-  border-color: #f3d7a1;
-  background: #fff2dc;
-  color: #98630b;
+  border-color: #f1dba6;
+  background: #fff4d9;
+  color: #97680e;
 }
 
 .booking-status.cancelled,
 .booking-status.rejected {
-  border-color: #ffc9d2;
+  border-color: #facbd2;
   background: #fff0f2;
-  color: #bd2948;
+  color: #b82c48;
 }
 
 .booking-status.checked-out {
-  border-color: #c9d8ff;
+  border-color: #cbd9ff;
   background: #edf3ff;
   color: #315bb0;
 }
 
 .reservation-action-btn {
-  padding: 7px 11px;
+  padding: 7px 10px;
   border: 1px solid #dfe7f2;
   border-radius: 7px;
   background: #fff;
   color: #2b5fc0;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 750;
   cursor: pointer;
 }
@@ -1243,16 +1247,16 @@
   background: #f2f6ff;
 }
 
-/* ---------- 12. EMPTY STATE ---------- */
+/* -------------------- EMPTY STATE -------------------- */
 
 .empty-bookings {
   display: flex;
-  min-height: 300px;
+  min-height: 270px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 38px 20px;
-  border: 1px solid #e5eaf2;
+  padding: 32px 18px;
+  border: 1px solid #e5eaf3;
   border-radius: 12px;
   background: #fff;
   text-align: center;
@@ -1262,37 +1266,37 @@
 .empty-icon {
   display: grid;
   place-items: center;
-  width: 65px;
-  height: 65px;
-  margin-bottom: 17px;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 15px;
   border-radius: 50%;
-  background: #edf2ff;
-  font-size: 30px;
+  background: #edf3ff;
+  font-size: 28px;
 }
 
 .empty-bookings h3 {
-  margin: 0 0 9px;
-  color: #182d4e;
-  font-size: 19px;
+  margin: 0 0 8px;
+  color: #172d4e;
+  font-size: 17px;
   font-weight: 800;
 }
 
 .empty-bookings p {
   max-width: 400px;
   margin: 0;
-  color: #7c8ba3;
-  font-size: 13px;
+  color: #7b8ba4;
+  font-size: 12px;
   line-height: 1.6;
 }
 
 .reservation-reset-btn {
-  margin-top: 17px;
-  padding: 10px 16px;
-  border: 1px solid #d8e2f5;
+  margin-top: 16px;
+  padding: 9px 14px;
+  border: 1px solid #dce5f4;
   border-radius: 8px;
   background: #fff;
   color: var(--ha-blue);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 750;
   cursor: pointer;
 }
@@ -1301,7 +1305,7 @@
   background: #edf3ff;
 }
 
-/* ---------- 13. LOADING ---------- */
+/* -------------------- LOADING -------------------- */
 
 .hotel-bookings-loading {
   display: flex;
@@ -1316,12 +1320,12 @@
 .hotel-bookings-loading p {
   margin: 0;
   color: #64748b;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .loading-spinner {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border: 4px solid #e5eaf2;
   border-top-color: var(--ha-blue);
   border-radius: 50%;
@@ -1334,25 +1338,25 @@
   }
 }
 
-/* ---------- 14. RESPONSIVE: LAPTOP ---------- */
+/* -------------------- RESPONSIVE: LAPTOP -------------------- */
 
-@media (max-width: 1450px) {
+@media (max-width: 1400px) {
   .hotel-admin-header {
-    grid-template-columns: minmax(160px, 1fr) minmax(210px, 300px) auto auto;
-    gap: 12px;
+    grid-template-columns: minmax(170px, 1fr) minmax(210px, 280px) auto auto;
+    gap: 10px;
   }
 
   .reservation-property-card {
-    gap: 9px;
+    gap: 8px;
   }
 
   .reservation-property-image {
-    width: 52px;
-    height: 55px;
+    width: 48px;
+    height: 50px;
   }
 
   .reservation-property-card > button {
-    padding: 8px;
+    padding: 7px;
   }
 
   .admin-welcome {
@@ -1360,60 +1364,57 @@
   }
 
   .welcome-avatar {
-    width: 34px;
-    height: 34px;
+    width: 33px;
+    height: 33px;
   }
 
   .reservation-toolbar {
-    grid-template-columns: minmax(140px, 1fr) minmax(220px, 300px) minmax(
-        140px,
+    grid-template-columns: minmax(140px, 1fr) minmax(225px, 300px) minmax(
+        145px,
         1fr
       );
-    gap: 12px;
+    gap: 11px;
   }
 
   .reservation-view-actions {
-    gap: 7px;
+    gap: 6px;
   }
 
   .reservation-view-actions > button {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
   }
 }
 
-@media (max-width: 1250px) {
+@media (max-width: 1200px) {
   .hotel-admin-header {
-    grid-template-columns: minmax(160px, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .reservation-property-card {
-    display: none;
-  }
-
+  .reservation-property-card,
   .admin-welcome {
     display: none;
   }
 
   .reservation-toolbar {
-    grid-template-columns: minmax(150px, 1fr) minmax(220px, 300px);
+    grid-template-columns: minmax(150px, 1fr) minmax(225px, 300px);
   }
 
   .reservation-view-actions {
     grid-column: 1 / -1;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 }
 
-/* ---------- 15. RESPONSIVE: TABLET ---------- */
+/* -------------------- RESPONSIVE: TABLET -------------------- */
 
 @media (max-width: 950px) {
   .hotel-admin-sidebar {
-    width: 220px;
+    width: 210px;
   }
 
   .hotel-admin-main {
-    margin-left: 220px;
+    margin-left: 210px;
     padding-right: 17px;
     padding-left: 17px;
   }
@@ -1427,14 +1428,14 @@
 
   .hotel-admin-header {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 14px;
+    gap: 13px;
     margin-right: -17px;
     margin-left: -17px;
-    padding: 20px;
+    padding: 18px;
   }
 
   .hotel-admin-header h1 {
-    font-size: 27px;
+    font-size: 26px;
   }
 
   .reservation-property-card {
@@ -1458,27 +1459,27 @@
 
   .reservation-topbar {
     gap: 10px;
-    padding: 0 13px;
+    padding: 0 12px;
   }
 
   .reservation-tabs {
-    gap: 8px;
+    gap: 7px;
   }
 
   .reservation-tab {
-    gap: 7px;
-    padding: 0 7px;
-    font-size: 12px;
+    gap: 6px;
+    padding: 0 6px;
+    font-size: 11px;
   }
 
   .create-reservation-btn {
-    padding: 11px 12px;
-    font-size: 11px;
+    padding: 10px 12px;
+    font-size: 10px;
   }
 
   .reservation-toolbar {
     grid-template-columns: 1fr;
-    gap: 15px;
+    gap: 13px;
   }
 
   .reservation-date-picker {
@@ -1491,16 +1492,16 @@
   }
 }
 
-/* ---------- 16. RESPONSIVE: MOBILE ---------- */
+/* -------------------- RESPONSIVE: MOBILE -------------------- */
 
 @media (max-width: 700px) {
   .hotel-admin-sidebar {
-    width: 70px;
+    width: 66px;
   }
 
   .sidebar-logo {
     justify-content: center;
-    padding: 17px 7px;
+    padding: 15px 6px;
   }
 
   .sidebar-logo > div:last-child,
@@ -1509,14 +1510,14 @@
   }
 
   .sidebar-logo-icon {
-    width: 45px;
-    height: 45px;
-    border-radius: 13px;
-    font-size: 19px;
+    width: 43px;
+    height: 43px;
+    border-radius: 12px;
+    font-size: 18px;
   }
 
   .sidebar-menu {
-    padding: 22px 7px;
+    padding: 19px 6px;
   }
 
   .sidebar-menu::before {
@@ -1525,38 +1526,38 @@
 
   .sidebar-item {
     justify-content: center;
-    min-height: 48px;
-    margin-bottom: 8px;
-    padding: 10px 5px;
+    min-height: 46px;
+    margin-bottom: 7px;
+    padding: 9px 4px;
   }
 
   .sidebar-icon {
-    width: 32px;
-    height: 34px;
-    font-size: 18px;
+    width: 31px;
+    height: 32px;
+    font-size: 17px;
   }
 
   .hotel-admin-main {
-    margin-left: 70px;
-    padding: 0 10px 22px;
+    margin-left: 66px;
+    padding: 0 10px 20px;
   }
 
   .reservation-globalbar {
-    min-height: 64px;
-    gap: 8px;
+    min-height: 61px;
+    gap: 7px;
     margin-right: -10px;
     margin-left: -10px;
-    padding: 10px 12px;
+    padding: 9px 11px;
   }
 
   .global-search {
     width: 100%;
-    height: 42px;
-    padding: 0 11px;
+    height: 41px;
+    padding: 0 10px;
   }
 
   .global-search input {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .globalbar-date {
@@ -1565,50 +1566,50 @@
 
   .hotel-admin-header {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
+    gap: 10px;
     margin-right: -10px;
-    margin-bottom: 17px;
+    margin-bottom: 15px;
     margin-left: -10px;
-    padding: 16px 12px;
+    padding: 15px 11px;
   }
 
   .header-eyebrow {
-    font-size: 9px;
+    font-size: 8px;
   }
 
   .hotel-admin-header h1 {
-    font-size: 23px;
+    font-size: 21px;
   }
 
   .hotel-admin-header p {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .booking-notification-button {
-    width: 42px;
-    height: 42px;
+    width: 39px;
+    height: 39px;
   }
 
   .booking-notification-panel {
     position: fixed;
     top: auto;
-    right: 12px;
-    bottom: 12px;
-    width: min(330px, calc(100vw - 94px));
-    max-height: min(390px, 65vh);
+    right: 10px;
+    bottom: 10px;
+    width: min(315px, calc(100vw - 86px));
+    max-height: min(350px, 65vh);
   }
 
   .reservation-property-card {
     grid-column: 1 / -1;
     grid-row: 2;
     width: 100%;
-    padding: 9px;
+    padding: 8px;
   }
 
   .reservation-property-image {
-    width: 46px;
-    height: 46px;
-    font-size: 23px;
+    width: 43px;
+    height: 43px;
+    font-size: 21px;
   }
 
   .reservation-property-card > button {
@@ -1622,68 +1623,69 @@
   }
 
   .reservation-workspace {
-    margin-bottom: 18px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
   }
 
   .reservation-topbar {
     align-items: stretch;
     flex-direction: column;
     gap: 5px;
-    margin-bottom: 19px;
-    padding: 0 10px 12px;
+    margin-bottom: 16px;
+    padding: 0 9px 10px;
   }
 
   .reservation-tabs {
     justify-content: space-between;
-    gap: 3px;
-    min-height: 58px;
+    gap: 2px;
+    min-height: 54px;
   }
 
   .reservation-tab {
     flex: 1;
-    gap: 5px;
-    min-height: 58px;
-    padding: 0 3px;
-    font-size: 10px;
+    gap: 4px;
+    min-height: 54px;
+    padding: 0 2px;
+    font-size: 9px;
   }
 
   .reservation-tab-count {
-    min-width: 19px;
-    height: 19px;
+    min-width: 18px;
+    height: 18px;
     padding: 0 4px;
-    font-size: 9px;
+    font-size: 8px;
   }
 
   .create-reservation-btn {
     align-self: flex-start;
-    margin: 2px 0 0;
-    padding: 10px 12px;
+    margin: 1px 0 0;
+    padding: 9px 11px;
   }
 
   .reservation-toolbar {
-    gap: 14px;
-    margin-bottom: 18px;
-    padding: 0 2px;
+    gap: 12px;
+    margin-bottom: 15px;
+    padding: 0 1px;
   }
 
   .reservation-heading h2 {
-    font-size: 20px;
+    font-size: 19px;
   }
 
   .reservation-heading p {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .reservation-date-picker {
     width: 100%;
-    min-height: 65px;
-    padding: 7px 10px;
+    min-height: 61px;
+    padding: 6px 8px;
   }
 
   .reservation-view-actions {
     flex-wrap: wrap;
     justify-content: flex-start;
-    gap: 8px;
+    gap: 7px;
   }
 
   .reservation-view-actions > span {
@@ -1691,117 +1693,116 @@
   }
 
   .reservation-view-actions > button {
-    width: 37px;
-    height: 37px;
+    width: 35px;
+    height: 35px;
   }
 
   .reservation-results-heading {
     align-items: flex-start;
-    gap: 10px;
-    margin-top: 13px;
-    padding: 15px 11px;
+    gap: 8px;
+    padding: 13px 10px;
   }
 
   .reservation-results-heading h3 {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .reservation-results-heading span {
-    font-size: 10px;
-  }
-
-  .reservation-refresh-button {
-    min-height: 36px;
-    padding: 8px;
-    font-size: 10px;
-  }
-
-  .bookings-table {
-    min-width: 950px;
-  }
-
-  .bookings-table th {
-    padding: 13px 10px;
     font-size: 9px;
   }
 
+  .reservation-refresh-button {
+    min-height: 33px;
+    padding: 7px 8px;
+    font-size: 9px;
+  }
+
+  .bookings-table {
+    min-width: 920px;
+  }
+
+  .bookings-table th {
+    padding: 12px 9px;
+    font-size: 8px;
+  }
+
   .bookings-table td {
-    padding: 13px 10px;
-    font-size: 11px;
+    padding: 12px 9px;
+    font-size: 10px;
   }
 
   .empty-bookings {
-    min-height: 250px;
-    padding: 28px 13px;
+    min-height: 230px;
+    padding: 25px 12px;
   }
 
   .empty-bookings h3 {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .empty-bookings p {
-    font-size: 12px;
+    font-size: 11px;
   }
 }
 
-/* ---------- 17. SMALL MOBILE ---------- */
+/* -------------------- SMALL MOBILE -------------------- */
 
 @media (max-width: 400px) {
   .hotel-admin-sidebar {
-    width: 58px;
+    width: 55px;
   }
 
   .sidebar-logo {
-    padding: 14px 5px;
+    padding: 13px 4px;
   }
 
   .sidebar-logo-icon {
-    width: 39px;
-    height: 39px;
+    width: 37px;
+    height: 37px;
   }
 
   .sidebar-menu,
   .sidebar-bottom {
-    padding-right: 5px;
-    padding-left: 5px;
+    padding-right: 4px;
+    padding-left: 4px;
   }
 
   .hotel-admin-main {
-    margin-left: 58px;
-    padding-right: 8px;
-    padding-left: 8px;
+    margin-left: 55px;
+    padding-right: 7px;
+    padding-left: 7px;
   }
 
   .reservation-globalbar {
-    margin-right: -8px;
-    margin-left: -8px;
-    padding-right: 8px;
-    padding-left: 8px;
+    margin-right: -7px;
+    margin-left: -7px;
+    padding-right: 7px;
+    padding-left: 7px;
   }
 
   .hotel-admin-header {
-    margin-right: -8px;
-    margin-left: -8px;
-    padding: 14px 9px;
+    margin-right: -7px;
+    margin-left: -7px;
+    padding: 13px 8px;
   }
 
   .hotel-admin-header h1 {
-    font-size: 21px;
+    font-size: 19px;
   }
 
   .reservation-tab {
-    font-size: 9px;
+    font-size: 8px;
   }
 
   .reservation-tab-count {
-    min-width: 17px;
-    height: 17px;
-    font-size: 9px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 8px;
   }
 
   .booking-notification-panel {
     right: 5px;
-    width: min(300px, calc(100vw - 75px));
+    width: min(295px, calc(100vw - 68px));
   }
 
   .reservation-results-heading {
@@ -1809,7 +1810,7 @@
   }
 }
 
-/* ---------- 18. ACCESSIBILITY ---------- */
+/* -------------------- ACCESSIBILITY -------------------- */
 
 @media (prefers-reduced-motion: reduce) {
   .hotel-admin-layout *,
@@ -1820,4 +1821,23 @@
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+.welcome-hotel-image {
+  width: 68px;
+  height: 68px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 13px;
+  background: #f3e5c5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.welcome-hotel-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
