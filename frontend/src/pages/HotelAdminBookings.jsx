@@ -288,6 +288,7 @@ const HotelAdminBookings = () => {
     }),
     [bookings],
   );
+
   const handleRefresh = async () => {
     if (refreshing) return;
 
@@ -295,7 +296,12 @@ const HotelAdminBookings = () => {
     setError("");
 
     try {
+      console.log("Refreshing bookings...");
+
       const response = await API.get("/bookings/my-hotel");
+
+      console.log("Bookings API response:", response.status, response.data);
+
       const data = response.data;
 
       const latestBookings = Array.isArray(data)
@@ -303,15 +309,20 @@ const HotelAdminBookings = () => {
         : (data?.bookings ?? data?.data?.bookings ?? data?.data ?? []);
 
       if (!Array.isArray(latestBookings)) {
-        throw new Error("Invalid bookings response.");
+        throw new Error("Unexpected bookings data returned by the server.");
       }
 
       setBookings(latestBookings);
       setLastUpdated(new Date());
+
+      console.log("Bookings refreshed:", latestBookings.length);
     } catch (err) {
+      console.error("Refresh failed:", err);
+
       setError(
         err?.response?.data?.message ||
-          `Refresh failed${err?.response?.status ? ` (${err.response.status})` : ""}.`,
+          err?.message ||
+          "Unable to refresh bookings.",
       );
     } finally {
       setRefreshing(false);
@@ -543,84 +554,86 @@ const HotelAdminBookings = () => {
             </div>
 
             <div className="notification-wrap" ref={notificationRef}>
-  <button
-    type="button"
-    className={`topbar-icon-button ${notificationsOpen ? "selected" : ""}`}
-    onClick={() => setNotificationsOpen((open) => !open)}
-    aria-label="Booking notifications"
-    aria-expanded={notificationsOpen}
-  >
-    <span className="bell-character">♧</span>
+              <button
+                type="button"
+                className={`topbar-icon-button ${notificationsOpen ? "selected" : ""}`}
+                onClick={() => setNotificationsOpen((open) => !open)}
+                aria-label="Booking notifications"
+                aria-expanded={notificationsOpen}
+              >
+                <span className="bell-character">♧</span>
 
-    {newBookingIds.length > 0 && (
-      <span className="notification-count">
-        {newBookingIds.length > 9 ? "9+" : newBookingIds.length}
-      </span>
-    )}
-  </button>
-
-  {notificationsOpen && (
-    <div className="notification-popover">
-      <div className="popover-heading">
-        <div>
-          <strong>Notifications</strong>
-          <p>You have {newBookingIds.length} unread booking updates.</p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setNotificationsOpen(false)}
-          aria-label="Close notifications"
-        >
-          ×
-        </button>
-      </div>
-
-      {newBookingIds.length > 0 ? (
-        <>
-          {bookings
-            .filter((booking) =>
-              newBookingIds.includes(getBookingId(booking))
-            )
-            .slice(0, 5)
-            .map((booking) => {
-              const guest = getGuest(booking);
-
-              return (
-                <div
-                  className="popover-booking"
-                  key={getBookingId(booking)}
-                >
-                  <span className="mini-avatar">
-                    {getInitials(guest.name)}
+                {newBookingIds.length > 0 && (
+                  <span className="notification-count">
+                    {newBookingIds.length > 9 ? "9+" : newBookingIds.length}
                   </span>
+                )}
+              </button>
 
-                  <div>
-                    <strong>{guest.name}</strong>
-                    <small>New reservation received</small>
+              {notificationsOpen && (
+                <div className="notification-popover">
+                  <div className="popover-heading">
+                    <div>
+                      <strong>Notifications</strong>
+                      <p>
+                        You have {newBookingIds.length} unread booking updates.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setNotificationsOpen(false)}
+                      aria-label="Close notifications"
+                    >
+                      ×
+                    </button>
                   </div>
-                </div>
-              );
-            })}
 
-          <button
-            type="button"
-            className="mark-read-button"
-            onClick={() => setNewBookingIds([])}
-          >
-            Mark all as read
-          </button>
-        </>
-      ) : (
-        <div className="popover-empty">
-          <div className="notification-empty-icon">✓</div>
-          <strong>You're all caught up!</strong>
-          <p>New booking updates will appear here.</p>
-        </div>
-      )}
-    </div>
-  )}
-</div>
+                  {newBookingIds.length > 0 ? (
+                    <>
+                      {bookings
+                        .filter((booking) =>
+                          newBookingIds.includes(getBookingId(booking)),
+                        )
+                        .slice(0, 5)
+                        .map((booking) => {
+                          const guest = getGuest(booking);
+
+                          return (
+                            <div
+                              className="popover-booking"
+                              key={getBookingId(booking)}
+                            >
+                              <span className="mini-avatar">
+                                {getInitials(guest.name)}
+                              </span>
+
+                              <div>
+                                <strong>{guest.name}</strong>
+                                <small>New reservation received</small>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                      <button
+                        type="button"
+                        className="mark-read-button"
+                        onClick={() => setNewBookingIds([])}
+                      >
+                        Mark all as read
+                      </button>
+                    </>
+                  ) : (
+                    <div className="popover-empty">
+                      <div className="notification-empty-icon">✓</div>
+                      <strong>You're all caught up!</strong>
+                      <p>New booking updates will appear here.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="topbar-avatar" title="Hotel administrator">
               HA
