@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import "./HotelAdminBookings.css";
@@ -15,14 +21,15 @@ const getValue = (object, keys, fallback = "") => {
 
 const getGuest = (booking) => {
   const guest = booking?.guest || booking?.user || booking?.customer || {};
-  const fullName =
+  const name =
     getValue(booking, ["guestName", "customerName", "fullName", "name"]) ||
-    getValue(guest, ["name", "fullName", "username"]);
-  const first = getValue(booking, ["firstName"]) || guest.firstName || "";
-  const last = getValue(booking, ["lastName"]) || guest.lastName || "";
+    getValue(guest, ["name", "fullName", "username"]) ||
+    `${booking?.firstName || guest.firstName || ""} ${
+      booking?.lastName || guest.lastName || ""
+    }`.trim();
 
   return {
-    name: fullName || `${first} ${last}`.trim() || "Guest",
+    name: name || "Guest",
     email:
       getValue(booking, ["guestEmail", "customerEmail", "email"]) ||
       getValue(guest, ["email"], "No email provided"),
@@ -40,14 +47,13 @@ const getStatus = (booking) =>
     .toLowerCase()
     .replaceAll(" ", "_");
 
-const getDate = (booking, type) => {
-  const keys =
+const getDate = (booking, type) =>
+  getValue(
+    booking,
     type === "checkIn"
       ? ["checkIn", "checkInDate", "arrivalDate", "startDate"]
-      : ["checkOut", "checkOutDate", "departureDate", "endDate"];
-
-  return getValue(booking, keys);
-};
+      : ["checkOut", "checkOutDate", "departureDate", "endDate"],
+  );
 
 const getAmount = (booking) =>
   Number(
@@ -78,22 +84,16 @@ const getHotelName = (hotel) =>
   getValue(hotel, ["name", "hotelName", "propertyName"], "Your Hotel");
 
 const getHotelImage = (hotel) => {
-  const rawImage =
+  const raw =
     getValue(hotel, ["image", "imageUrl", "imageURL", "coverImage", "photo"]) ||
     (Array.isArray(hotel?.images) ? hotel.images[0] : "");
 
-  const image =
-    typeof rawImage === "object"
-      ? rawImage?.url || rawImage?.imageUrl || ""
-      : rawImage;
+  const image = typeof raw === "object" ? raw?.url || raw?.imageUrl || "" : raw;
 
   if (!image) return "";
 
   const value = String(image);
-
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
-  }
+  if (/^https?:\/\//i.test(value)) return value;
 
   return `http://localhost:5000${value.startsWith("/") ? "" : "/"}${value}`;
 };
@@ -102,13 +102,18 @@ const dateOnly = (value) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}-${String(date.getDate()).padStart(2, "0")}`;
 };
 
 const formatDate = (value) => {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
+
   return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -119,6 +124,7 @@ const formatDate = (value) => {
 const formatMoney = (booking) => {
   const amount = getAmount(booking);
   const currency = getValue(booking, ["currency"], "ETB");
+
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -130,7 +136,7 @@ const formatMoney = (booking) => {
   }
 };
 
-const getInitials = (name) =>
+const getInitials = (name = "Guest") =>
   name
     .split(" ")
     .filter(Boolean)
@@ -138,6 +144,9 @@ const getInitials = (name) =>
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+
+const getBookingId = (booking) =>
+  String(getValue(booking, ["_id", "id", "bookingId"], ""));
 
 const isCancelled = (booking) =>
   ["cancelled", "canceled", "rejected"].includes(getStatus(booking));
@@ -153,6 +162,7 @@ const statusLabel = (status) => {
     checked_out: "Checked out",
     in_progress: "In progress",
   };
+
   return (
     labels[status] ||
     status
@@ -178,9 +188,20 @@ const HotelAdminBookings = () => {
   const [newBookingIds, setNewBookingIds] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
 
+  // Prevent overlapping requests and repeated initial loading screens.
+  const requestInProgress = useRef(false);
+  const hasLoadedOnce = useRef(false);
+
   const fetchData = useCallback(async (manual = false) => {
-    if (manual) setRefreshing(true);
-    else setLoading(true);
+    if (requestInProgress.current) return;
+
+    requestInProgress.current = true;
+
+    if (manual) {
+      setRefreshing(true);
+    } else if (!hasLoadedOnce.current) {
+      setLoading(true);
+    }
 
     setError("");
 
@@ -192,8 +213,10 @@ const HotelAdminBookings = () => {
 
       const hotelData = hotelResponse?.data;
       const resolvedHotel = hotelData?.hotel || hotelData?.data || hotelData;
-      if (resolvedHotel && !Array.isArray(resolvedHotel))
+
+      if (resolvedHotel && !Array.isArray(resolvedHotel)) {
         setHotel(resolvedHotel);
+      }
 
       const responseData = bookingsResponse?.data;
       const resolvedBookings = Array.isArray(responseData)
@@ -208,26 +231,18 @@ const HotelAdminBookings = () => {
       }
 
       setBookings((previous) => {
-        const previousIds = new Set(
-          previous.map((item) =>
-            String(getValue(item, ["_id", "id", "bookingId"], "")),
-          ),
-        );
+        const previousIds = new Set(previous.map(getBookingId).filter(Boolean));
 
-        const added = resolvedBookings.filter((item) => {
-          const id = String(getValue(item, ["_id", "id", "bookingId"], ""));
+        const added = resolvedBookings.filter((booking) => {
+          const id = getBookingId(booking);
           return id && !previousIds.has(id);
         });
 
-        if (previous.length && added.length) {
+        // Don't announce all existing bookings as new on the first load.
+        if (hasLoadedOnce.current && added.length > 0) {
           setNewBookingIds((current) =>
-            [
-              ...added.map((item) =>
-                String(getValue(item, ["_id", "id", "bookingId"], "")),
-              ),
-              ...current,
-            ]
-              .filter((id, index, array) => array.indexOf(id) === index)
+            [...added.map(getBookingId), ...current]
+              .filter((id, index, array) => id && array.indexOf(id) === index)
               .slice(0, 20),
           );
         }
@@ -235,6 +250,7 @@ const HotelAdminBookings = () => {
         return resolvedBookings;
       });
 
+      hasLoadedOnce.current = true;
       setLastUpdated(new Date());
     } catch (err) {
       setError(
@@ -243,14 +259,19 @@ const HotelAdminBookings = () => {
           "Unable to load reservations. Please try again.",
       );
     } finally {
+      requestInProgress.current = false;
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(() => fetchData(false), POLL_INTERVAL);
+    fetchData(false);
+
+    const interval = setInterval(() => {
+      fetchData(false);
+    }, POLL_INTERVAL);
+
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -267,6 +288,35 @@ const HotelAdminBookings = () => {
     }),
     [bookings],
   );
+  const handleRefresh = async () => {
+    if (refreshing) return;
+
+    setRefreshing(true);
+    setError("");
+
+    try {
+      const response = await API.get("/bookings/my-hotel");
+      const data = response.data;
+
+      const latestBookings = Array.isArray(data)
+        ? data
+        : (data?.bookings ?? data?.data?.bookings ?? data?.data ?? []);
+
+      if (!Array.isArray(latestBookings)) {
+        throw new Error("Invalid bookings response.");
+      }
+
+      setBookings(latestBookings);
+      setLastUpdated(new Date());
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+          `Refresh failed${err?.response?.status ? ` (${err.response.status})` : ""}.`,
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const filteredBookings = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -276,12 +326,12 @@ const HotelAdminBookings = () => {
       const hotelName =
         getValue(booking, ["hotelName", "propertyName"]) ||
         getHotelName(booking?.hotel || hotel);
-      const id = String(getValue(booking, ["_id", "id", "bookingId"], ""));
-      const roomName = getValue(
-        booking,
-        ["roomName", "roomType", "roomNumber"],
-        "",
-      );
+      const id = getBookingId(booking);
+      const roomName = getValue(booking, [
+        "roomName",
+        "roomType",
+        "roomNumber",
+      ]);
       const status = getStatus(booking);
 
       const matchesSearch =
@@ -297,12 +347,12 @@ const HotelAdminBookings = () => {
       const checkOut = dateOnly(getDate(booking, "checkOut"));
 
       let matchesTab = true;
+
       if (activeTab === "checkins") matchesTab = checkIn === selectedDate;
       if (activeTab === "checkouts") matchesTab = checkOut === selectedDate;
       if (activeTab === "stays") {
         matchesTab =
-          checkIn &&
-          checkOut &&
+          Boolean(checkIn && checkOut) &&
           checkIn <= selectedDate &&
           checkOut > selectedDate &&
           !isCancelled(booking);
@@ -341,19 +391,36 @@ const HotelAdminBookings = () => {
     setSelectedDate(dateOnly(date));
     setDateFilterEnabled(true);
   };
+  const notificationRef = useRef(null);
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setNotificationsOpen(false);
+      }
+    };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("user");
-    navigate("/login");
-  };
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
 
   const resetFilters = () => {
     setSearch("");
     setActiveTab("all");
     setSelectedDate(today);
     setDateFilterEnabled(false);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("user");
+    navigate("/login");
   };
 
   const propertyLocation = getValue(
@@ -366,6 +433,7 @@ const HotelAdminBookings = () => {
     <div className="stayora-app">
       <aside className="stayora-sidebar">
         <button
+          type="button"
           className="stayora-brand"
           onClick={() => navigate("/admin/hotel-dashboard")}
         >
@@ -373,20 +441,28 @@ const HotelAdminBookings = () => {
             <i className="fa-solid fa-hotel" />
           </span>
           <span>
-            STAYORA<small>HOTEL MANAGEMENT</small>
+            STAYORA
+            <small>HOTEL MANAGEMENT</small>
           </span>
         </button>
 
         <div className="sidebar-section-label">WORKSPACE</div>
+
         <nav className="stayora-nav">
-          <button onClick={() => navigate("/admin/hotel-dashboard")}>
-            <i className="fa-solid fa-chart-pie" /> <span>Dashboard</span>
-          </button>
           <button
+            type="button"
+            onClick={() => navigate("/admin/hotel-dashboard")}
+          >
+            <i className="fa-solid fa-chart-pie" />
+            <span>Dashboard</span>
+          </button>
+
+          <button
+            type="button"
             className="active"
             onClick={() => navigate("/admin/hotel-bookings")}
           >
-            <i className="fa-solid fa-calendar-check" />{" "}
+            <i className="fa-solid fa-calendar-check" />
             <span>Reservations</span>
             <span className="nav-count">{stats.total}</span>
           </button>
@@ -395,9 +471,10 @@ const HotelAdminBookings = () => {
         <div className="sidebar-section-label sidebar-section-spaced">
           GENERAL
         </div>
+
         <nav className="stayora-nav">
-          <button onClick={() => navigate("/")}>
-            <i className="fa-solid fa-arrow-up-right-from-square" />{" "}
+          <button type="button" onClick={() => navigate("/")}>
+            <i className="fa-solid fa-arrow-up-right-from-square" />
             <span>View Website</span>
           </button>
         </nav>
@@ -410,16 +487,19 @@ const HotelAdminBookings = () => {
             <strong>Need assistance?</strong>
             <p>We're here to help you manage your property.</p>
             <button
-              onClick={() =>
-                (window.location.href = "mailto:support@stayora.com")
-              }
+              type="button"
+              onClick={() => {
+                window.location.href = "mailto:support@stayora.com";
+              }}
             >
               Contact support <i className="fa-solid fa-arrow-right" />
             </button>
           </div>
-          <button className="sidebar-logout" onClick={logout}>
+
+          <button type="button" className="sidebar-logout" onClick={logout}>
             <i className="fa-solid fa-arrow-right-from-bracket" /> Log out
           </button>
+
           <div className="sidebar-version">STAYORA · HOTEL ADMIN</div>
         </div>
       </aside>
@@ -430,6 +510,7 @@ const HotelAdminBookings = () => {
             <span>Hotel management</span>
             <strong>Reservations</strong>
           </div>
+
           <div className="topbar-actions">
             <label className="topbar-search">
               <i className="fa-solid fa-magnifying-glass" />
@@ -440,11 +521,16 @@ const HotelAdminBookings = () => {
                 aria-label="Search reservations"
               />
               {search && (
-                <button onClick={() => setSearch("")} aria-label="Clear search">
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  aria-label="Clear search"
+                >
                   <i className="fa-solid fa-xmark" />
                 </button>
               )}
             </label>
+
             <div className="topbar-date">
               <i className="fa-regular fa-calendar" />
               <span>
@@ -455,65 +541,87 @@ const HotelAdminBookings = () => {
                 })}
               </span>
             </div>
-            <div className="notification-wrap">
-              <button
-                className={`topbar-icon-button ${notificationsOpen ? "selected" : ""}`}
-                onClick={() => setNotificationsOpen((open) => !open)}
-                aria-label="Toggle booking notifications"
-                aria-expanded={notificationsOpen}
-                type="button"
-              >
-                <span className="notification-bell" aria-hidden="true">
-                  ♧
-                </span>
-                {newBookingIds.length > 0 && (
-                  <span className="notification-dot" />
-                )}
-              </button>
 
-              {notificationsOpen && (
-                <div className="notification-popover">
-                  <div className="popover-heading">
-                    <strong>Booking notifications</strong>
-                    <button onClick={() => setNewBookingIds([])}>
-                      Mark all read
-                    </button>
+            <div className="notification-wrap" ref={notificationRef}>
+  <button
+    type="button"
+    className={`topbar-icon-button ${notificationsOpen ? "selected" : ""}`}
+    onClick={() => setNotificationsOpen((open) => !open)}
+    aria-label="Booking notifications"
+    aria-expanded={notificationsOpen}
+  >
+    <span className="bell-character">♧</span>
+
+    {newBookingIds.length > 0 && (
+      <span className="notification-count">
+        {newBookingIds.length > 9 ? "9+" : newBookingIds.length}
+      </span>
+    )}
+  </button>
+
+  {notificationsOpen && (
+    <div className="notification-popover">
+      <div className="popover-heading">
+        <div>
+          <strong>Notifications</strong>
+          <p>You have {newBookingIds.length} unread booking updates.</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setNotificationsOpen(false)}
+          aria-label="Close notifications"
+        >
+          ×
+        </button>
+      </div>
+
+      {newBookingIds.length > 0 ? (
+        <>
+          {bookings
+            .filter((booking) =>
+              newBookingIds.includes(getBookingId(booking))
+            )
+            .slice(0, 5)
+            .map((booking) => {
+              const guest = getGuest(booking);
+
+              return (
+                <div
+                  className="popover-booking"
+                  key={getBookingId(booking)}
+                >
+                  <span className="mini-avatar">
+                    {getInitials(guest.name)}
+                  </span>
+
+                  <div>
+                    <strong>{guest.name}</strong>
+                    <small>New reservation received</small>
                   </div>
-                  {newBookingIds.length ? (
-                    bookings
-                      .filter((booking) =>
-                        newBookingIds.includes(
-                          String(
-                            getValue(booking, ["_id", "id", "bookingId"], ""),
-                          ),
-                        ),
-                      )
-                      .slice(0, 5)
-                      .map((booking) => {
-                        const guest = getGuest(booking);
-                        return (
-                          <div
-                            className="popover-booking"
-                            key={getValue(booking, ["_id", "id", "bookingId"])}
-                          >
-                            <span className="mini-avatar">
-                              {getInitials(guest.name)}
-                            </span>
-                            <div>
-                              <strong>{guest.name}</strong>
-                              <small>New reservation received</small>
-                            </div>
-                          </div>
-                        );
-                      })
-                  ) : (
-                    <div className="popover-empty">
-                      You're all caught up. New bookings will appear here.
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
+              );
+            })}
+
+          <button
+            type="button"
+            className="mark-read-button"
+            onClick={() => setNewBookingIds([])}
+          >
+            Mark all as read
+          </button>
+        </>
+      ) : (
+        <div className="popover-empty">
+          <div className="notification-empty-icon">✓</div>
+          <strong>You're all caught up!</strong>
+          <p>New booking updates will appear here.</p>
+        </div>
+      )}
+    </div>
+  )}
+</div>
+
             <div className="topbar-avatar" title="Hotel administrator">
               HA
             </div>
@@ -535,19 +643,25 @@ const HotelAdminBookings = () => {
               </p>
             </div>
 
+            {/* Working refresh button */}
+
             <button
-              className="primary-button refresh-bookings-button"
-              onClick={() => fetchData(true)}
-              disabled={refreshing}
               type="button"
+              className="refresh-bookings-button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Refresh bookings"
+              aria-label="Refresh bookings"
             >
               <span
-                className={`refresh-symbol ${refreshing ? "spin" : ""}`}
-                aria-hidden="true"
+                className={
+                  refreshing
+                    ? "refresh-character spinning"
+                    : "refresh-character"
+                }
               >
                 ↻
               </span>
-              <span>{refreshing ? "Refreshing..." : "Refresh bookings"}</span>
             </button>
           </div>
 
@@ -556,7 +670,9 @@ const HotelAdminBookings = () => {
             style={
               getHotelImage(hotel)
                 ? {
-                    backgroundImage: `linear-gradient(90deg, rgba(14, 31, 57, 0.94), rgba(19, 43, 74, 0.62)), url("${getHotelImage(hotel)}")`,
+                    backgroundImage: `linear-gradient(90deg, rgba(14,31,57,.94), rgba(19,43,74,.62)), url("${getHotelImage(
+                      hotel,
+                    )}")`,
                   }
                 : undefined
             }
@@ -592,79 +708,70 @@ const HotelAdminBookings = () => {
                 <strong>Couldn't update reservations</strong>
                 <p>{error}</p>
               </div>
-              <button onClick={() => fetchData(true)}>Try again</button>
+              <button
+                type="button"
+                disabled={refreshing}
+                onClick={() => fetchData(true)}
+              >
+                Try again
+              </button>
             </div>
           )}
 
           <section className="booking-stat-grid">
-            <article className="booking-stat-card">
-              <div className="stat-topline">
-                <span>Total bookings</span>
-                <span className="stat-icon blue">
-                  <i className="fa-solid fa-calendar-days" />
-                </span>
-              </div>
-              <div className="stat-number">
-                {loading ? "—" : stats.total.toLocaleString()}
-              </div>
-              <div className="stat-footnote">
-                <span className="stat-neutral-dot" /> All reservations
-              </div>
-              <div className="stat-decoration blue-decoration">
-                <i className="fa-solid fa-calendar-days" />
-              </div>
-            </article>
-            <article className="booking-stat-card">
-              <div className="stat-topline">
-                <span>Confirmed</span>
-                <span className="stat-icon green">
-                  <i className="fa-solid fa-circle-check" />
-                </span>
-              </div>
-              <div className="stat-number">
-                {loading ? "—" : stats.confirmed.toLocaleString()}
-              </div>
-              <div className="stat-footnote">
-                <span className="stat-green-dot" /> Approved reservations
-              </div>
-              <div className="stat-decoration green-decoration">
-                <i className="fa-solid fa-circle-check" />
-              </div>
-            </article>
-            <article className="booking-stat-card">
-              <div className="stat-topline">
-                <span>Pending</span>
-                <span className="stat-icon amber">
-                  <i className="fa-regular fa-clock" />
-                </span>
-              </div>
-              <div className="stat-number">
-                {loading ? "—" : stats.pending.toLocaleString()}
-              </div>
-              <div className="stat-footnote">
-                <span className="stat-amber-dot" /> Awaiting confirmation
-              </div>
-              <div className="stat-decoration amber-decoration">
-                <i className="fa-regular fa-clock" />
-              </div>
-            </article>
-            <article className="booking-stat-card">
-              <div className="stat-topline">
-                <span>Cancelled</span>
-                <span className="stat-icon red">
-                  <i className="fa-solid fa-ban" />
-                </span>
-              </div>
-              <div className="stat-number">
-                {loading ? "—" : stats.cancelled.toLocaleString()}
-              </div>
-              <div className="stat-footnote">
-                <span className="stat-red-dot" /> Cancelled reservations
-              </div>
-              <div className="stat-decoration red-decoration">
-                <i className="fa-solid fa-ban" />
-              </div>
-            </article>
+            {[
+              {
+                label: "Total bookings",
+                value: stats.total,
+                note: "All reservations",
+                icon: "fa-calendar-days",
+                color: "blue",
+                decoration: "blue-decoration",
+              },
+              {
+                label: "Confirmed",
+                value: stats.confirmed,
+                note: "Approved reservations",
+                icon: "fa-circle-check",
+                color: "green",
+                decoration: "green-decoration",
+              },
+              {
+                label: "Pending",
+                value: stats.pending,
+                note: "Awaiting confirmation",
+                icon: "fa-clock",
+                color: "amber",
+                decoration: "amber-decoration",
+              },
+              {
+                label: "Cancelled",
+                value: stats.cancelled,
+                note: "Cancelled reservations",
+                icon: "fa-ban",
+                color: "red",
+                decoration: "red-decoration",
+              },
+            ].map((stat) => (
+              <article className="booking-stat-card" key={stat.label}>
+                <div className="stat-topline">
+                  <span>{stat.label}</span>
+                  <span className={`stat-icon ${stat.color}`}>
+                    <i className={`fa-solid ${stat.icon}`} />
+                  </span>
+                </div>
+                <div className="stat-number">
+                  {loading ? "—" : stat.value.toLocaleString()}
+                </div>
+                <div className="stat-footnote">
+                  <span className={`stat-${stat.color}-dot`} />
+                  {stat.note}
+                </div>
+                <div className={`stat-decoration ${stat.decoration}`}>
+                  <i className={`fa-solid ${stat.icon}`} />
+                </div>
+              </article>
+            ))}
           </section>
 
           <div className="stayora-workspace">
@@ -679,7 +786,11 @@ const HotelAdminBookings = () => {
                   </h3>
                   <p>Review and manage your guest reservations.</p>
                 </div>
-                <button className="subtle-button" onClick={resetFilters}>
+                <button
+                  type="button"
+                  className="subtle-button"
+                  onClick={resetFilters}
+                >
                   <i className="fa-solid fa-filter-circle-xmark" /> Reset
                   filters
                 </button>
@@ -693,6 +804,7 @@ const HotelAdminBookings = () => {
                   ["stays", "In-house guests"],
                 ].map(([key, label]) => (
                   <button
+                    type="button"
                     key={key}
                     className={activeTab === key ? "active" : ""}
                     onClick={() => {
@@ -712,6 +824,7 @@ const HotelAdminBookings = () => {
               <div className="reservation-toolbar">
                 <div className="date-navigator">
                   <button
+                    type="button"
                     onClick={() => moveDate(-1)}
                     aria-label="Previous day"
                   >
@@ -729,10 +842,15 @@ const HotelAdminBookings = () => {
                       aria-label="Filter by date"
                     />
                   </label>
-                  <button onClick={() => moveDate(1)} aria-label="Next day">
+                  <button
+                    type="button"
+                    onClick={() => moveDate(1)}
+                    aria-label="Next day"
+                  >
                     <i className="fa-solid fa-chevron-right" />
                   </button>
                   <button
+                    type="button"
                     className="today-button"
                     onClick={() => {
                       setSelectedDate(today);
@@ -742,8 +860,10 @@ const HotelAdminBookings = () => {
                     Today
                   </button>
                 </div>
+
                 <div className="view-switch" aria-label="Reservation view">
                   <button
+                    type="button"
                     className={viewMode === "table" ? "active" : ""}
                     onClick={() => setViewMode("table")}
                     aria-label="Table view"
@@ -751,6 +871,7 @@ const HotelAdminBookings = () => {
                     <i className="fa-solid fa-list" />
                   </button>
                   <button
+                    type="button"
                     className={viewMode === "grid" ? "active" : ""}
                     onClick={() => setViewMode("grid")}
                     aria-label="Card view"
@@ -778,7 +899,11 @@ const HotelAdminBookings = () => {
                       : "New reservations will appear here when guests book your property."}
                   </p>
                   {(search || activeTab !== "all" || dateFilterEnabled) && (
-                    <button className="primary-button" onClick={resetFilters}>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={resetFilters}
+                    >
                       Clear filters
                     </button>
                   )}
@@ -799,19 +924,14 @@ const HotelAdminBookings = () => {
                     <tbody>
                       {filteredBookings.map((booking) => {
                         const guest = getGuest(booking);
-                        const id = String(
-                          getValue(
-                            booking,
-                            ["_id", "id", "bookingId"],
-                            guest.name,
-                          ),
-                        );
+                        const id = getBookingId(booking) || guest.name;
                         const status = getStatus(booking);
-                        const roomName = getValue(
-                          booking,
-                          ["roomType", "roomName", "roomNumber"],
-                          "",
-                        );
+                        const roomName = getValue(booking, [
+                          "roomType",
+                          "roomName",
+                          "roomNumber",
+                        ]);
+
                         return (
                           <tr key={id}>
                             <td>
@@ -830,7 +950,7 @@ const HotelAdminBookings = () => {
                                 {formatDate(getDate(booking, "checkIn"))}
                               </strong>
                               <small className="date-sub">
-                                {getValue(booking, ["checkInTime"], "")}
+                                {getValue(booking, ["checkInTime"])}
                               </small>
                             </td>
                             <td>
@@ -838,7 +958,7 @@ const HotelAdminBookings = () => {
                                 {formatDate(getDate(booking, "checkOut"))}
                               </strong>
                               <small className="date-sub">
-                                {getValue(booking, ["checkOutTime"], "")}
+                                {getValue(booking, ["checkOutTime"])}
                               </small>
                             </td>
                             <td>
@@ -875,9 +995,8 @@ const HotelAdminBookings = () => {
                   {filteredBookings.map((booking) => {
                     const guest = getGuest(booking);
                     const status = getStatus(booking);
-                    const id = String(
-                      getValue(booking, ["_id", "id", "bookingId"], guest.name),
-                    );
+                    const id = getBookingId(booking) || guest.name;
+
                     return (
                       <article className="reservation-card" key={id}>
                         <div className="reservation-card-top">
@@ -943,17 +1062,13 @@ const HotelAdminBookings = () => {
                     <i className="fa-regular fa-bell" />
                   </span>
                 </div>
+
                 {recentBookings.length ? (
                   <div className="recent-bookings-list">
                     {recentBookings.map((booking) => {
                       const guest = getGuest(booking);
-                      const id = String(
-                        getValue(
-                          booking,
-                          ["_id", "id", "bookingId"],
-                          guest.name,
-                        ),
-                      );
+                      const id = getBookingId(booking) || guest.name;
+
                       return (
                         <div className="recent-booking-row" key={id}>
                           <span className="guest-avatar small-avatar">
@@ -976,7 +1091,9 @@ const HotelAdminBookings = () => {
                 ) : (
                   <div className="side-empty">No bookings to show yet.</div>
                 )}
+
                 <button
+                  type="button"
                   className="side-panel-link"
                   onClick={() => {
                     setActiveTab("all");
@@ -999,7 +1116,9 @@ const HotelAdminBookings = () => {
                     <i className="fa-solid fa-bolt" />
                   </span>
                 </div>
+
                 <button
+                  type="button"
                   className="quick-action-row"
                   onClick={() => navigate("/admin/hotel-dashboard")}
                 >
@@ -1012,7 +1131,9 @@ const HotelAdminBookings = () => {
                   </span>
                   <i className="fa-solid fa-chevron-right quick-chevron" />
                 </button>
+
                 <button
+                  type="button"
                   className="quick-action-row"
                   onClick={() => navigate("/")}
                 >
@@ -1025,15 +1146,24 @@ const HotelAdminBookings = () => {
                   </span>
                   <i className="fa-solid fa-chevron-right quick-chevron" />
                 </button>
+
                 <button
+                  type="button"
                   className="quick-action-row"
                   onClick={() => fetchData(true)}
+                  disabled={refreshing}
                 >
                   <span className="quick-action-icon amber">
-                    <i className="fa-solid fa-arrows-rotate" />
+                    <i
+                      className={`fa-solid fa-arrows-rotate ${
+                        refreshing ? "refresh-spinning" : ""
+                      }`}
+                    />
                   </span>
                   <span>
-                    <strong>Sync reservations</strong>
+                    <strong>
+                      {refreshing ? "Syncing..." : "Sync reservations"}
+                    </strong>
                     <small>Fetch the latest booking data</small>
                   </span>
                   <i className="fa-solid fa-chevron-right quick-chevron" />
@@ -1050,6 +1180,7 @@ const HotelAdminBookings = () => {
                     <i className="fa-regular fa-calendar-check" />
                   </span>
                 </div>
+
                 <div className="summary-metric">
                   <span>
                     <i className="summary-dot checkin-dot" /> Expected check-ins
@@ -1072,6 +1203,7 @@ const HotelAdminBookings = () => {
                       bookings.filter((booking) => {
                         const checkIn = dateOnly(getDate(booking, "checkIn"));
                         const checkOut = dateOnly(getDate(booking, "checkOut"));
+
                         return (
                           !isCancelled(booking) &&
                           checkIn &&
@@ -1083,10 +1215,14 @@ const HotelAdminBookings = () => {
                     }
                   </strong>
                 </div>
+
                 <div className="summary-updated">
                   <i className="fa-regular fa-clock" />
                   {lastUpdated
-                    ? `Updated at ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    ? `Updated at ${lastUpdated.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}`
                     : "Waiting for first update"}
                 </div>
               </section>
