@@ -31,6 +31,7 @@ import HotelAdminManagement from "./pages/HotelAdminManagement";
 
 // ================= COMPONENTS =================
 import ProtectedRoute from "./components/ProtectedRoute";
+import HotelChatbot from "./components/HotelChatbot";
 
 function App() {
   return (
@@ -247,6 +248,9 @@ function App() {
           }
         />
       </Routes>
+
+      {/* Globally available on all routes; must stay inside BrowserRouter for navigation. */}
+      <HotelChatbot />
     </BrowserRouter>
   );
 }

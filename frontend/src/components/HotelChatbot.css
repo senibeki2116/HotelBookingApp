@@ -1,0 +1,360 @@
+.hotel-chatbot-root {
+  --chat-ink: #172033;
+  --chat-muted: #758096;
+  --chat-blue: #2764e7;
+  --chat-border: #e7ebf2;
+  position: fixed;
+  right: 26px;
+  bottom: 24px;
+  z-index: 10000;
+  font-family: inherit;
+}
+
+.hotel-chatbot-launcher {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border: 0;
+  border-radius: 22px;
+  color: #fff;
+  background: linear-gradient(145deg, #3477f6, #1749c5);
+  box-shadow:
+    0 12px 34px rgba(39, 100, 231, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.hotel-chatbot-launcher:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 38px rgba(39, 100, 231, 0.42);
+}
+.hotel-chatbot-launcher svg {
+  width: 28px;
+  height: 28px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hotel-chatbot-launcher.is-open {
+  background: #172033;
+  border-radius: 50%;
+  box-shadow: 0 8px 25px rgba(23, 32, 51, 0.2);
+}
+.hotel-chatbot-launcher-close {
+  font-size: 32px;
+  line-height: 1;
+  font-weight: 300;
+}
+.hotel-chatbot-launcher-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #43d6a0;
+}
+
+.hotel-chatbot-panel {
+  position: absolute;
+  right: 0;
+  bottom: 78px;
+  display: flex;
+  flex-direction: column;
+  width: min(390px, calc(100vw - 32px));
+  height: min(600px, calc(100vh - 125px));
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid rgba(224, 230, 240, 0.95);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(24, 39, 75, 0.22);
+  animation: hotel-chatbot-enter 0.2s ease-out;
+}
+@keyframes hotel-chatbot-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.hotel-chatbot-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 18px 17px;
+  color: #fff;
+  background: linear-gradient(120deg, #1c3265, #285dd2);
+}
+.hotel-chatbot-brand-icon {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.hotel-chatbot-brand-icon svg {
+  width: 25px;
+  height: 25px;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hotel-chatbot-heading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.hotel-chatbot-heading strong {
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: -0.15px;
+}
+.hotel-chatbot-heading span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #dce7ff;
+  font-size: 11px;
+}
+.hotel-chatbot-heading i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #54e2ae;
+}
+.hotel-chatbot-icon-button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.hotel-chatbot-icon-button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.hotel-chatbot-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 17px 14px 12px;
+  background: #f8faff;
+}
+.hotel-chatbot-date-label {
+  margin: 0 0 16px;
+  color: #98a2b4;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.25px;
+  text-align: center;
+}
+.hotel-chatbot-message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 0 0 13px;
+}
+.hotel-chatbot-message-row.user {
+  justify-content: flex-end;
+}
+.hotel-chatbot-avatar {
+  display: grid;
+  flex: 0 0 25px;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border-radius: 9px;
+  color: #fff;
+  background: #285dd2;
+  font-size: 11px;
+  font-weight: 800;
+}
+.hotel-chatbot-bubble {
+  max-width: 84%;
+  padding: 11px 12px;
+  border: 1px solid #e8edf5;
+  border-radius: 4px 14px 14px 14px;
+  color: #354056;
+  background: #fff;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.hotel-chatbot-message-row.user .hotel-chatbot-bubble {
+  border-color: #2863df;
+  border-radius: 14px 4px 14px 14px;
+  color: #fff;
+  background: #2863df;
+}
+.hotel-chatbot-quick-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 5px 0 13px 33px;
+}
+.hotel-chatbot-quick-questions > span {
+  margin-bottom: 2px;
+  color: #9099ab;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.hotel-chatbot-quick-questions button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid #e0e8f8;
+  border-radius: 10px;
+  color: #2a4d91;
+  background: #fff;
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.hotel-chatbot-quick-questions button:hover {
+  border-color: #9db8f5;
+  background: #f0f5ff;
+}
+.hotel-chatbot-quick-questions button span {
+  color: #7a94cb;
+}
+.hotel-chatbot-shortcuts {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid #edf0f5;
+  background: #fff;
+}
+.hotel-chatbot-shortcuts button {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 5px;
+  border: 1px solid #e5eaf3;
+  border-radius: 8px;
+  color: #58657b;
+  background: #fff;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.hotel-chatbot-shortcuts button:hover {
+  border-color: #b9caf3;
+  color: #2459c6;
+  background: #f7f9ff;
+}
+.hotel-chatbot-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px 8px;
+  border-top: 1px solid #edf0f5;
+  background: #fff;
+}
+.hotel-chatbot-composer input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  height: 42px;
+  padding: 0 13px;
+  outline: none;
+  border: 1px solid #e3e8f0;
+  border-radius: 12px;
+  color: #263247;
+  background: #f9fafc;
+  font: inherit;
+  font-size: 12px;
+}
+.hotel-chatbot-composer input:focus {
+  border-color: #8aabf5;
+  box-shadow: 0 0 0 3px rgba(39, 100, 231, 0.08);
+  background: #fff;
+}
+.hotel-chatbot-composer input::placeholder {
+  color: #a0a9b9;
+}
+.hotel-chatbot-composer > button {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+  background: #2863df;
+  cursor: pointer;
+}
+.hotel-chatbot-composer > button:disabled {
+  background: #b8c5df;
+  cursor: not-allowed;
+}
+.hotel-chatbot-composer > button svg {
+  width: 19px;
+  height: 19px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hotel-chatbot-disclaimer {
+  margin: 0;
+  padding: 0 8px 10px;
+  color: #a0a8b7;
+  background: #fff;
+  font-size: 9px;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .hotel-chatbot-root {
+    right: 14px;
+    bottom: 14px;
+  }
+  .hotel-chatbot-launcher {
+    width: 56px;
+    height: 56px;
+    border-radius: 19px;
+  }
+  .hotel-chatbot-panel {
+    position: fixed;
+    right: 8px;
+    bottom: 80px;
+    width: calc(100vw - 16px);
+    height: min(590px, calc(100dvh - 105px));
+    min-height: 390px;
+    border-radius: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hotel-chatbot-panel {
+    animation: none;
+  }
+  .hotel-chatbot-launcher {
+    transition: none;
+  }
+}
