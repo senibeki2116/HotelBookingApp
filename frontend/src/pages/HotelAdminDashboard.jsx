@@ -1207,28 +1207,11 @@ const HotelAdminDashboard = () => {
      REFRESH
   ======================================================= */
 
-  const handleRefresh = async () => {
-    if (refreshing) return;
-
+  const handleRefresh = () => {
+    // Reload the dashboard page so all dashboard data and API state are
+    // fetched again from a clean page load.
     setRefreshing(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      await Promise.all([loadHotel(), loadBookings(), loadRooms()]);
-
-      setSuccess("Dashboard refreshed successfully.");
-    } catch (requestError) {
-      console.error("Dashboard refresh error:", requestError);
-
-      setError(
-        requestError?.response?.data?.message ||
-          requestError?.message ||
-          "Unable to refresh the dashboard. Please try again.",
-      );
-    } finally {
-      setRefreshing(false);
-    }
+    window.location.reload();
   };
 
   /* =======================================================
@@ -1264,9 +1247,9 @@ const HotelAdminDashboard = () => {
   ======================================================= */
 
   const openWebsite = () => {
-    if (!hotel?._id) return;
-
-    navigate(`/hotels/${hotel._id}`);
+    // Open the main public home page in a new tab.
+    const homePageUrl = new URL("/", window.location.origin);
+    window.open(homePageUrl.href, "_blank", "noopener,noreferrer");
   };
 
   /* =======================================================
@@ -1491,7 +1474,7 @@ const HotelAdminDashboard = () => {
               type="button"
               className="dashboard-website-button"
               onClick={openWebsite}
-              disabled={!hotel?._id}
+              disabled={!hotel?._id && !hotel?.id}
             >
               <Icon name="globe" size={15} />
               View Website
