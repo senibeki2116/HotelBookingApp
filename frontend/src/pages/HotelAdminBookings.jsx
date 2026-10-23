@@ -190,10 +190,19 @@ const HotelAdminBookings = () => {
 
   // Prevent overlapping requests and repeated initial loading screens.
   const requestInProgress = useRef(false);
+  const manualRefreshQueued = useRef(false);
   const hasLoadedOnce = useRef(false);
 
   const fetchData = useCallback(async (manual = false) => {
-    if (requestInProgress.current) return;
+    // If automatic polling is running, queue a manual refresh
+    // instead of silently ignoring the button click.
+    if (requestInProgress.current) {
+      if (manual) {
+        manualRefreshQueued.current = true;
+        setRefreshing(true);
+      }
+      return;
+    }
 
     requestInProgress.current = true;
 
@@ -221,10 +230,10 @@ const HotelAdminBookings = () => {
       const responseData = bookingsResponse?.data;
       const resolvedBookings = Array.isArray(responseData)
         ? responseData
-        : responseData?.bookings ||
-          responseData?.data?.bookings ||
-          responseData?.data ||
-          [];
+        : (responseData?.bookings ??
+          responseData?.data?.bookings ??
+          responseData?.data ??
+          []);
 
       if (!Array.isArray(resolvedBookings)) {
         throw new Error("The server returned an unexpected bookings format.");
@@ -238,7 +247,6 @@ const HotelAdminBookings = () => {
           return id && !previousIds.has(id);
         });
 
-        // Don't announce all existing bookings as new on the first load.
         if (hasLoadedOnce.current && added.length > 0) {
           setNewBookingIds((current) =>
             [...added.map(getBookingId), ...current]
@@ -253,6 +261,8 @@ const HotelAdminBookings = () => {
       hasLoadedOnce.current = true;
       setLastUpdated(new Date());
     } catch (err) {
+      console.error("Loading reservations failed:", err);
+
       setError(
         err?.response?.data?.message ||
           err?.message ||
@@ -262,6 +272,12 @@ const HotelAdminBookings = () => {
       requestInProgress.current = false;
       setLoading(false);
       setRefreshing(false);
+
+      // Run a queued manual refresh after the current request finishes.
+      if (manualRefreshQueued.current) {
+        manualRefreshQueued.current = false;
+        void fetchData(true);
+      }
     }
   }, []);
 
@@ -292,12 +308,11 @@ const HotelAdminBookings = () => {
   const handleRefresh = async () => {
     if (refreshing) return;
 
+    console.log("Refresh started...");
     setRefreshing(true);
     setError("");
 
     try {
-      console.log("Refreshing bookings...");
-
       const response = await API.get("/bookings/my-hotel");
 
       console.log("Bookings API response:", response.status, response.data);
@@ -309,23 +324,23 @@ const HotelAdminBookings = () => {
         : (data?.bookings ?? data?.data?.bookings ?? data?.data ?? []);
 
       if (!Array.isArray(latestBookings)) {
-        throw new Error("Unexpected bookings data returned by the server.");
+        throw new Error("Invalid bookings data from server.");
       }
 
       setBookings(latestBookings);
       setLastUpdated(new Date());
 
-      console.log("Bookings refreshed:", latestBookings.length);
-    } catch (err) {
-      console.error("Refresh failed:", err);
-
+      console.log("Bookings updated:", latestBookings.length);
+    } catch (error) {
+      console.error("Refresh failed:", error);
       setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to refresh bookings.",
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to refresh bookings.",
       );
     } finally {
       setRefreshing(false);
+      console.log("Refresh finished.");
     }
   };
 
@@ -663,15 +678,17 @@ const HotelAdminBookings = () => {
               className="refresh-bookings-button"
               onClick={handleRefresh}
               disabled={refreshing}
-              title="Refresh bookings"
+              title={refreshing ? "Refreshing bookings..." : "Refresh bookings"}
               aria-label="Refresh bookings"
             >
               <span
-                className={
-                  refreshing
-                    ? "refresh-character spinning"
-                    : "refresh-character"
-                }
+                className={`refresh-character ${refreshing ? "spinning" : ""}`}
+                style={{
+                  display: "inline-block",
+                  animation: refreshing
+                    ? "refresh-spin 0.8s linear infinite"
+                    : "none",
+                }}
               >
                 ↻
               </span>

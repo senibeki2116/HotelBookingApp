@@ -1207,11 +1207,28 @@ const HotelAdminDashboard = () => {
      REFRESH
   ======================================================= */
 
-  const handleRefresh = () => {
-    // Reload the dashboard page so all dashboard data and API state are
-    // fetched again from a clean page load.
+  const handleRefresh = async () => {
+    if (refreshing) return;
+
     setRefreshing(true);
-    window.location.reload();
+    setError("");
+    setSuccess("");
+
+    try {
+      await Promise.all([loadHotel(), loadBookings(), loadRooms()]);
+
+      setSuccess("Dashboard refreshed successfully.");
+    } catch (requestError) {
+      console.error("Dashboard refresh error:", requestError);
+
+      setError(
+        requestError?.response?.data?.message ||
+          requestError?.message ||
+          "Unable to refresh the dashboard. Please try again.",
+      );
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   /* =======================================================
