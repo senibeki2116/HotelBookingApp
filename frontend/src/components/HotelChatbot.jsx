@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./HotelChatbot.css";
 
 const QUICK_QUESTIONS = [
@@ -14,20 +14,28 @@ function getReply(message) {
     return "Hello! Welcome to Stayora. How can I help you today?";
   }
 
+  if (text.includes("cancel")) {
+    return "Please check your booking details and cancellation policy, or contact the hotel for assistance.";
+  }
+
+  if (
+    text.includes("booking") ||
+    text.includes("reservation") ||
+    text.includes("book")
+  ) {
+    return "To manage a booking, sign in to your account and open the bookings section, if available.";
+  }
+
+  if (text.includes("price") || text.includes("cost")) {
+    return "Hotel prices vary by date, room type, and availability. Compare hotel listings to find a suitable option.";
+  }
+
   if (
     text.includes("hotel") ||
     text.includes("find") ||
     text.includes("search")
   ) {
-    return "Visit the home page to browse hotels. Select a hotel to see its details, rooms, and available services.";
-  }
-
-  if (text.includes("booking") || text.includes("reservation")) {
-    return "To manage a booking, sign in to your account and check the bookings section, if available.";
-  }
-
-  if (text.includes("cancel")) {
-    return "Please check your booking details and cancellation policy, or contact the hotel for assistance.";
+    return "Visit the home page to browse hotels. Select a hotel to see its details, rooms, prices, and available services.";
   }
 
   if (
@@ -38,21 +46,12 @@ function getReply(message) {
     return "Open a hotel's details page to learn about its rooms, amenities, and services.";
   }
 
-  if (text.includes("price") || text.includes("cost")) {
-    return "Hotel prices vary by date, room type, and availability. Compare the listings to find a suitable option.";
-  }
-
   if (text.includes("thank")) {
     return "You're welcome! I'm happy to help.";
   }
 
   return "I can help with hotels, bookings, rooms, prices, and hotel services. What would you like to know?";
 }
-
-const SpeechRecognition =
-  typeof window !== "undefined"
-    ? window.SpeechRecognition || window.webkitSpeechRecognition
-    : null;
 
 export default function HotelChatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -61,84 +60,172 @@ export default function HotelChatbot() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [speaking, setSpeaking] = useState(false);
   const [error, setError] = useState("");
-
   const [messages, setMessages] = useState([
     {
       id: 1,
       sender: "bot",
-      text: "Hi! I'm your Stayora Assistant. You can type a message or speak to me.",
+      text: "Hi! I'm your Stayora Assistant. I can help you with hotels, rooms, and bookings.",
     },
   ]);
 
+  const [position, setPosition] = useState(null);
+  const [dragging, setDragging] = useState(false);
+
+  const chatbotRef = useRef(null);
   const messagesRef = useRef(null);
   const recognitionRef = useRef(null);
-  const speechUtteranceRef = useRef(null);
+  const utteranceRef = useRef(null);
+  const dragRef = useRef(null);
+  const replyTimerRef = useRef(null);
+
+  function clampPosition(x, y, width, height) {
+    const margin = 8;
+
+    return {
+      x: Math.max(margin, Math.min(window.innerWidth - width - margin, x)),
+      y: Math.max(margin, Math.min(window.innerHeight - height - margin, y)),
+    };
+  }
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleMouseMove = (event) => {
+      const chatbot = chatbotRef.current;
+      if (!chatbot) return;
+
+      // Keep the chatbot open while dragging it.
+      if (dragRef.current) return;
+
+      // Close when the cursor leaves the entire chatbot.
+      if (!chatbot.contains(event.target)) {
+        stopSpeaking();
+        setIsOpen(false);
+        setError("");
+      }
+    };
+
+    document.addEventListener("pointermove", handleMouseMove);
+
+    return () => {
+      document.removeEventListener("pointermove", handleMouseMove);
+    };
+  }, [isOpen]);
+  function placeChatbot() {
+    const element = chatbotRef.current;
+    if (!element || dragRef.current) return;
+
+    const rect = element.getBoundingClientRect();
+    const width = rect.width || 58;
+    const height = rect.height || 58;
+
+    setPosition((current) => {
+      const x = current ? current.x : window.innerWidth - width - 20;
+
+      const y = current ? current.y : window.innerHeight - height - 20;
+
+      return clampPosition(x, y, width, height);
+    });
+  }
+
+  useEffect(() => {
+    placeChatbot();
+
+    window.addEventListener("resize", placeChatbot);
+
+    let resizeObserver;
+
+    if (window.ResizeObserver && chatbotRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        if (!dragRef.current) {
+          placeChatbot();
+        }
+      });
+
+      resizeObserver.observe(chatbotRef.current);
+    }
+
+    return () => {
+      window.removeEventListener("resize", placeChatbot);
+      resizeObserver?.disconnect();
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, listening, speaking]);
 
   useEffect(() => {
     return () => {
       recognitionRef.current?.abort();
 
+      if (replyTimerRef.current) {
+        window.clearTimeout(replyTimerRef.current);
+      }
+
       if ("speechSynthesis" in window) {
-        speechUtteranceRef.current = null;
         window.speechSynthesis.cancel();
       }
     };
   }, []);
 
   function stopSpeaking() {
-    speechUtteranceRef.current = null;
+    utteranceRef.current = null;
+
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
+
     setSpeaking(false);
   }
 
   function speak(text) {
-    if (!("speechSynthesis" in window)) {
-      setError("Voice playback is not supported by this browser.");
-      return;
-    }
-
     if (!voiceEnabled) {
       setError("Turn on the speaker button to hear replies.");
       return;
     }
 
-    speechUtteranceRef.current = null;
+    if (!("speechSynthesis" in window)) {
+      setError("Voice playback is not supported by this browser.");
+      return;
+    }
+
     window.speechSynthesis.cancel();
+    utteranceRef.current = null;
     setSpeaking(false);
     setError("");
 
     const utterance = new SpeechSynthesisUtterance(text);
-    speechUtteranceRef.current = utterance;
+
     utterance.lang = "en-US";
     utterance.rate = 0.95;
     utterance.pitch = 1;
 
+    utteranceRef.current = utterance;
+
     utterance.onstart = () => {
-      if (speechUtteranceRef.current !== utterance) return;
-      setSpeaking(true);
+      if (utteranceRef.current === utterance) {
+        setSpeaking(true);
+      }
     };
 
     utterance.onend = () => {
-      if (speechUtteranceRef.current !== utterance) return;
-      speechUtteranceRef.current = null;
-      setSpeaking(false);
+      if (utteranceRef.current === utterance) {
+        utteranceRef.current = null;
+        setSpeaking(false);
+      }
     };
 
     utterance.onerror = (event) => {
-      if (speechUtteranceRef.current !== utterance) return;
-      speechUtteranceRef.current = null;
+      if (utteranceRef.current !== utterance) return;
+
+      utteranceRef.current = null;
       setSpeaking(false);
-      if (event.error === "interrupted" || event.error === "canceled") return;
-      setError("Sound could not play. Check your device volume and browser.");
-      console.error("Speech playback error:", event.error);
+
+      if (event.error !== "interrupted" && event.error !== "canceled") {
+        setError("Sound could not play. Check your browser and device volume.");
+      }
     };
 
     window.speechSynthesis.speak(utterance);
@@ -149,22 +236,36 @@ export default function HotelChatbot() {
     if (!text) return;
 
     setError("");
+
     setMessages((previous) => [
       ...previous,
-      { id: Date.now(), sender: "user", text },
+      {
+        id: `${Date.now()}-user`,
+        sender: "user",
+        text,
+      },
     ]);
+
     setInput("");
 
-    // These are sample replies. Connect your AI backend for real AI answers.
+    if (replyTimerRef.current) {
+      window.clearTimeout(replyTimerRef.current);
+    }
+
     const reply = getReply(text);
 
-    window.setTimeout(() => {
+    replyTimerRef.current = window.setTimeout(() => {
       setMessages((previous) => [
         ...previous,
-        { id: Date.now() + 1, sender: "bot", text: reply },
+        {
+          id: `${Date.now()}-bot`,
+          sender: "bot",
+          text: reply,
+        },
       ]);
+
       speak(reply);
-    }, 300);
+    }, 350);
   }
 
   function startListening() {
@@ -186,144 +287,136 @@ export default function HotelChatbot() {
 
     stopSpeaking();
 
-    const recognition = new Recognition();
-    recognitionRef.current = recognition;
-
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setListening(true);
-    };
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setListening(false);
-
-      if (transcript.trim()) {
-        sendMessage(transcript);
-      }
-    };
-
-    recognition.onerror = (event) => {
-      setListening(false);
-
-      if (
-        event.error === "not-allowed" ||
-        event.error === "service-not-allowed"
-      ) {
-        setError("Allow microphone access in your browser site settings.");
-      } else if (event.error === "audio-capture") {
-        setError(
-          "No microphone was detected. Check your microphone connection.",
-        );
-      } else if (event.error !== "no-speech" && event.error !== "aborted") {
-        setError("Microphone error. Please try again.");
-      }
-    };
-
-    recognition.onend = () => {
-      setListening(false);
-    };
-
     try {
+      const recognition = new Recognition();
+
+      recognitionRef.current = recognition;
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => setListening(true);
+
+      recognition.onresult = (event) => {
+        const transcript = event.results?.[0]?.[0]?.transcript || "";
+
+        setListening(false);
+
+        if (transcript.trim()) {
+          sendMessage(transcript);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        setListening(false);
+
+        if (
+          event.error === "not-allowed" ||
+          event.error === "service-not-allowed"
+        ) {
+          setError("Allow microphone access in your browser site settings.");
+        } else if (event.error === "audio-capture") {
+          setError(
+            "No microphone was detected. Check your microphone connection.",
+          );
+        } else if (event.error !== "no-speech" && event.error !== "aborted") {
+          setError("Microphone error. Please try again.");
+        }
+      };
+
+      recognition.onend = () => setListening(false);
       recognition.start();
-    } catch (error) {
+    } catch (err) {
       setListening(false);
       setError("Could not start the microphone. Please try again.");
-      console.error("Microphone start error:", error);
+      console.error(err);
     }
   }
-  const [position, setPosition] = useState({
-    right: 22,
-    bottom: 22,
-  });
 
-  const [dragging, setDragging] = useState(false);
-  const dragRef = useRef(null);
-
-  const handleDragStart = useCallback((event) => {
+  function handleDragStart(event) {
     if (event.button !== 0) return;
-
-    // Don't start dragging when clicking the close or sound controls.
     if (event.target.closest("button")) return;
 
-    event.preventDefault();
+    const element = chatbotRef.current;
+    if (!element) return;
 
-    const panel = event.currentTarget.closest(".stayora-chatbot");
-    if (!panel) return;
-
-    const rect = panel.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
 
     dragRef.current = {
+      pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       left: rect.left,
       top: rect.top,
-      moved: false,
+      width: rect.width,
+      height: rect.height,
     };
 
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Continue without pointer capture if unavailable.
+    }
+
     setDragging(true);
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-  }, []);
+    event.preventDefault();
+  }
 
-  const handleDragMove = useCallback((event) => {
-    if (!dragRef.current) return;
-
+  function handleDragMove(event) {
     const drag = dragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
 
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      drag.moved = true;
+    setPosition(
+      clampPosition(drag.left + dx, drag.top + dy, drag.width, drag.height),
+    );
+  }
+
+  function handleDragEnd(event) {
+    if (!dragRef.current) return;
+
+    if (
+      event?.pointerId != null &&
+      dragRef.current.pointerId !== event.pointerId
+    ) {
+      return;
     }
 
-    const panel = document.querySelector(".stayora-chatbot");
-    if (!panel) return;
-
-    const width = panel.offsetWidth;
-    const height = panel.offsetHeight;
-
-    const left = Math.max(
-      0,
-      Math.min(window.innerWidth - width, drag.left + dx),
-    );
-
-    const top = Math.max(
-      0,
-      Math.min(window.innerHeight - height, drag.top + dy),
-    );
-
-    setPosition({
-      right: window.innerWidth - left - width,
-      bottom: window.innerHeight - top - height,
-    });
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
     dragRef.current = null;
     setDragging(false);
-  }, []);
+
+    requestAnimationFrame(placeChatbot);
+  }
+
+  function closeChat() {
+    stopSpeaking();
+    recognitionRef.current?.abort();
+    setListening(false);
+    setIsOpen(false);
+  }
 
   return (
     <div
-      className={`stayora-chatbot ${dragging ? "is-dragging" : ""}`}
-      style={{
-        right: `${position.right}px`,
-        bottom: `${position.bottom}px`,
-        left: "auto",
-        top: "auto",
-      }}
+      ref={chatbotRef}
+      className={`stayora-chatbot ${dragging ? "is-dragging" : ""} ${
+        isOpen ? "is-open" : ""
+      }`}
     >
-      {isOpen && (
-        <section className="stayora-chat-panel">
+      {isOpen ? (
+        <section
+          className="stayora-chat-panel"
+          aria-label="Stayora customer support"
+        >
           <header
             className="stayora-chat-header"
             onPointerDown={handleDragStart}
             onPointerMove={handleDragMove}
             onPointerUp={handleDragEnd}
             onPointerCancel={handleDragEnd}
+            onLostPointerCapture={handleDragEnd}
           >
             <div className="stayora-avatar">✦</div>
 
@@ -338,12 +431,15 @@ export default function HotelChatbot() {
               type="button"
               className="stayora-icon-button"
               onClick={() => {
-                setVoiceEnabled((value) => {
-                  if (value) stopSpeaking();
-                  return !value;
-                });
+                if (voiceEnabled) stopSpeaking();
+                setVoiceEnabled((value) => !value);
+                setError("");
               }}
-              aria-label="Toggle voice replies"
+              aria-label={
+                voiceEnabled
+                  ? "Turn off voice replies"
+                  : "Turn on voice replies"
+              }
               title="Toggle voice replies"
             >
               {voiceEnabled ? "🔊" : "🔇"}
@@ -352,23 +448,25 @@ export default function HotelChatbot() {
             <button
               type="button"
               className="stayora-icon-button stayora-close"
-              onClick={() => {
-                stopSpeaking();
-                setIsOpen(false);
-              }}
-              aria-label="Close chatbot"
+              onClick={closeChat}
+              aria-label="Close assistant"
+              title="Close"
             >
               ×
             </button>
           </header>
 
           <div className="stayora-welcome">
-            <span>HOTEL BOOKING SUPPORT</span>
+            <span>STAYORA CUSTOMER CARE</span>
             <h3>How can I help you?</h3>
-            <p>Type a message or tap the microphone to speak.</p>
+            <p>Ask about hotels, rooms, prices, or your booking.</p>
           </div>
 
-          <div className="stayora-messages" ref={messagesRef}>
+          <div
+            className="stayora-messages"
+            ref={messagesRef}
+            aria-live="polite"
+          >
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -409,7 +507,11 @@ export default function HotelChatbot() {
             </div>
           )}
 
-          {error && <p className="stayora-error">{error}</p>}
+          {error && (
+            <p className="stayora-error" role="status">
+              {error}
+            </p>
+          )}
 
           {listening && (
             <p className="stayora-status">🎙 Listening… speak now</p>
@@ -430,8 +532,8 @@ export default function HotelChatbot() {
               type="button"
               className={`stayora-mic ${listening ? "active" : ""}`}
               onClick={startListening}
-              aria-label="Speak"
-              title="Speak"
+              aria-label={listening ? "Stop listening" : "Start voice input"}
+              title={listening ? "Stop listening" : "Speak"}
             >
               {listening ? "■" : "🎙"}
             </button>
@@ -456,20 +558,21 @@ export default function HotelChatbot() {
           </form>
 
           <footer className="stayora-footer">
-            Stayora support · Text and voice assistance
+            <span>✦</span> Stayora · Here to help
           </footer>
         </section>
+      ) : (
+        <button
+          type="button"
+          className="stayora-launcher"
+          onClick={() => setIsOpen(true)}
+          aria-label="Open Stayora assistant"
+          title="Chat with Stayora"
+        >
+          ✦
+          <span className="stayora-launcher-dot" />
+        </button>
       )}
-
-      <button
-        type="button"
-        className="stayora-launcher"
-        onClick={() => setIsOpen((value) => !value)}
-        aria-label={isOpen ? "Close assistant" : "Open assistant"}
-      >
-        {isOpen ? "×" : "✦"}
-        {!isOpen && <span className="stayora-launcher-dot" />}
-      </button>
     </div>
   );
 }
