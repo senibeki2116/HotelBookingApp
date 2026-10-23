@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import "./HotelChatbot.css";
 
 const QUICK_QUESTIONS = [
@@ -72,6 +72,7 @@ export default function HotelChatbot() {
 
   const messagesRef = useRef(null);
   const recognitionRef = useRef(null);
+  const speechUtteranceRef = useRef(null);
 
   useEffect(() => {
     if (messagesRef.current) {
@@ -84,12 +85,14 @@ export default function HotelChatbot() {
       recognitionRef.current?.abort();
 
       if ("speechSynthesis" in window) {
+        speechUtteranceRef.current = null;
         window.speechSynthesis.cancel();
       }
     };
   }, []);
 
   function stopSpeaking() {
+    speechUtteranceRef.current = null;
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
@@ -97,18 +100,46 @@ export default function HotelChatbot() {
   }
 
   function speak(text) {
-    if (!voiceEnabled || !("speechSynthesis" in window)) return;
+    if (!("speechSynthesis" in window)) {
+      setError("Voice playback is not supported by this browser.");
+      return;
+    }
 
+    if (!voiceEnabled) {
+      setError("Turn on the speaker button to hear replies.");
+      return;
+    }
+
+    speechUtteranceRef.current = null;
     window.speechSynthesis.cancel();
+    setSpeaking(false);
+    setError("");
 
     const utterance = new SpeechSynthesisUtterance(text);
+    speechUtteranceRef.current = utterance;
     utterance.lang = "en-US";
-    utterance.rate = 1;
+    utterance.rate = 0.95;
     utterance.pitch = 1;
 
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
+    utterance.onstart = () => {
+      if (speechUtteranceRef.current !== utterance) return;
+      setSpeaking(true);
+    };
+
+    utterance.onend = () => {
+      if (speechUtteranceRef.current !== utterance) return;
+      speechUtteranceRef.current = null;
+      setSpeaking(false);
+    };
+
+    utterance.onerror = (event) => {
+      if (speechUtteranceRef.current !== utterance) return;
+      speechUtteranceRef.current = null;
+      setSpeaking(false);
+      if (event.error === "interrupted" || event.error === "canceled") return;
+      setError("Sound could not play. Check your device volume and browser.");
+      console.error("Speech playback error:", event.error);
+    };
 
     window.speechSynthesis.speak(utterance);
   }
@@ -139,8 +170,11 @@ export default function HotelChatbot() {
   function startListening() {
     setError("");
 
-    if (!SpeechRecognition) {
-      setError("Voice input is unavailable. Please try Chrome or Edge.");
+    const Recognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!Recognition) {
+      setError("Voice input is unsupported. Please use Chrome or Edge.");
       return;
     }
 
@@ -152,45 +186,145 @@ export default function HotelChatbot() {
 
     stopSpeaking();
 
-    const recognition = new SpeechRecognition();
+    const recognition = new Recognition();
     recognitionRef.current = recognition;
+
     recognition.lang = "en-US";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => setListening(true);
+    recognition.onstart = () => {
+      setListening(true);
+    };
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       setListening(false);
-      sendMessage(transcript);
+
+      if (transcript.trim()) {
+        sendMessage(transcript);
+      }
     };
 
     recognition.onerror = (event) => {
       setListening(false);
 
-      if (event.error === "not-allowed") {
-        setError("Please allow microphone access in your browser settings.");
-      } else if (event.error !== "aborted" && event.error !== "no-speech") {
-        setError("Could not hear you clearly. Please try again.");
+      if (
+        event.error === "not-allowed" ||
+        event.error === "service-not-allowed"
+      ) {
+        setError("Allow microphone access in your browser site settings.");
+      } else if (event.error === "audio-capture") {
+        setError(
+          "No microphone was detected. Check your microphone connection.",
+        );
+      } else if (event.error !== "no-speech" && event.error !== "aborted") {
+        setError("Microphone error. Please try again.");
       }
     };
 
-    recognition.onend = () => setListening(false);
+    recognition.onend = () => {
+      setListening(false);
+    };
 
     try {
       recognition.start();
-    } catch {
+    } catch (error) {
       setListening(false);
-      setError("The microphone could not start. Please try again.");
+      setError("Could not start the microphone. Please try again.");
+      console.error("Microphone start error:", error);
     }
   }
+  const [position, setPosition] = useState({
+    right: 22,
+    bottom: 22,
+  });
+
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef(null);
+
+  const handleDragStart = useCallback((event) => {
+    if (event.button !== 0) return;
+
+    // Don't start dragging when clicking the close or sound controls.
+    if (event.target.closest("button")) return;
+
+    event.preventDefault();
+
+    const panel = event.currentTarget.closest(".stayora-chatbot");
+    if (!panel) return;
+
+    const rect = panel.getBoundingClientRect();
+
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      left: rect.left,
+      top: rect.top,
+      moved: false,
+    };
+
+    setDragging(true);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }, []);
+
+  const handleDragMove = useCallback((event) => {
+    if (!dragRef.current) return;
+
+    const drag = dragRef.current;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      drag.moved = true;
+    }
+
+    const panel = document.querySelector(".stayora-chatbot");
+    if (!panel) return;
+
+    const width = panel.offsetWidth;
+    const height = panel.offsetHeight;
+
+    const left = Math.max(
+      0,
+      Math.min(window.innerWidth - width, drag.left + dx),
+    );
+
+    const top = Math.max(
+      0,
+      Math.min(window.innerHeight - height, drag.top + dy),
+    );
+
+    setPosition({
+      right: window.innerWidth - left - width,
+      bottom: window.innerHeight - top - height,
+    });
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    dragRef.current = null;
+    setDragging(false);
+  }, []);
 
   return (
-    <div className="stayora-chatbot">
+    <div
+      className={`stayora-chatbot ${dragging ? "is-dragging" : ""}`}
+      style={{
+        right: `${position.right}px`,
+        bottom: `${position.bottom}px`,
+        left: "auto",
+        top: "auto",
+      }}
+    >
       {isOpen && (
         <section className="stayora-chat-panel">
-          <header className="stayora-chat-header">
+          <header
+            className="stayora-chat-header"
+            onPointerDown={handleDragStart}
+            onPointerMove={handleDragMove}
+            onPointerUp={handleDragEnd}
+            onPointerCancel={handleDragEnd}
+          >
             <div className="stayora-avatar">✦</div>
 
             <div className="stayora-heading">

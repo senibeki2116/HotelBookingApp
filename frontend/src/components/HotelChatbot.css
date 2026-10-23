@@ -519,3 +519,27 @@
     max-height: 34px !important;
   }
 }
+
+.stayora-chatbot {
+  position: fixed;
+  z-index: 9999;
+  touch-action: auto;
+}
+
+.stayora-chat-header {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.stayora-chatbot.is-dragging .stayora-chat-header {
+  cursor: grabbing;
+}
+
+.stayora-chatbot.is-dragging {
+  user-select: none;
+}
+
+.stayora-chat-header button {
+  cursor: pointer;
+}
