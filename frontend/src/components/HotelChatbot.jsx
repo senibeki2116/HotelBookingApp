@@ -386,6 +386,27 @@ export default function HotelChatbot() {
     setListening(false);
     setIsOpen(false);
   }
+  function refreshChat() {
+    stopSpeaking();
+
+    recognitionRef.current?.abort();
+    setListening(false);
+    setError("");
+    setInput("");
+
+    if (replyTimerRef.current) {
+      window.clearTimeout(replyTimerRef.current);
+      replyTimerRef.current = null;
+    }
+
+    setMessages([
+      {
+        id: 1,
+        sender: "bot",
+        text: "Hi! I'm your Stayora Assistant. I can help you with hotels, rooms, and bookings.",
+      },
+    ]);
+  }
 
   function handleMouseEnter() {
     if (!dragRef.current) {
@@ -444,6 +465,15 @@ export default function HotelChatbot() {
               </span>
             </div>
 
+            <button
+              type="button"
+              className="stayora-icon-button stayora-refresh"
+              onClick={refreshChat}
+              aria-label="Start a new chat"
+              title="Start a new chat"
+            >
+              ↻
+            </button>
             <button
               type="button"
               className="stayora-icon-button"
