@@ -60,6 +60,7 @@ export default function HotelChatbot() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [speaking, setSpeaking] = useState(false);
   const [error, setError] = useState("");
+
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -86,32 +87,10 @@ export default function HotelChatbot() {
       y: Math.max(margin, Math.min(window.innerHeight - height - margin, y)),
     };
   }
-  useEffect(() => {
-    if (!isOpen) return;
 
-    const handleMouseMove = (event) => {
-      const chatbot = chatbotRef.current;
-      if (!chatbot) return;
-
-      // Keep the chatbot open while dragging it.
-      if (dragRef.current) return;
-
-      // Close when the cursor leaves the entire chatbot.
-      if (!chatbot.contains(event.target)) {
-        stopSpeaking();
-        setIsOpen(false);
-        setError("");
-      }
-    };
-
-    document.addEventListener("pointermove", handleMouseMove);
-
-    return () => {
-      document.removeEventListener("pointermove", handleMouseMove);
-    };
-  }, [isOpen]);
   function placeChatbot() {
     const element = chatbotRef.current;
+
     if (!element || dragRef.current) return;
 
     const rect = element.getBoundingClientRect();
@@ -193,6 +172,7 @@ export default function HotelChatbot() {
 
     window.speechSynthesis.cancel();
     utteranceRef.current = null;
+
     setSpeaking(false);
     setError("");
 
@@ -233,6 +213,7 @@ export default function HotelChatbot() {
 
   function sendMessage(value = input) {
     const text = value.trim();
+
     if (!text) return;
 
     setError("");
@@ -295,7 +276,9 @@ export default function HotelChatbot() {
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
 
-      recognition.onstart = () => setListening(true);
+      recognition.onstart = () => {
+        setListening(true);
+      };
 
       recognition.onresult = (event) => {
         const transcript = event.results?.[0]?.[0]?.transcript || "";
@@ -324,7 +307,10 @@ export default function HotelChatbot() {
         }
       };
 
-      recognition.onend = () => setListening(false);
+      recognition.onend = () => {
+        setListening(false);
+      };
+
       recognition.start();
     } catch (err) {
       setListening(false);
@@ -338,6 +324,7 @@ export default function HotelChatbot() {
     if (event.target.closest("button")) return;
 
     const element = chatbotRef.current;
+
     if (!element) return;
 
     const rect = element.getBoundingClientRect();
@@ -393,17 +380,45 @@ export default function HotelChatbot() {
 
   function closeChat() {
     stopSpeaking();
+
     recognitionRef.current?.abort();
+
     setListening(false);
     setIsOpen(false);
+  }
+
+  function handleMouseEnter() {
+    if (!dragRef.current) {
+      setIsOpen(true);
+    }
+  }
+
+  function handleMouseLeave() {
+    if (!dragRef.current) {
+      closeChat();
+      setError("");
+    }
   }
 
   return (
     <div
       ref={chatbotRef}
-      className={`stayora-chatbot ${dragging ? "is-dragging" : ""} ${
-        isOpen ? "is-open" : ""
-      }`}
+      className={`stayora-chatbot ${
+        dragging ? "is-dragging" : ""
+      } ${isOpen ? "is-open" : ""}`}
+      style={
+        position
+          ? {
+              position: "fixed",
+              left: `${position.x}px`,
+              top: `${position.y}px`,
+              right: "auto",
+              bottom: "auto",
+            }
+          : undefined
+      }
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {isOpen ? (
         <section
@@ -422,8 +437,10 @@ export default function HotelChatbot() {
 
             <div className="stayora-heading">
               <strong>Stayora Assistant</strong>
+
               <span>
-                <i /> Online · Text &amp; voice
+                <i />
+                Online · Text &amp; voice
               </span>
             </div>
 
@@ -432,6 +449,7 @@ export default function HotelChatbot() {
               className="stayora-icon-button"
               onClick={() => {
                 if (voiceEnabled) stopSpeaking();
+
                 setVoiceEnabled((value) => !value);
                 setError("");
               }}
