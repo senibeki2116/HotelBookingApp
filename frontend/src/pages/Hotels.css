@@ -2404,3 +2404,203 @@ button:focus-visible {
     font-size: 12px;
   }
 }
+/* =========================================
+   STAYORA AI HOTEL FINDER — STRUCTURE FIX
+========================================= */
+
+.ai-hotel-finder,
+.ai-finder-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ai-hotel-finder form,
+.ai-finder-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  width: 100%;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Prompt text area */
+.ai-hotel-finder textarea,
+.ai-finder-form textarea,
+.ai-hotel-prompt {
+  display: block;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 130px;
+  height: 130px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 22px 24px;
+  border: 1px solid #e8e1d7;
+  border-radius: 20px;
+  background: #fcfbf9;
+  color: #102033;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ai-hotel-finder textarea:focus,
+.ai-finder-form textarea:focus,
+.ai-hotel-prompt:focus {
+  border-color: #c99a3b;
+  box-shadow: 0 0 0 4px rgba(201, 154, 59, 0.12);
+}
+
+/* Find button — placed BELOW the textarea */
+.ai-hotel-finder button[type="submit"],
+.ai-finder-form button[type="submit"],
+.ai-hotel-submit {
+  display: flex;
+  position: static;
+  inset: auto;
+  transform: none;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 16px 22px;
+  border: none;
+  border-radius: 14px;
+  background: #0d1b2a;
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ai-hotel-finder button[type="submit"]:hover,
+.ai-finder-form button[type="submit"]:hover,
+.ai-hotel-submit:hover {
+  background: #1b3046;
+  box-shadow: 0 8px 20px rgba(13, 27, 42, 0.14);
+}
+
+.ai-hotel-finder button[type="submit"]:active,
+.ai-finder-form button[type="submit"]:active,
+.ai-hotel-submit:active {
+  transform: translateY(1px);
+}
+
+.ai-hotel-finder button[type="submit"]:disabled,
+.ai-finder-form button[type="submit"]:disabled,
+.ai-hotel-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Example prompts */
+.ai-hotel-finder .ai-example-prompts,
+.ai-finder-card .ai-example-prompts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  margin-top: 22px;
+}
+
+.ai-hotel-finder .ai-example-prompts button,
+.ai-finder-card .ai-example-prompts button {
+  position: static;
+  transform: none;
+  max-width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #e8e1d7;
+  border-radius: 999px;
+  background: #fff;
+  color: #52647a;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-hotel-finder .ai-example-prompts button:hover,
+.ai-finder-card .ai-example-prompts button:hover {
+  border-color: #c99a3b;
+  background: #fbf6eb;
+  color: #102033;
+}
+
+/* Error and empty-result messages */
+.ai-hotel-finder .ai-error,
+.ai-finder-card .ai-error,
+.ai-hotel-finder [role="alert"],
+.ai-finder-card [role="alert"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 24px 0 0;
+  padding: 16px 18px;
+  border: 1px solid #f5d5d2;
+  border-radius: 14px;
+  background: #fff2f1;
+  color: #b93832;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* Loading/results should remain in the normal page flow */
+.ai-hotel-results,
+.ai-results,
+.ai-loading {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 24px;
+}
+
+/* Responsive layout */
+@media (max-width: 640px) {
+  .ai-hotel-finder textarea,
+  .ai-finder-form textarea,
+  .ai-hotel-prompt {
+    min-height: 115px;
+    height: 115px;
+    padding: 16px;
+    font-size: 15px;
+  }
+
+  .ai-hotel-finder button[type="submit"],
+  .ai-finder-form button[type="submit"],
+  .ai-hotel-submit {
+    min-height: 52px;
+    padding: 14px 16px;
+  }
+
+  .ai-hotel-finder .ai-example-prompts,
+  .ai-finder-card .ai-example-prompts {
+    gap: 8px;
+  }
+
+  .ai-hotel-finder .ai-example-prompts button,
+  .ai-finder-card .ai-example-prompts button {
+    padding: 9px 12px;
+  }
+}

@@ -11,6 +11,64 @@ const FALLBACK_HERO =
 const FALLBACK_HOTEL =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=85";
 
+const WELCOME_EXAMPLES = [
+  {
+    label: "Budget stay in Addis Ababa",
+    prompt: "I need a cheap hotel in Addis Ababa for 2 people",
+  },
+  {
+    label: "Luxury hotel",
+    prompt: "I want a luxury hotel in Addis Ababa",
+  },
+  {
+    label: "Family hotel",
+    prompt: "Find a family friendly hotel in Bahir Dar",
+  },
+];
+
+const LOCATIONS = [
+  "addis ababa",
+  "bahir dar",
+  "hawassa",
+  "gondar",
+  "mekele",
+  "dire dawa",
+  "jimma",
+  "lalibela",
+  "arba minch",
+  "axum",
+  "harar",
+];
+
+function normalize(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/arba\s*minch/g, "arba minch")
+    .replace(/[,\-_]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getHotelIdForCard(hotel) {
+  return hotel?._id || hotel?.id;
+}
+
+function getHotelNameValue(hotel) {
+  return hotel?.name || hotel?.hotelName || hotel?.title || "Hotel";
+}
+
+function getHotelLocationValue(hotel) {
+  return hotel?.location || hotel?.city || hotel?.address || "Ethiopia";
+}
+
+function getHotelPriceValue(hotel) {
+  return Number(hotel?.price ?? hotel?.pricePerNight ?? hotel?.amount ?? 0);
+}
+
+function getHotelRatingValue(hotel) {
+  return Number(hotel?.rating ?? hotel?.averageRating ?? hotel?.stars ?? 0);
+}
+
 function Hotels() {
   const navigate = useNavigate();
 
@@ -20,50 +78,35 @@ function Hotels() {
     ),
   );
 
-  const handleAuthButton = () => {
-    setMenuOpen(false);
-
-    if (isLoggedIn) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("accessToken");
-      setIsLoggedIn(false);
-      navigate("/");
-    } else {
-      navigate("/login");
-    }
-  };
-
   const [hotels, setHotels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [favorites, setFavorites] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("favoriteHotels") || "[]");
+      const saved = JSON.parse(localStorage.getItem("favoriteHotels") || "[]");
+
+      return Array.isArray(saved) ? saved : [];
     } catch {
       return [];
     }
   });
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  // VIEW ALL HOTELS
   const [showAllHotels, setShowAllHotels] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // AI FINDER
+  // AI HOTEL FINDER
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResults, setAiResults] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [aiSearched, setAiSearched] = useState(false);
 
-  // HEADER MENU
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  // ========================================
   // FETCH HOTELS
-  // ========================================
-
   useEffect(() => {
-    const loadHotels = async () => {
+    let cancelled = false;
+
+    async function loadHotels() {
       try {
         setLoading(true);
         setError("");
@@ -72,163 +115,159 @@ function Hotels() {
 
         const data = Array.isArray(response.data)
           ? response.data
-          : response.data?.hotels || [];
+          : Array.isArray(response.data?.hotels)
+            ? response.data.hotels
+            : [];
 
-        setHotels(data);
+        if (!cancelled) {
+          setHotels(data);
+        }
       } catch (err) {
         console.error("Failed to load hotels:", err);
 
-        setError(
-          err.response?.data?.message ||
-            "Could not load hotels. Please make sure the backend is running.",
-        );
+        if (!cancelled) {
+          setError(
+            err.response?.data?.message ||
+              "Could not load hotels. Please make sure the backend is running.",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-    };
+    }
 
     loadHotels();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // ========================================
   // SAVE FAVORITES
-  // ========================================
-
   useEffect(() => {
     localStorage.setItem("favoriteHotels", JSON.stringify(favorites));
   }, [favorites]);
 
-  // ========================================
-  // FAVORITE
-  // ========================================
+  // AUTHENTICATION
+  const handleAuthButton = () => {
+    setMenuOpen(false);
 
+    if (isLoggedIn) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("user");
+
+      setIsLoggedIn(false);
+      navigate("/");
+    } else {
+      navigate("/login");
+    }
+  };
+
+  // FAVORITES
   const toggleFavorite = (id) => {
-    if (!id) return;
+    if (id === undefined || id === null) return;
 
     setFavorites((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
+      current.some((item) => String(item) === String(id))
+        ? current.filter((item) => String(item) !== String(id))
         : [...current, id],
     );
   };
 
-  // ========================================
-  // HOTEL IMAGE
-  // ========================================
-
+  // HOTEL IMAGES
   const getImage = (hotel) => {
-    if (!hotel?.image) {
-      return FALLBACK_HOTEL;
-    }
+    if (!hotel?.image) return FALLBACK_HOTEL;
 
     const image = String(hotel.image).trim();
 
-    if (image.startsWith("http://") || image.startsWith("https://")) {
-      return image;
-    }
+    if (/^https?:\/\//i.test(image)) return image;
 
-    if (image.startsWith("/")) {
-      return `${API_URL}${image}`;
-    }
+    if (image.startsWith("/")) return `${API_URL}${image}`;
 
     return `${API_URL}/uploads/${image}`;
   };
 
-  // ========================================
-  // SAFE VALUES
-  // ========================================
-
+  // HOTEL VALUES
   const getRating = (hotel) => {
-    const rating = Number(hotel?.rating ?? 4.8);
-    return rating.toFixed(1);
+    const rating = getHotelRatingValue(hotel);
+    return Number.isFinite(rating) ? rating.toFixed(1) : "0.0";
   };
 
-  const getReviews = (hotel) => {
-    return hotel?.reviews ?? 0;
-  };
+  const getReviews = (hotel) => hotel?.reviews ?? hotel?.reviewCount ?? 0;
 
   const getPrice = (hotel) => {
-    return hotel?.price ?? 0;
+    const price = getHotelPriceValue(hotel);
+    return Number.isFinite(price) ? price.toLocaleString() : "0";
   };
 
-  const getLocation = (hotel) => {
-    return hotel?.location || hotel?.city || "Ethiopia";
-  };
+  const getLocation = getHotelLocationValue;
+  const getHotelName = getHotelNameValue;
 
-  const getHotelName = (hotel) => {
-    return hotel?.name || hotel?.hotelName || "Luxury Hotel";
-  };
-
-  // ========================================
-  // HOTEL ID
-  // ========================================
-
-  const getHotelId = (hotel) => {
-    return hotel?._id || hotel?.id;
-  };
-
-  // ========================================
-  // VIEW HOTEL DETAILS
-  // ========================================
-
+  // HOTEL DETAILS
   const handleDetails = (hotel) => {
-    const hotelId = getHotelId(hotel);
+    const id = getHotelIdForCard(hotel);
 
-    if (!hotelId) {
+    if (!id) {
       console.error("Hotel ID is missing:", hotel);
       alert("Unable to open hotel details because the hotel ID is missing.");
       return;
     }
 
-    navigate(`/hotels/${hotelId}`);
+    navigate(`/hotels/${id}`);
   };
 
-  // ========================================
   // BOOK HOTEL
-  // ========================================
-
   const handleBook = (hotel) => {
-    const hotelId = getHotelId(hotel);
+    const id = getHotelIdForCard(hotel);
 
-    if (!hotelId) {
+    if (!id) {
       console.error("Hotel ID is missing:", hotel);
       alert("Unable to book this hotel because the hotel ID is missing.");
       return;
     }
 
-    navigate(`/booking/hotel/${hotelId}`);
+    navigate(`/booking/hotel/${id}`);
   };
 
-  // ========================================
   // NAVIGATION
-  // ========================================
-
   const scrollToHotels = () => {
+    setMenuOpen(false);
     document.getElementById("hotels")?.scrollIntoView({
       behavior: "smooth",
+      block: "start",
     });
   };
 
   const scrollToDestinations = () => {
+    setMenuOpen(false);
     document.getElementById("destinations")?.scrollIntoView({
       behavior: "smooth",
+      block: "start",
     });
   };
 
   const scrollToAbout = () => {
+    setMenuOpen(false);
     document.getElementById("about")?.scrollIntoView({
       behavior: "smooth",
+      block: "start",
     });
   };
 
-  // ========================================
-  // VIEW ALL HOTELS
-  // ========================================
+  const scrollToAI = () => {
+    document.getElementById("ai-finder")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
 
   const handleViewAllHotels = () => {
     setShowAllHotels(true);
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       document.getElementById("hotels")?.scrollIntoView({
         behavior: "smooth",
         block: "start",
@@ -236,384 +275,316 @@ function Hotels() {
     }, 100);
   };
 
-  // ========================================
-  // AI RECOMMENDATION
-  // ========================================
+  // AI EXAMPLE PROMPTS
+  const useExamplePrompt = (prompt) => {
+    setAiPrompt(prompt);
+    setAiError("");
+    setAiResults([]);
+    setAiSearched(false);
 
-  const handleAIRecommend = () => {
-    console.log("🔎 Hotel search started");
-    console.log("User request:", aiPrompt);
-    console.log("Available hotels:", hotels);
+    window.setTimeout(() => {
+      document.querySelector("#ai-finder textarea")?.focus();
+    }, 0);
+  };
 
-    if (!aiPrompt.trim()) {
-      setAiError("Please tell us what kind of hotel you're looking for.");
+  // AI HOTEL RECOMMENDATIONS
+  const handleAIRecommend = async () => {
+    const prompt = normalize(aiPrompt);
+
+    setAiError("");
+    setAiResults([]);
+    setAiSearched(false);
+
+    if (!prompt) {
+      setAiError("Please describe the hotel you are looking for.");
       return;
     }
 
-    if (!Array.isArray(hotels) || hotels.length === 0) {
-      setAiError("No hotels are currently available.");
-      console.log("❌ No hotels available:", hotels);
+    if (loading || aiLoading) {
+      setAiError("Please wait while the hotel list finishes loading.");
       return;
     }
+
+    if (error) {
+      setAiError(
+        "Hotels could not be loaded. Please check your connection and try again.",
+      );
+      return;
+    }
+
+    if (hotels.length === 0) {
+      setAiError("There are no hotels available to recommend right now.");
+      return;
+    }
+
+    setAiLoading(true);
+
+    // Yield one browser frame so the loading indicator can appear.
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
 
     try {
-      setAiLoading(true);
-      setAiError("");
-      setAiResults([]);
-
-      const prompt = aiPrompt.toLowerCase().trim();
-
-      // -----------------------------------------
-      // USER PREFERENCES
-      // -----------------------------------------
+      const requestedLocation = LOCATIONS.find((city) => prompt.includes(city));
 
       const wantsCheap =
-        prompt.includes("cheap") ||
-        prompt.includes("budget") ||
-        prompt.includes("affordable") ||
-        prompt.includes("low price") ||
-        prompt.includes("inexpensive");
+        /\b(cheap|budget|affordable|inexpensive|low price|low cost)\b/.test(
+          prompt,
+        );
 
       const wantsLuxury =
-        prompt.includes("luxury") ||
-        prompt.includes("luxurious") ||
-        prompt.includes("premium") ||
-        prompt.includes("expensive") ||
-        prompt.includes("high end");
+        /\b(luxury|luxurious|premium|five star|5 star|high end)\b/.test(prompt);
 
-      const wantsFamily =
-        prompt.includes("family") ||
-        prompt.includes("children") ||
-        prompt.includes("kids") ||
-        prompt.includes("child");
+      const wantsFamily = /\b(family|children|child|kids|kid friendly)\b/.test(
+        prompt,
+      );
 
       const wantsBusiness =
-        prompt.includes("business") ||
-        prompt.includes("work") ||
-        prompt.includes("office") ||
-        prompt.includes("business trip");
+        /\b(business|work|office|conference|meeting)\b/.test(prompt);
 
-      const wantsRomantic =
-        prompt.includes("romantic") ||
-        prompt.includes("couple") ||
-        prompt.includes("honeymoon");
-
-      // -----------------------------------------
-      // LOCATION
-      // -----------------------------------------
-
-      const locations = [
-        "addis ababa",
-        "bahir dar",
-        "hawassa",
-        "gondar",
-        "mekele",
-        "dire dawa",
-        "jimma",
-        "lalibela",
-        "arbaminch",
-        "arba minch",
-        "axum",
-        "harar",
-      ];
-
-      const requestedLocation = locations.find((city) => prompt.includes(city));
-
-      console.log("📍 Requested location:", requestedLocation);
-
-      // -----------------------------------------
-      // NUMBER OF GUESTS
-      // -----------------------------------------
+      const wantsRomantic = /\b(romantic|couple|honeymoon)\b/.test(prompt);
 
       const guestMatch = prompt.match(
-        /(\d+)\s*(people|person|guests|guest|adults)/i,
+        /\b(\d+)\s*(people|persons|person|guests|guest|adults)\b/,
       );
 
       const requestedGuests = guestMatch ? Number(guestMatch[1]) : null;
 
-      console.log("👥 Requested guests:", requestedGuests);
+      const ignoredWords = new Set([
+        "need",
+        "want",
+        "with",
+        "from",
+        "find",
+        "hotel",
+        "hotels",
+        "stay",
+        "looking",
+        "please",
+        "that",
+        "this",
+        "have",
+        "cheap",
+        "budget",
+        "affordable",
+        "luxury",
+        "family",
+        "friendly",
+        "people",
+        "guests",
+        "guest",
+        "near",
+        "best",
+        "some",
+        "good",
+        "for",
+        "the",
+        "and",
+        "in",
+        "ababa",
+        "ababa",
+      ]);
 
-      // -----------------------------------------
-      // SCORE HOTELS
-      // -----------------------------------------
+      const words = prompt
+        .split(/\s+/)
+        .map((word) => word.replace(/[^\w]/g, ""))
+        .filter(
+          (word) =>
+            word.length > 3 &&
+            !ignoredWords.has(word) &&
+            !LOCATIONS.some((city) =>
+              normalize(city).split(" ").includes(word),
+            ),
+        );
 
-      const scoredHotels = hotels.map((hotel) => {
+      let candidates = hotels;
+
+      // If a city was requested, only consider hotels in that city.
+      if (requestedLocation) {
+        candidates = hotels.filter((hotel) => {
+          const location = normalize(getLocation(hotel));
+          const city = normalize(requestedLocation);
+
+          return location.includes(city);
+        });
+
+        if (candidates.length === 0) {
+          setAiSearched(true);
+          setAiError(
+            `We couldn't find hotels listed in ${requestedLocation.replace(
+              /\b\w/g,
+              (letter) => letter.toUpperCase(),
+            )}. Try another destination.`,
+          );
+          return;
+        }
+      }
+
+      const scoredHotels = candidates.map((hotel) => {
         let score = 0;
         const reasons = [];
 
-        // Get hotel information safely
-        const name = String(
-          hotel?.name || hotel?.hotelName || hotel?.title || "Hotel",
-        ).toLowerCase();
-
-        const location = String(
-          hotel?.location || hotel?.city || hotel?.address || "",
-        ).toLowerCase();
-
-        const price = Number(
-          hotel?.price || hotel?.pricePerNight || hotel?.amount || 0,
+        const name = normalize(getHotelName(hotel));
+        const location = normalize(getLocation(hotel));
+        const description = normalize(
+          `${hotel?.description || ""} ${hotel?.about || ""}`,
         );
 
-        const rating = Number(
-          hotel?.rating || hotel?.stars || hotel?.averageRating || 0,
+        const amenities = Array.isArray(hotel?.amenities)
+          ? hotel.amenities.join(" ")
+          : String(hotel?.amenities || hotel?.facilities || "");
+
+        const searchableText = normalize(
+          `${name} ${location} ${description} ${amenities}`,
         );
 
-        const description = String(
-          hotel?.description ||
-            hotel?.about ||
-            hotel?.amenities ||
-            hotel?.facilities ||
-            "",
-        ).toLowerCase();
-
-        const searchableText =
-          `${name} ${location} ${description}`.toLowerCase();
-
-        // -----------------------------------------
-        // LOCATION MATCH
-        // -----------------------------------------
+        const price = getHotelPriceValue(hotel);
+        const rating = getHotelRatingValue(hotel);
 
         if (requestedLocation) {
-          const cleanRequestedLocation = requestedLocation.replace(
-            "arba minch",
-            "arbaminch",
-          );
-
-          const cleanHotelLocation = location.replace(
-            "arba minch",
-            "arbaminch",
-          );
-
-          if (cleanHotelLocation.includes(cleanRequestedLocation)) {
-            score += 100;
-            reasons.push(`Located in ${requestedLocation}`);
-          } else {
-            score -= 30;
-          }
+          score += 100;
+          reasons.push(`Located in ${requestedLocation}`);
         }
 
-        // -----------------------------------------
-        // CHEAP / BUDGET
-        // -----------------------------------------
-
-        if (wantsCheap && price > 0) {
-          if (price <= 100) {
-            score += 50;
-            reasons.push("Budget-friendly price");
-          } else if (price <= 200) {
-            score += 25;
-            reasons.push("Reasonable price");
-          } else {
-            score -= 20;
+        if (wantsCheap) {
+          if (price > 0) {
+            // Lower prices score better without assuming a particular currency.
+            score += Math.max(0, 50 - Math.log10(price + 1) * 10);
+            reasons.push("Budget-focused option");
           }
         }
-
-        // -----------------------------------------
-        // LUXURY
-        // -----------------------------------------
 
         if (wantsLuxury) {
           if (rating >= 4.5) {
-            score += 40;
-            reasons.push("Highly rated luxury stay");
-          }
-
-          if (price >= 150) {
-            score += 30;
-            reasons.push("Premium accommodation");
+            score += 35;
+            reasons.push("Highly rated");
           }
 
           if (
-            searchableText.includes("luxury") ||
-            searchableText.includes("premium") ||
-            searchableText.includes("5 star") ||
-            searchableText.includes("five star")
+            /\b(luxury|premium|five star|5 star|spa|resort)\b/.test(
+              searchableText,
+            )
           ) {
-            score += 40;
-            reasons.push("Luxury facilities");
+            score += 35;
+            reasons.push("Luxury features");
           }
         }
-
-        // -----------------------------------------
-        // RATING
-        // -----------------------------------------
-
-        if (rating >= 4.8) {
-          score += 30;
-          reasons.push("Excellent guest rating");
-        } else if (rating >= 4.5) {
-          score += 20;
-          reasons.push("Very highly rated");
-        } else if (rating >= 4.0) {
-          score += 10;
-        }
-
-        // -----------------------------------------
-        // FAMILY
-        // -----------------------------------------
 
         if (wantsFamily) {
           if (
-            searchableText.includes("family") ||
-            searchableText.includes("children") ||
-            searchableText.includes("kids") ||
-            searchableText.includes("child") ||
-            searchableText.includes("playground") ||
-            searchableText.includes("pool")
+            /\b(family|children|child|kids|playground|pool|connecting rooms)\b/.test(
+              searchableText,
+            )
           ) {
-            score += 50;
-            reasons.push("Family-friendly");
+            score += 45;
+            reasons.push("Family-friendly features");
           }
         }
-
-        // -----------------------------------------
-        // BUSINESS
-        // -----------------------------------------
 
         if (wantsBusiness) {
           if (
-            searchableText.includes("business") ||
-            searchableText.includes("wifi") ||
-            searchableText.includes("wi-fi") ||
-            searchableText.includes("conference") ||
-            searchableText.includes("meeting") ||
-            searchableText.includes("office")
+            /\b(business|wi fi|wifi|conference|meeting|office|desk)\b/.test(
+              searchableText,
+            )
           ) {
             score += 40;
-            reasons.push("Good for business travel");
+            reasons.push("Business travel features");
           }
         }
-
-        // -----------------------------------------
-        // ROMANTIC
-        // -----------------------------------------
 
         if (wantsRomantic) {
           if (
-            searchableText.includes("romantic") ||
-            searchableText.includes("couple") ||
-            searchableText.includes("honeymoon") ||
-            searchableText.includes("luxury") ||
-            searchableText.includes("spa")
+            /\b(romantic|couple|honeymoon|luxury|spa|resort)\b/.test(
+              searchableText,
+            )
           ) {
-            score += 45;
-            reasons.push("Great for couples");
+            score += 40;
+            reasons.push("Suitable for couples");
           }
         }
 
-        // -----------------------------------------
-        // KEYWORD MATCH
-        // -----------------------------------------
-
-        const words = prompt
-          .split(/\s+/)
-          .map((word) => word.replace(/[^\w]/g, ""))
-          .filter((word) => word.length > 3);
-
-        let matches = 0;
+        let keywordMatches = 0;
 
         words.forEach((word) => {
           if (searchableText.includes(word)) {
-            matches++;
-            score += 5;
+            score += 8;
+            keywordMatches += 1;
           }
         });
 
-        if (matches > 0) {
-          reasons.push("Matches your preferences");
+        if (keywordMatches > 0) {
+          reasons.push("Matches your search");
         }
-
-        // -----------------------------------------
-        // GUEST CAPACITY
-        // -----------------------------------------
 
         if (requestedGuests) {
           const capacity = Number(
-            hotel?.maxGuests ||
-              hotel?.guests ||
-              hotel?.capacity ||
-              hotel?.maxOccupancy ||
-              hotel?.numberOfGuests ||
+            hotel?.maxGuests ??
+              hotel?.maxOccupancy ??
+              hotel?.capacity ??
+              hotel?.maxGuestsPerRoom ??
               0,
           );
 
-          if (capacity >= requestedGuests) {
-            score += 25;
-            reasons.push(`Suitable for ${requestedGuests} guests`);
+          if (capacity >= requestedGuests && capacity > 0) {
+            score += 20;
+            reasons.push(`Capacity for ${requestedGuests} guests`);
           }
         }
 
-        // -----------------------------------------
-        // GENERAL QUALITY
-        // -----------------------------------------
-
-        score += rating * 3;
+        if (rating >= 4.8) score += 30;
+        else if (rating >= 4.5) score += 20;
+        else if (rating >= 4) score += 10;
 
         return {
-          ...hotel,
-          recommendationScore: score,
+          hotel,
+          score,
           reason:
-            reasons.length > 0
-              ? reasons.slice(0, 2).join(" • ")
-              : "Good overall match for your search",
+            reasons.slice(0, 2).join(" • ") ||
+            "Suggested from your hotel search",
         };
       });
 
-      // -----------------------------------------
-      // SORT RESULTS
-      // -----------------------------------------
-
-      scoredHotels.sort(
-        (a, b) => b.recommendationScore - a.recommendationScore,
-      );
-
-      // -----------------------------------------
-      // TOP 6
-      // -----------------------------------------
-
+      // Stable sorting: score first, then rating.
       const recommendations = scoredHotels
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return getHotelRatingValue(b.hotel) - getHotelRatingValue(a.hotel);
+        })
         .slice(0, 6)
-        .map(({ recommendationScore, ...hotel }) => hotel);
-
-      console.log("✅ Recommendations:", recommendations);
+        .map(({ hotel, reason }) => ({
+          ...hotel,
+          reason,
+        }));
 
       setAiResults(recommendations);
+      setAiSearched(true);
 
       if (recommendations.length === 0) {
-        setAiError("We couldn't find hotels matching your preferences.");
+        setAiError(
+          "No hotels match those preferences. Try changing your search.",
+        );
       }
     } catch (err) {
-      console.error("❌ Hotel recommendation error:", err);
-
-      setAiError("Something went wrong while finding your perfect hotel.");
+      console.error("Hotel recommendation error:", err);
+      setAiError(
+        "Something went wrong while finding a hotel. Please try again.",
+      );
     } finally {
       setAiLoading(false);
     }
   };
-  // ========================================
-  // DISPLAY HOTELS
-  // ========================================
 
   const displayHotels = showAllHotels ? hotels : hotels.slice(0, 6);
 
   return (
     <div className="hotel-home">
-      {/* ================= NAVBAR ================= */}
-
+      {/* NAVBAR */}
       <header className={`main-navbar ${menuOpen ? "menu-is-open" : ""}`}>
         <div className="nav-container">
-          {/* ================= BRAND ================= */}
-
           <button
             type="button"
             className="brand"
             onClick={() => {
               setMenuOpen(false);
-
-              window.scrollTo({
-                top: 0,
-                behavior: "smooth",
-              });
+              window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             aria-label="Go to homepage"
           >
@@ -622,10 +593,7 @@ function Hotels() {
             </span>
           </button>
 
-          {/* ================= HEADER ACTIONS ================= */}
-
           <div className="header-actions">
-            {/* LOGIN / LOGOUT */}
             <button
               type="button"
               className={`auth-header-button ${
@@ -635,8 +603,6 @@ function Hotels() {
             >
               {isLoggedIn ? "Logout" : "Login"}
             </button>
-
-            {/* WISHLIST */}
 
             <button
               type="button"
@@ -649,13 +615,10 @@ function Hotels() {
               title="Wishlist"
             >
               <span className="header-action-icon">♡</span>
-
               {favorites.length > 0 && (
                 <span className="wishlist-count">{favorites.length}</span>
               )}
             </button>
-
-            {/* PROFILE */}
 
             <button
               type="button"
@@ -670,24 +633,12 @@ function Hotels() {
               <span className="header-action-icon">♙</span>
             </button>
 
-            {/* HAMBURGER */}
-
             <button
               type="button"
               className={`hamburger-button ${menuOpen ? "is-open" : ""}`}
               onClick={() => setMenuOpen((current) => !current)}
               aria-label={menuOpen ? "Close navigation" : "Open navigation"}
               aria-expanded={menuOpen}
-              onMouseEnter={() => setMenuOpen(true)}
-              onMouseLeave={() => {
-                window.setTimeout(() => {
-                  const menu = document.querySelector(".top-menu:hover");
-
-                  if (!menu) {
-                    setMenuOpen(false);
-                  }
-                }, 40);
-              }}
             >
               <span></span>
               <span></span>
@@ -695,8 +646,6 @@ function Hotels() {
             </button>
           </div>
         </div>
-
-        {/* ================= TOP MENU ================= */}
 
         <div
           className={`top-menu ${menuOpen ? "top-menu-open" : ""}`}
@@ -706,117 +655,73 @@ function Hotels() {
         >
           <div className="top-menu-glass">
             <div className="top-menu-inner">
-              {/* MENU HEADING */}
-
               <div className="top-menu-heading">
                 <div className="top-menu-heading-copy">
                   <span>HOTEL BOOKING</span>
-
                   <p>Explore. Stay. Experience.</p>
-
                   <small>Beautiful stays, unforgettable journeys.</small>
                 </div>
               </div>
 
-              {/* MENU LINKS */}
-
               <nav className="top-menu-links">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-
-                    window.scrollTo({
-                      top: 0,
-                      behavior: "smooth",
-                    });
-                  }}
-                >
-                  <span className="top-menu-index">01</span>
-                  <span className="top-menu-title">Home</span>
-                  <span className="top-menu-arrow">↗</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    scrollToHotels();
-                  }}
-                >
-                  <span className="top-menu-index">02</span>
-                  <span className="top-menu-title">Hotels</span>
-                  <span className="top-menu-arrow">↗</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    scrollToDestinations();
-                  }}
-                >
-                  <span className="top-menu-index">03</span>
-                  <span className="top-menu-title">Destinations</span>
-                  <span className="top-menu-arrow">↗</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    scrollToAbout();
-                  }}
-                >
-                  <span className="top-menu-index">04</span>
-                  <span className="top-menu-title">About Us</span>
-                  <span className="top-menu-arrow">↗</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    navigate("/bookings");
-                  }}
-                >
-                  <span className="top-menu-index">05</span>
-                  <span className="top-menu-title">My Bookings</span>
-                  <span className="top-menu-arrow">↗</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    navigate("/wishlist");
-                  }}
-                >
-                  <span className="top-menu-index">06</span>
-
-                  <span className="top-menu-title">
-                    My Wishlist
-                    {favorites.length > 0 && (
-                      <span className="top-menu-count">{favorites.length}</span>
-                    )}
-                  </span>
-
-                  <span className="top-menu-arrow">↗</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    navigate("/profile");
-                  }}
-                >
-                  <span className="top-menu-index">07</span>
-
-                  <span className="top-menu-title">My Profile</span>
-
-                  <span className="top-menu-arrow">↗</span>
-                </button>
+                {[
+                  {
+                    number: "01",
+                    title: "Home",
+                    action: () => {
+                      setMenuOpen(false);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    },
+                  },
+                  { number: "02", title: "Hotels", action: scrollToHotels },
+                  {
+                    number: "03",
+                    title: "Destinations",
+                    action: scrollToDestinations,
+                  },
+                  {
+                    number: "04",
+                    title: "About Us",
+                    action: scrollToAbout,
+                  },
+                  {
+                    number: "05",
+                    title: "My Bookings",
+                    action: () => {
+                      setMenuOpen(false);
+                      navigate("/bookings");
+                    },
+                  },
+                  {
+                    number: "06",
+                    title: "My Wishlist",
+                    action: () => {
+                      setMenuOpen(false);
+                      navigate("/wishlist");
+                    },
+                  },
+                  {
+                    number: "07",
+                    title: "My Profile",
+                    action: () => {
+                      setMenuOpen(false);
+                      navigate("/profile");
+                    },
+                  },
+                ].map((item) => (
+                  <button type="button" key={item.number} onClick={item.action}>
+                    <span className="top-menu-index">{item.number}</span>
+                    <span className="top-menu-title">
+                      {item.title}
+                      {item.title === "My Wishlist" && favorites.length > 0 && (
+                        <span className="top-menu-count">
+                          {favorites.length}
+                        </span>
+                      )}
+                    </span>
+                    <span className="top-menu-arrow">↗</span>
+                  </button>
+                ))}
 
                 {!isLoggedIn && (
                   <button
@@ -827,15 +732,11 @@ function Hotels() {
                     }}
                   >
                     <span className="top-menu-index">08</span>
-
                     <span className="top-menu-title">Sign In</span>
-
                     <span className="top-menu-arrow">↗</span>
                   </button>
                 )}
               </nav>
-
-              {/* MENU BOTTOM */}
 
               <div className="top-menu-bottom">
                 <span>DISCOVER BEAUTIFUL STAYS</span>
@@ -846,11 +747,13 @@ function Hotels() {
         </div>
       </header>
 
-      {/* ================= HERO ================= */}
-
+      {/* HERO */}
       <section className="hero-section">
-        <img className="hero-image" src={FALLBACK_HERO} alt="Luxury hotel" />
-
+        <img
+          className="hero-image"
+          src={FALLBACK_HERO}
+          alt="Hotel destination"
+        />
         <div className="hero-overlay"></div>
 
         <div className="hero-content">
@@ -876,30 +779,22 @@ function Hotels() {
               className="primary-hero-button"
               onClick={scrollToHotels}
             >
-              Explore Hotels
-              <span>→</span>
+              Explore Hotels <span>→</span>
             </button>
 
             <button
               type="button"
               className="secondary-hero-button"
-              onClick={() =>
-                document.getElementById("ai-finder")?.scrollIntoView({
-                  behavior: "smooth",
-                })
-              }
+              onClick={scrollToAI}
             >
               ✨ Find with AI
             </button>
           </div>
         </div>
 
-        {/* ================= BOOKING BAR ================= */}
-
         <div className="booking-bar">
           <div className="booking-field">
             <div className="booking-icon">⌖</div>
-
             <div>
               <span>DESTINATION</span>
               <strong>Ethiopia</strong>
@@ -910,7 +805,6 @@ function Hotels() {
 
           <div className="booking-field">
             <div className="booking-icon">◷</div>
-
             <div>
               <span>CHECK IN</span>
               <strong>Select date</strong>
@@ -921,7 +815,6 @@ function Hotels() {
 
           <div className="booking-field">
             <div className="booking-icon">◷</div>
-
             <div>
               <span>CHECK OUT</span>
               <strong>Select date</strong>
@@ -932,7 +825,6 @@ function Hotels() {
 
           <div className="booking-field">
             <div className="booking-icon">♙</div>
-
             <div>
               <span>GUESTS</span>
               <strong>2 Guests</strong>
@@ -944,67 +836,39 @@ function Hotels() {
             className="booking-search-button"
             onClick={scrollToHotels}
           >
-            Search
-            <span>→</span>
+            Search <span>→</span>
           </button>
         </div>
       </section>
 
-      {/* ================= TRUST BAR ================= */}
-
+      {/* TRUST BAR */}
       <section className="trust-section">
         <div className="trust-container">
-          <div className="trust-item">
-            <span>✦</span>
-
-            <div>
-              <strong>Best Price</strong>
-              <small>Guaranteed</small>
-            </div>
-          </div>
-
-          <div className="trust-item">
-            <span>★</span>
-
-            <div>
-              <strong>Trusted Reviews</strong>
-              <small>From real guests</small>
-            </div>
-          </div>
-
-          <div className="trust-item">
-            <span>✓</span>
-
-            <div>
-              <strong>Easy Booking</strong>
-              <small>Fast & secure</small>
-            </div>
-          </div>
-
-          <div className="trust-item">
-            <span>24</span>
-
-            <div>
-              <strong>24/7 Support</strong>
-              <small>Always here for you</small>
-            </div>
-          </div>
+          <TrustItem icon="✦" title="Best Price" subtitle="Guaranteed" />
+          <TrustItem
+            icon="★"
+            title="Trusted Reviews"
+            subtitle="From real guests"
+          />
+          <TrustItem icon="✓" title="Easy Booking" subtitle="Fast & secure" />
+          <TrustItem
+            icon="24"
+            title="24/7 Support"
+            subtitle="Always here for you"
+          />
         </div>
       </section>
 
-      {/* ================= AI FINDER ================= */}
-
+      {/* AI HOTEL FINDER */}
       <section id="ai-finder" className="ai-section">
         <div className="ai-container">
           <div className="ai-heading">
             <span className="section-eyebrow">SMART TRAVEL SEARCH</span>
-
             <h2>
               Let AI find your
               <br />
               <span>perfect hotel.</span>
             </h2>
-
             <p>
               Tell us what you need in your own words. Our smart hotel finder
               will help you discover the best match.
@@ -1014,102 +878,91 @@ function Hotels() {
           <div className="ai-card">
             <div className="ai-card-top">
               <div className="ai-symbol">✦</div>
-
               <div>
                 <strong>AI Hotel Finder</strong>
                 <span>Personalized recommendations</span>
               </div>
             </div>
 
-            <div className="ai-input-wrapper">
-              <textarea
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="Example: I need a cheap hotel in Addis Ababa for 2 people..."
-                rows="3"
-              />
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleAIRecommend();
+              }}
+            >
+              <div className="ai-input-wrapper">
+                <textarea
+                  value={aiPrompt}
+                  onChange={(event) => {
+                    setAiPrompt(event.target.value);
+                    setAiError("");
+                    setAiResults([]);
+                    setAiSearched(false);
+                  }}
+                  placeholder="Example: I need a cheap hotel in Addis Ababa for 2 people..."
+                  rows={3}
+                  aria-label="Describe your ideal hotel"
+                />
 
-              <button
-                type="button"
-                className="ai-find-button"
-                onClick={handleAIRecommend}
-                disabled={aiLoading}
-              >
-                {aiLoading ? (
-                  <>
-                    <span className="ai-spinner"></span>
-                    Finding...
-                  </>
-                ) : (
-                  <>
-                    Find My Hotel
-                    <span>→</span>
-                  </>
-                )}
-              </button>
-            </div>
+                <button
+                  type="submit"
+                  className="ai-find-button"
+                  disabled={aiLoading || loading}
+                >
+                  {aiLoading ? (
+                    <>
+                      <span className="ai-spinner"></span>
+                      Finding...
+                    </>
+                  ) : (
+                    <>
+                      Find My Hotel <span>→</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
 
             <div className="example-prompts">
               <span>Try:</span>
-
-              <button
-                type="button"
-                onClick={() =>
-                  useExamplePrompt(
-                    "I need a cheap hotel in Addis Ababa for 2 people",
-                  )
-                }
-              >
-                Budget stay in Addis Ababa
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  useExamplePrompt("I want a luxury hotel in Addis Ababa")
-                }
-              >
-                Luxury hotel
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  useExamplePrompt("Find a family friendly hotel in Bahir Dar")
-                }
-              >
-                Family hotel
-              </button>
+              {WELCOME_EXAMPLES.map((example) => (
+                <button
+                  type="button"
+                  key={example.label}
+                  onClick={() => useExamplePrompt(example.prompt)}
+                >
+                  {example.label}
+                </button>
+              ))}
             </div>
 
             {aiError && (
-              <div className="ai-error">
+              <div className="ai-error" role="alert">
                 <span>!</span>
                 {aiError}
               </div>
             )}
 
             {aiLoading && (
-              <div className="ai-loading-box">
+              <div className="ai-loading-box" role="status">
                 <div className="ai-loading-dots">
                   <span></span>
                   <span></span>
                   <span></span>
                 </div>
-
                 <p>Finding hotels that match your preferences...</p>
               </div>
             )}
 
-            {!aiLoading && aiResults.length > 0 && (
+            {!aiLoading && aiSearched && aiResults.length > 0 && (
               <div className="ai-results">
                 <div className="ai-results-header">
                   <div>
-                    <span className="section-eyebrow">AI RECOMMENDATIONS</span>
-
+                    <span className="section-eyebrow">
+                      HOTEL RECOMMENDATIONS
+                    </span>
                     <h3>We found these for you</h3>
                   </div>
-
                   <span className="result-count">
                     {aiResults.length} matches
                   </span>
@@ -1118,7 +971,7 @@ function Hotels() {
                 <div className="ai-result-grid">
                   {aiResults.map((hotel, index) => (
                     <HotelCard
-                      key={hotel?._id || hotel?.id || index}
+                      key={getHotelIdForCard(hotel) || index}
                       hotel={hotel}
                       getImage={getImage}
                       getRating={getRating}
@@ -1130,28 +983,32 @@ function Hotels() {
                       toggleFavorite={toggleFavorite}
                       handleDetails={handleDetails}
                       handleBook={handleBook}
-                      aiReason={hotel?.reason}
+                      aiReason={hotel.reason}
                     />
                   ))}
                 </div>
+              </div>
+            )}
+
+            {!aiLoading && aiSearched && !aiError && aiResults.length === 0 && (
+              <div className="hotel-empty">
+                <h3>No matching hotels found</h3>
+                <p>Try changing your destination or preferences.</p>
               </div>
             )}
           </div>
         </div>
       </section>
 
-      {/* ================= HOTELS ================= */}
-
+      {/* POPULAR HOTELS */}
       <section id="hotels" className="hotels-section">
         <div className="section-container">
           <div className="section-header">
             <div>
               <span className="section-eyebrow">HANDPICKED FOR YOU</span>
-
               <h2>
                 Popular <span>hotels</span>
               </h2>
-
               <p>
                 Beautiful places to stay, selected for comfort, quality and
                 unforgettable experiences.
@@ -1164,8 +1021,7 @@ function Hotels() {
                 className="view-all-button"
                 onClick={handleViewAllHotels}
               >
-                View All Hotels
-                <span>→</span>
+                View All Hotels <span>→</span>
               </button>
             )}
 
@@ -1175,8 +1031,7 @@ function Hotels() {
                 className="view-all-button"
                 onClick={() => {
                   setShowAllHotels(false);
-
-                  setTimeout(() => {
+                  window.setTimeout(() => {
                     document.getElementById("hotels")?.scrollIntoView({
                       behavior: "smooth",
                       block: "start",
@@ -1184,8 +1039,7 @@ function Hotels() {
                   }, 100);
                 }}
               >
-                Show Less
-                <span>↑</span>
+                Show Less <span>↑</span>
               </button>
             )}
           </div>
@@ -1200,19 +1054,15 @@ function Hotels() {
           {!loading && error && (
             <div className="hotel-error">
               <div>!</div>
-
               <h3>Unable to load hotels</h3>
-
               <p>{error}</p>
             </div>
           )}
 
-          {!loading && !error && displayHotels.length === 0 && (
+          {!loading && !error && hotels.length === 0 && (
             <div className="hotel-empty">
               <div>⌂</div>
-
               <h3>No hotels available yet</h3>
-
               <p>Hotels will appear here once they are added to the system.</p>
             </div>
           )}
@@ -1221,7 +1071,7 @@ function Hotels() {
             <div className="hotel-grid">
               {displayHotels.map((hotel, index) => (
                 <HotelCard
-                  key={hotel?._id || hotel?.id || index}
+                  key={getHotelIdForCard(hotel) || index}
                   hotel={hotel}
                   getImage={getImage}
                   getRating={getRating}
@@ -1240,55 +1090,44 @@ function Hotels() {
         </div>
       </section>
 
-      {/* ================= OFFER ================= */}
-
+      {/* SPECIAL OFFER */}
       <section className="offer-section">
         <div className="offer-container">
           <div className="offer-content">
             <span className="offer-label">SPECIAL OFFER</span>
-
             <h2>
               Make your next stay
               <br />
               <span>extra special.</span>
             </h2>
-
             <p>
               Discover selected stays and enjoy an unforgettable experience with
               HotelBooking.
             </p>
-
             <button type="button" onClick={scrollToHotels}>
-              Explore Our Hotels
-              <span>→</span>
+              Explore Our Hotels <span>→</span>
             </button>
           </div>
 
           <div className="offer-decoration">
             <div className="offer-circle"></div>
-
             <div className="offer-card-small">
               <span>✦</span>
-
               <strong>Beautiful stays</strong>
-
               <small>Made for memorable moments</small>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ================= DESTINATIONS ================= */}
-
+      {/* DESTINATIONS */}
       <section id="destinations" className="destinations-section">
         <div className="section-container">
           <div className="section-header centered">
             <span className="section-eyebrow">EXPLORE ETHIOPIA</span>
-
             <h2>
               Find your next <span>destination.</span>
             </h2>
-
             <p>
               From vibrant city life to peaceful lakeside escapes, discover
               somewhere worth remembering.
@@ -1302,14 +1141,12 @@ function Hotels() {
               subtitle="The capital city"
               onClick={scrollToHotels}
             />
-
             <DestinationCard
               image="https://images.unsplash.com/photo-1605640840605-14ac1855827b?auto=format&fit=crop&w=1000&q=85"
               name="Bahir Dar"
               subtitle="Lakeside escape"
               onClick={scrollToHotels}
             />
-
             <DestinationCard
               image="https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=1000&q=85"
               name="Hawassa"
@@ -1320,16 +1157,15 @@ function Hotels() {
         </div>
       </section>
 
-      {/* ================= ABOUT ================= */}
-
+      {/* ABOUT */}
       <section id="about" className="about-section">
         <div className="about-container">
           <div className="about-image-wrapper">
             <img
               src="https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1200&q=85"
-              alt="Luxury hotel interior"
+              alt="Hotel interior"
+              loading="lazy"
             />
-
             <div className="about-stat">
               <strong>4.9</strong>
               <span>Guest rating</span>
@@ -1339,13 +1175,11 @@ function Hotels() {
 
           <div className="about-content">
             <span className="section-eyebrow">WHY HOTELBOOKING</span>
-
             <h2>
               Travel more.
               <br />
               <span>Worry less.</span>
             </h2>
-
             <p>
               We make finding and booking your next stay simple. Whether you're
               traveling for business, relaxing with family, or planning your
@@ -1354,55 +1188,33 @@ function Hotels() {
             </p>
 
             <div className="about-features">
-              <div>
-                <span>✓</span>
-
-                <div>
-                  <strong>Verified stays</strong>
-                  <small>Quality places you can trust.</small>
-                </div>
-              </div>
-
-              <div>
-                <span>✓</span>
-
-                <div>
-                  <strong>Simple booking</strong>
-                  <small>Book your stay in just a few clicks.</small>
-                </div>
-              </div>
-
-              <div>
-                <span>✓</span>
-
-                <div>
-                  <strong>Smart recommendations</strong>
-
-                  <small>Let AI help you find your match.</small>
-                </div>
-              </div>
+              <AboutFeature
+                title="Verified stays"
+                subtitle="Quality places you can trust."
+              />
+              <AboutFeature
+                title="Simple booking"
+                subtitle="Book your stay in just a few clicks."
+              />
+              <AboutFeature
+                title="Smart recommendations"
+                subtitle="Let the hotel finder help you find your match."
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ================= FOOTER ================= */}
-
+      {/* FOOTER */}
       <footer className="hotel-footer">
         <div className="footer-container">
           <div className="footer-brand">
             <button
               type="button"
               className="brand footer-brand-logo"
-              onClick={() =>
-                window.scrollTo({
-                  top: 0,
-                  behavior: "smooth",
-                })
-              }
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             >
               <span className="brand-icon">H</span>
-
               <span>
                 <strong>Hotel</strong>
                 <em>Booking</em>
@@ -1418,15 +1230,12 @@ function Hotels() {
 
           <div className="footer-column">
             <h4>Explore</h4>
-
             <button type="button" onClick={scrollToHotels}>
               Hotels
             </button>
-
             <button type="button" onClick={scrollToDestinations}>
               Destinations
             </button>
-
             <button type="button" onClick={scrollToAbout}>
               About Us
             </button>
@@ -1434,15 +1243,12 @@ function Hotels() {
 
           <div className="footer-column">
             <h4>Account</h4>
-
             <button type="button" onClick={() => navigate("/login")}>
               Sign In
             </button>
-
             <button type="button" onClick={() => navigate("/register")}>
               Register
             </button>
-
             <button type="button" onClick={() => navigate("/bookings")}>
               My Bookings
             </button>
@@ -1450,18 +1256,14 @@ function Hotels() {
 
           <div className="footer-column">
             <h4>Need help?</h4>
-
             <p>We're here for you 24/7.</p>
-
             <span className="footer-contact">✉ support@hotelbooking.com</span>
-
             <span className="footer-contact">☎ +251 900 000 000</span>
           </div>
         </div>
 
         <div className="footer-bottom">
           <span>© 2026 HotelBooking. All rights reserved.</span>
-
           <span>Made for unforgettable stays.</span>
         </div>
       </footer>
@@ -1469,9 +1271,31 @@ function Hotels() {
   );
 }
 
-// =====================================================
-// HOTEL CARD
-// =====================================================
+// HELPER COMPONENTS
+
+function TrustItem({ icon, title, subtitle }) {
+  return (
+    <div className="trust-item">
+      <span>{icon}</span>
+      <div>
+        <strong>{title}</strong>
+        <small>{subtitle}</small>
+      </div>
+    </div>
+  );
+}
+
+function AboutFeature({ title, subtitle }) {
+  return (
+    <div>
+      <span>✓</span>
+      <div>
+        <strong>{title}</strong>
+        <small>{subtitle}</small>
+      </div>
+    </div>
+  );
+}
 
 function HotelCard({
   hotel,
@@ -1487,11 +1311,11 @@ function HotelCard({
   handleBook,
   aiReason,
 }) {
-  const hotelId = hotel?._id || hotel?.id;
+  const hotelId = getHotelIdForCard(hotel);
 
-  const isFavorite = favorites.includes(hotelId);
+  const isFavorite = favorites.some((item) => String(item) === String(hotelId));
 
-  const rating = Number(getRating(hotel));
+  const rating = Math.max(0, Math.min(5, Number(getRating(hotel)) || 0));
 
   return (
     <article className="hotel-card">
@@ -1499,6 +1323,7 @@ function HotelCard({
         <img
           src={getImage(hotel)}
           alt={getHotelName(hotel)}
+          loading="lazy"
           onError={(event) => {
             event.currentTarget.onerror = null;
             event.currentTarget.src = FALLBACK_HOTEL;
@@ -1511,7 +1336,8 @@ function HotelCard({
           type="button"
           className={`favorite-button ${isFavorite ? "active" : ""}`}
           onClick={() => toggleFavorite(hotelId)}
-          aria-label="Favorite hotel"
+          aria-label={isFavorite ? "Remove from wishlist" : "Add to wishlist"}
+          title={isFavorite ? "Remove from wishlist" : "Add to wishlist"}
         >
           {isFavorite ? "♥" : "♡"}
         </button>
@@ -1521,7 +1347,7 @@ function HotelCard({
           {getLocation(hotel)}
         </div>
 
-        {aiReason && <div className="ai-match-badge">✦ AI MATCH</div>}
+        {aiReason && <div className="ai-match-badge">✦ MATCH</div>}
       </div>
 
       <div className="hotel-card-content">
@@ -1540,9 +1366,7 @@ function HotelCard({
                   </span>
                 ))}
               </span>
-
               <strong>{getRating(hotel)}</strong>
-
               <span>({getReviews(hotel)} reviews)</span>
             </div>
           </div>
@@ -1558,7 +1382,6 @@ function HotelCard({
         <div className="hotel-card-bottom">
           <div className="hotel-price">
             <strong>${getPrice(hotel)}</strong>
-
             <span>/ night</span>
           </div>
 
@@ -1570,14 +1393,12 @@ function HotelCard({
             >
               Details
             </button>
-
             <button
               type="button"
               className="book-button"
               onClick={() => handleBook(hotel)}
             >
-              Book Now
-              <span>→</span>
+              Book Now <span>→</span>
             </button>
           </div>
         </div>
@@ -1586,22 +1407,14 @@ function HotelCard({
   );
 }
 
-// =====================================================
-// DESTINATION CARD
-// =====================================================
-
 function DestinationCard({ image, name, subtitle, onClick }) {
   return (
     <button type="button" className="destination-card" onClick={onClick}>
-      <img src={image} alt={name} />
-
+      <img src={image} alt={name} loading="lazy" />
       <div className="destination-overlay"></div>
-
       <div className="destination-content">
         <span>{subtitle}</span>
-
         <h3>{name}</h3>
-
         <div className="destination-arrow">Explore →</div>
       </div>
     </button>
