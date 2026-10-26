@@ -697,3 +697,33 @@
   transform: rotate(180deg);
   background: rgba(255, 255, 255, 0.24);
 }
+
+.stayora-chatbot .stayora-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 0.25s ease,
+    background 0.25s ease;
+}
+
+.stayora-chatbot .stayora-refresh:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: rotate(180deg);
+}
+
+.stayora-chatbot .stayora-refresh:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}

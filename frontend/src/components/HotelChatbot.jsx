@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./HotelChatbot.css";
 
+const WELCOME_MESSAGE =
+  "Hi! I'm your Stayora Assistant. I can help you with hotels, rooms, and bookings.";
+
 const QUICK_QUESTIONS = [
   "How can I find a hotel?",
   "How do I check my booking?",
@@ -63,9 +66,9 @@ export default function HotelChatbot() {
 
   const [messages, setMessages] = useState([
     {
-      id: 1,
+      id: "welcome",
       sender: "bot",
-      text: "Hi! I'm your Stayora Assistant. I can help you with hotels, rooms, and bookings.",
+      text: WELCOME_MESSAGE,
     },
   ]);
 
@@ -79,6 +82,7 @@ export default function HotelChatbot() {
   const dragRef = useRef(null);
   const replyTimerRef = useRef(null);
 
+  // Keep the chatbot inside the visible browser window.
   function clampPosition(x, y, width, height) {
     const margin = 8;
 
@@ -88,6 +92,7 @@ export default function HotelChatbot() {
     };
   }
 
+  // Place the chatbot at the bottom-right on its first render.
   function placeChatbot() {
     const element = chatbotRef.current;
 
@@ -129,17 +134,19 @@ export default function HotelChatbot() {
     };
   }, [isOpen]);
 
+  // Scroll to the latest message automatically.
   useEffect(() => {
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
     }
   }, [messages, isOpen, listening, speaking]);
 
+  // Clean up timers, microphone and voice when unmounting.
   useEffect(() => {
     return () => {
       recognitionRef.current?.abort();
 
-      if (replyTimerRef.current) {
+      if (replyTimerRef.current !== null) {
         window.clearTimeout(replyTimerRef.current);
       }
 
@@ -149,6 +156,7 @@ export default function HotelChatbot() {
     };
   }, []);
 
+  // Stop any current voice playback.
   function stopSpeaking() {
     utteranceRef.current = null;
 
@@ -159,6 +167,7 @@ export default function HotelChatbot() {
     setSpeaking(false);
   }
 
+  // Read a bot message aloud.
   function speak(text) {
     if (!voiceEnabled) {
       setError("Turn on the speaker button to hear replies.");
@@ -211,6 +220,7 @@ export default function HotelChatbot() {
     window.speechSynthesis.speak(utterance);
   }
 
+  // Send a message and display the chatbot's reply.
   function sendMessage(value = input) {
     const text = value.trim();
 
@@ -221,7 +231,7 @@ export default function HotelChatbot() {
     setMessages((previous) => [
       ...previous,
       {
-        id: `${Date.now()}-user`,
+        id: `${Date.now()}-${Math.random()}-user`,
         sender: "user",
         text,
       },
@@ -229,17 +239,20 @@ export default function HotelChatbot() {
 
     setInput("");
 
-    if (replyTimerRef.current) {
+    // Cancel a previous reply that has not appeared yet.
+    if (replyTimerRef.current !== null) {
       window.clearTimeout(replyTimerRef.current);
     }
 
     const reply = getReply(text);
 
     replyTimerRef.current = window.setTimeout(() => {
+      replyTimerRef.current = null;
+
       setMessages((previous) => [
         ...previous,
         {
-          id: `${Date.now()}-bot`,
+          id: `${Date.now()}-${Math.random()}-bot`,
           sender: "bot",
           text: reply,
         },
@@ -249,6 +262,7 @@ export default function HotelChatbot() {
     }, 350);
   }
 
+  // Start or stop voice input.
   function startListening() {
     setError("");
 
@@ -309,6 +323,10 @@ export default function HotelChatbot() {
 
       recognition.onend = () => {
         setListening(false);
+
+        if (recognitionRef.current === recognition) {
+          recognitionRef.current = null;
+        }
       };
 
       recognition.start();
@@ -319,6 +337,7 @@ export default function HotelChatbot() {
     }
   }
 
+  // Allow the user to drag the chatbot by its header.
   function handleDragStart(event) {
     if (event.button !== 0) return;
     if (event.target.closest("button")) return;
@@ -342,7 +361,7 @@ export default function HotelChatbot() {
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
-      // Continue without pointer capture if unavailable.
+      // Continue if pointer capture is unavailable.
     }
 
     setDragging(true);
@@ -378,42 +397,67 @@ export default function HotelChatbot() {
     requestAnimationFrame(placeChatbot);
   }
 
+  // Close the panel and stop any active voice features.
   function closeChat() {
     stopSpeaking();
 
-    recognitionRef.current?.abort();
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
 
     setListening(false);
     setIsOpen(false);
   }
-  function refreshChat() {
+
+  // RESET CHAT: this is the only refreshChat function.
+  function refreshChat(event) {
+    // Prevent the header or other parent handlers from interfering.
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    // Stop voice playback.
     stopSpeaking();
 
-    recognitionRef.current?.abort();
-    setListening(false);
-    setError("");
-    setInput("");
+    // Stop and clear microphone recognition.
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
 
-    if (replyTimerRef.current) {
+    setListening(false);
+
+    // Cancel any reply waiting to appear.
+    if (replyTimerRef.current !== null) {
       window.clearTimeout(replyTimerRef.current);
       replyTimerRef.current = null;
     }
 
+    // Reset the input and clear any error message.
+    setInput("");
+    setError("");
+
+    // Replace the conversation with the welcome message.
     setMessages([
       {
-        id: 1,
+        id: `${Date.now()}-welcome`,
         sender: "bot",
-        text: "Hi! I'm your Stayora Assistant. I can help you with hotels, rooms, and bookings.",
+        text: WELCOME_MESSAGE,
       },
     ]);
+
+    // Keep the chatbot panel open after refreshing.
+    setIsOpen(true);
   }
 
+  // Open the panel when the pointer enters the chatbot.
   function handleMouseEnter() {
     if (!dragRef.current) {
       setIsOpen(true);
     }
   }
 
+  // Close the panel when the pointer leaves the chatbot.
   function handleMouseLeave() {
     if (!dragRef.current) {
       closeChat();
@@ -465,6 +509,7 @@ export default function HotelChatbot() {
               </span>
             </div>
 
+            {/* REFRESH BUTTON */}
             <button
               type="button"
               className="stayora-icon-button stayora-refresh"
@@ -474,11 +519,17 @@ export default function HotelChatbot() {
             >
               ↻
             </button>
+
+            {/* VOICE TOGGLE */}
             <button
               type="button"
               className="stayora-icon-button"
-              onClick={() => {
-                if (voiceEnabled) stopSpeaking();
+              onClick={(event) => {
+                event.stopPropagation();
+
+                if (voiceEnabled) {
+                  stopSpeaking();
+                }
 
                 setVoiceEnabled((value) => !value);
                 setError("");
@@ -493,10 +544,14 @@ export default function HotelChatbot() {
               {voiceEnabled ? "🔊" : "🔇"}
             </button>
 
+            {/* CLOSE BUTTON */}
             <button
               type="button"
               className="stayora-icon-button stayora-close"
-              onClick={closeChat}
+              onClick={(event) => {
+                event.stopPropagation();
+                closeChat();
+              }}
               aria-label="Close assistant"
               title="Close"
             >
@@ -541,6 +596,7 @@ export default function HotelChatbot() {
             ))}
           </div>
 
+          {/* QUICK QUESTIONS */}
           {messages.length === 1 && (
             <div className="stayora-quick-questions">
               {QUICK_QUESTIONS.map((question) => (
@@ -569,6 +625,7 @@ export default function HotelChatbot() {
             <p className="stayora-status">🔊 Assistant is speaking…</p>
           )}
 
+          {/* MESSAGE INPUT */}
           <form
             className="stayora-composer"
             onSubmit={(event) => {
