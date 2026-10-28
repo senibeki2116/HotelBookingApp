@@ -8,15 +8,11 @@ function HotelAdminManagement() {
 
   const [admins, setAdmins] = useState([]);
   const [hotels, setHotels] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
   const [search, setSearch] = useState("");
-
   const [showModal, setShowModal] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState(null);
 
@@ -27,10 +23,80 @@ function HotelAdminManagement() {
     hotelId: "",
   });
 
-  /* =========================================================
-     LOAD DATA
-  ========================================================= */
+  // Get a consistent ID from strings, MongoDB IDs, or populated objects.
+  const getId = (value) => {
+    if (value === null || value === undefined) return "";
 
+    if (typeof value === "object") {
+      return String(
+        value._id ?? value.id ?? value.hotelId ?? value.hotel_id ?? "",
+      );
+    }
+
+    return String(value);
+  };
+
+  // Read the hotel reference from an administrator record.
+  const getAdminHotelId = (admin) => {
+    const possibleValues = [
+      admin.hotelId,
+      admin.hotel_id,
+      admin.assignedHotelId,
+      admin.assigned_hotel_id,
+      admin.hotel,
+      admin.assignedHotel,
+      admin.hotelData,
+    ];
+
+    for (const value of possibleValues) {
+      const id = getId(value);
+      if (id) return id;
+    }
+
+    return "";
+  };
+
+  // Find the complete hotel record for an administrator.
+  const getHotel = (admin) => {
+    const possibleHotelObjects = [
+      admin.hotel,
+      admin.assignedHotel,
+      admin.hotelData,
+    ];
+
+    for (const value of possibleHotelObjects) {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        const id = getId(value);
+
+        const matched = hotels.find((hotel) => getId(hotel) === id && id);
+
+        if (matched) return matched;
+        if (value.name) return value;
+      }
+    }
+
+    const hotelId = getAdminHotelId(admin);
+
+    if (hotelId) {
+      const matched = hotels.find((hotel) => getId(hotel) === hotelId);
+
+      if (matched) return matched;
+    }
+
+    // Some APIs return the hotel name separately.
+    if (admin.hotelName || admin.hotel_name) {
+      return {
+        name: admin.hotelName || admin.hotel_name,
+        location:
+          admin.hotelLocation || admin.hotel_location || admin.location || "",
+        rooms: admin.rooms || 0,
+      };
+    }
+
+    return null;
+  };
+
+  // Load administrators and hotels.
   const loadData = async () => {
     try {
       setLoading(true);
@@ -41,44 +107,40 @@ function HotelAdminManagement() {
         API.get("/hotels"),
       ]);
 
-      const adminData = Array.isArray(adminsResponse.data)
-        ? adminsResponse.data
-        : adminsResponse.data?.hotelAdmins || [];
+      const adminResponseData = adminsResponse.data;
+      const hotelResponseData = hotelsResponse.data;
 
-      const hotelData = Array.isArray(hotelsResponse.data)
-        ? hotelsResponse.data
-        : hotelsResponse.data?.hotels || [];
+      const adminData = Array.isArray(adminResponseData)
+        ? adminResponseData
+        : adminResponseData?.hotelAdmins ||
+          adminResponseData?.admins ||
+          adminResponseData?.users ||
+          adminResponseData?.data ||
+          [];
 
-      const normalizedAdmins = adminData.map((admin) => ({
-        ...admin,
-        _id: admin._id || admin.id,
-        hotel: admin.hotel
-          ? {
-              ...admin.hotel,
-              _id: admin.hotel._id || admin.hotel.id,
-            }
-          : null,
-        hotelId:
-          admin.hotelId ||
-          admin.hotel?._id ||
-          admin.hotel?.id ||
-          admin.assignedHotel?._id ||
-          admin.assignedHotel?.id ||
-          "",
-      }));
+      const hotelData = Array.isArray(hotelResponseData)
+        ? hotelResponseData
+        : hotelResponseData?.hotels || hotelResponseData?.data || [];
 
       const normalizedHotels = hotelData.map((hotel) => ({
         ...hotel,
-        _id: hotel._id || hotel.id,
+        _id: getId(hotel),
       }));
 
-      setAdmins(normalizedAdmins);
+      const normalizedAdmins = adminData.map((admin) => ({
+        ...admin,
+        _id: getId(admin),
+        hotelId: getAdminHotelId(admin),
+      }));
+
       setHotels(normalizedHotels);
+      setAdmins(normalizedAdmins);
     } catch (err) {
       console.error("Hotel admin loading error:", err);
 
       setError(
-        err.response?.data?.message || "Unable to load hotel administrators.",
+        err.response?.data?.message ||
+          "Unable to load hotel administrators and hotels.",
       );
     } finally {
       setLoading(false);
@@ -89,87 +151,65 @@ function HotelAdminManagement() {
     loadData();
   }, []);
 
-  /* =========================================================
-     SEARCH
-  ========================================================= */
-
+  // Search administrators and their assigned hotels.
   const filteredAdmins = useMemo(() => {
     const value = search.trim().toLowerCase();
 
-    if (!value) {
-      return admins;
-    }
+    if (!value) return admins;
 
     return admins.filter((admin) => {
-      const name = String(admin.name || "").toLowerCase();
-      const email = String(admin.email || "").toLowerCase();
+      const hotel = getHotel(admin);
 
-      const hotelName = String(
-        admin.hotel?.name || admin.hotelName || "",
-      ).toLowerCase();
-
-      const hotelLocation = String(admin.hotel?.location || "").toLowerCase();
-
-      return (
-        name.includes(value) ||
-        email.includes(value) ||
-        hotelName.includes(value) ||
-        hotelLocation.includes(value)
+      return [
+        admin.name,
+        admin.email,
+        hotel?.name,
+        hotel?.location,
+        admin.hotelName,
+        admin.hotelLocation,
+      ].some((item) =>
+        String(item || "")
+          .toLowerCase()
+          .includes(value),
       );
     });
-  }, [admins, search]);
-
-  /* =========================================================
-     STATISTICS
-  ========================================================= */
+  }, [admins, hotels, search]);
 
   const totalAdmins = admins.length;
 
-  const assignedAdmins = admins.filter(
-    (admin) => admin.hotel || admin.hotelId || admin.assignedHotel,
+  const assignedAdmins = admins.filter((admin) =>
+    Boolean(getHotel(admin)),
   ).length;
 
   const unassignedAdmins = totalAdmins - assignedAdmins;
 
-  /* =========================================================
-     FORM
-  ========================================================= */
-
+  // Open the create form.
   const openAddModal = () => {
     setEditingAdmin(null);
-
     setFormData({
       name: "",
       email: "",
       password: "",
       hotelId: "",
     });
-
     setError("");
     setSuccess("");
-
     setShowModal(true);
   };
 
+  // Open the edit form with the existing assignment selected.
   const openEditModal = (admin) => {
-    setEditingAdmin(admin);
+    const hotel = getHotel(admin);
 
+    setEditingAdmin(admin);
     setFormData({
       name: admin.name || "",
       email: admin.email || "",
       password: "",
-      hotelId:
-        admin.hotel?._id ||
-        admin.hotel?.id ||
-        admin.hotelId ||
-        admin.assignedHotel?._id ||
-        admin.assignedHotel?.id ||
-        "",
+      hotelId: getId(hotel) || getAdminHotelId(admin),
     });
-
     setError("");
     setSuccess("");
-
     setShowModal(true);
   };
 
@@ -178,6 +218,7 @@ function HotelAdminManagement() {
 
     setShowModal(false);
     setEditingAdmin(null);
+    setError("");
   };
 
   const handleChange = (event) => {
@@ -189,27 +230,27 @@ function HotelAdminManagement() {
     }));
   };
 
-  /* =========================================================
-     CREATE / UPDATE
-  ========================================================= */
-
+  // Create or update an administrator.
   const handleSubmit = async (event) => {
     event.preventDefault();
-
     setError("");
     setSuccess("");
 
-    if (!formData.name.trim()) {
+    const name = formData.name.trim();
+    const email = formData.email.trim();
+    const password = formData.password;
+
+    if (!name) {
       setError("Please enter the administrator name.");
       return;
     }
 
-    if (!formData.email.trim()) {
+    if (!email) {
       setError("Please enter the administrator email.");
       return;
     }
 
-    if (!editingAdmin && !formData.password.trim()) {
+    if (!editingAdmin && !password.trim()) {
       setError("Please enter a password.");
       return;
     }
@@ -219,35 +260,49 @@ function HotelAdminManagement() {
       return;
     }
 
+    const selectedHotel = hotels.find(
+      (hotel) => getId(hotel) === String(formData.hotelId),
+    );
+
+    if (!selectedHotel) {
+      setError("The selected hotel could not be found. Refresh and try again.");
+      return;
+    }
+
+    const adminId = getId(editingAdmin);
+
+    if (editingAdmin && !adminId) {
+      setError("Unable to identify this administrator.");
+      return;
+    }
+
+    const payload = {
+      name,
+      email,
+      hotelId: String(formData.hotelId),
+    };
+
+    if (password.trim()) {
+      payload.password = password;
+    }
+
     try {
       setSaving(true);
 
-      const adminId = editingAdmin?._id || editingAdmin?.id;
-
-      if (editingAdmin && !adminId) {
-        setError("Unable to identify the selected hotel administrator.");
-        return;
-      }
-
       if (editingAdmin) {
-        await API.put(`/users/hotel-admins/${adminId}`, {
-          name: formData.name,
-          email: formData.email,
-          ...(formData.password ? { password: formData.password } : {}),
-          hotelId: formData.hotelId,
-        });
-
-        setSuccess("Hotel administrator updated successfully.");
+        await API.put(`/users/hotel-admins/${adminId}`, payload);
       } else {
         await API.post("/users/create-hotel-admin", {
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          hotelId: formData.hotelId,
+          ...payload,
+          password,
         });
-
-        setSuccess("Hotel administrator created successfully.");
       }
+
+      setSuccess(
+        editingAdmin
+          ? "Administrator updated successfully."
+          : "Administrator created successfully.",
+      );
 
       await loadData();
 
@@ -260,20 +315,25 @@ function HotelAdminManagement() {
       console.error("Save hotel admin error:", err);
 
       setError(
-        err.response?.data?.message || "Unable to save hotel administrator.",
+        err.response?.data?.message ||
+          "Unable to save the administrator or hotel assignment.",
       );
     } finally {
       setSaving(false);
     }
   };
 
-  /* =========================================================
-     DELETE
-  ========================================================= */
-
+  // Delete an administrator.
   const handleDelete = async (admin) => {
+    const adminId = getId(admin);
+
+    if (!adminId) {
+      setError("Unable to identify the administrator to delete.");
+      return;
+    }
+
     const confirmed = window.confirm(
-      `Are you sure you want to delete ${admin.name}?`,
+      `Are you sure you want to delete ${admin.name || "this administrator"}?`,
     );
 
     if (!confirmed) return;
@@ -282,84 +342,41 @@ function HotelAdminManagement() {
       setError("");
       setSuccess("");
 
-      await API.delete(`/users/hotel-admins/${admin._id || admin.id}`);
+      await API.delete(`/users/hotel-admins/${adminId}`);
 
-      setSuccess("Hotel administrator deleted successfully.");
-
+      setSuccess("Administrator deleted successfully.");
       await loadData();
 
-      setTimeout(() => {
-        setSuccess("");
-      }, 2500);
+      setTimeout(() => setSuccess(""), 2500);
     } catch (err) {
       console.error("Delete hotel admin error:", err);
 
       setError(
-        err.response?.data?.message || "Unable to delete hotel administrator.",
+        err.response?.data?.message || "Unable to delete the administrator.",
       );
     }
   };
 
-  /* =========================================================
-     HOTEL NAME
-  ========================================================= */
-
-  const getHotel = (admin) => {
-    if (admin.hotel) {
-      return admin.hotel;
-    }
-
-    if (admin.assignedHotel) {
-      return admin.assignedHotel;
-    }
-
-    const hotelId = admin.hotelId;
-
-    if (!hotelId) {
-      return null;
-    }
-
-    return hotels.find(
-      (hotel) => String(hotel._id || hotel.id) === String(hotelId),
-    );
-  };
-
-  /* =========================================================
-     INITIAL
-  ========================================================= */
-
-  const getInitial = (name) => {
-    return String(name || "A")
+  const getInitial = (name) =>
+    String(name || "A")
       .charAt(0)
       .toUpperCase();
-  };
-
-  /* =========================================================
-     RENDER
-  ========================================================= */
 
   return (
     <div className="hotel-admin-page">
-      {/* =====================================================
-          SIDEBAR
-      ====================================================== */}
-
       <aside className="hotel-admin-sidebar">
         <div className="ha-brand">
           <div className="ha-brand-icon">◆</div>
-
           <div>
             <h2>
               Stay<span>Hub</span>
             </h2>
-
             <small>HOTEL MANAGEMENT</small>
           </div>
         </div>
 
         <div className="ha-sidebar-profile">
           <div className="ha-profile-avatar">A</div>
-
           <div>
             <strong>Super Admin</strong>
             <span>System Administrator</span>
@@ -373,61 +390,53 @@ function HotelAdminManagement() {
             className="ha-nav-item"
             onClick={() => navigate("/admin/dashboard")}
           >
-            <span>⌂</span>
-            Dashboard
+            <span>⌂</span> Dashboard
           </button>
 
           <button
             className="ha-nav-item"
             onClick={() => navigate("/admin/manage-hotels")}
           >
-            <span>▣</span>
-            Hotels
+            <span>▣</span> Hotels
           </button>
 
           <button
             className="ha-nav-item"
             onClick={() => navigate("/admin/bookings")}
           >
-            <span>▤</span>
-            Bookings
+            <span>▤</span> Bookings
           </button>
 
           <button
             className="ha-nav-item"
             onClick={() => navigate("/admin/users")}
           >
-            <span>◉</span>
-            Users
+            <span>◉</span> Users
           </button>
 
           <div className="ha-nav-label">MANAGEMENT</div>
 
           <button className="ha-nav-item active">
-            <span>♙</span>
-            Hotel Admins
+            <span>♙</span> Hotel Admins
           </button>
 
           <button
             className="ha-nav-item"
             onClick={() => navigate("/admin/reports")}
           >
-            <span>◫</span>
-            Reports
+            <span>◫</span> Reports
           </button>
 
           <button
             className="ha-nav-item"
             onClick={() => navigate("/admin/add-hotel")}
           >
-            <span>＋</span>
-            Add Hotel
+            <span>＋</span> Add Hotel
           </button>
         </nav>
 
         <div className="ha-sidebar-bottom">
           <button onClick={() => navigate("/")}>↗ View Website</button>
-
           <button
             className="ha-logout"
             onClick={() => {
@@ -441,44 +450,27 @@ function HotelAdminManagement() {
         </div>
       </aside>
 
-      {/* =====================================================
-          MAIN
-      ====================================================== */}
-
       <main className="hotel-admin-main">
-        {/* TOP BAR */}
-
         <header className="ha-topbar">
           <div>
             <div className="ha-breadcrumb">
-              Administration
-              <span>/</span>
-              Hotel Admins
+              Administration <span>/</span> Hotel Admins
             </div>
-
             <h1>Hotel Administrators</h1>
           </div>
 
           <div className="ha-topbar-right">
             <div className="ha-system-status">
-              <span></span>
-              System active
+              <span></span> System active
             </div>
-
             <div className="ha-top-avatar">A</div>
           </div>
         </header>
 
-        {/* =================================================
-            PAGE HEADER
-        ================================================== */}
-
         <section className="ha-page-header">
           <div>
             <span className="ha-page-label">TEAM MANAGEMENT</span>
-
             <h2>Manage Hotel Administrators</h2>
-
             <p>
               Create, assign and manage administrators responsible for
               individual hotels.
@@ -486,14 +478,9 @@ function HotelAdminManagement() {
           </div>
 
           <button className="ha-add-button" onClick={openAddModal}>
-            <span>＋</span>
-            Add Hotel Admin
+            <span>＋</span> Add Hotel Admin
           </button>
         </section>
-
-        {/* =================================================
-            ALERTS
-        ================================================== */}
 
         {error && (
           <div className="ha-alert error">
@@ -509,116 +496,92 @@ function HotelAdminManagement() {
           </div>
         )}
 
-        {/* =================================================
-            STATS
-        ================================================== */}
-
         <section className="ha-stats">
           <div className="ha-stat-card">
             <div className="ha-stat-icon blue">♙</div>
-
             <div>
               <span>Total Administrators</span>
-
               <strong>{loading ? "—" : totalAdmins}</strong>
-
               <small>Hotel management team</small>
             </div>
           </div>
 
           <div className="ha-stat-card">
             <div className="ha-stat-icon green">✓</div>
-
             <div>
               <span>Assigned</span>
-
               <strong>{loading ? "—" : assignedAdmins}</strong>
-
               <small>Administrators with hotels</small>
             </div>
           </div>
 
           <div className="ha-stat-card">
             <div className="ha-stat-icon orange">!</div>
-
             <div>
               <span>Unassigned</span>
-
               <strong>{loading ? "—" : unassignedAdmins}</strong>
-
               <small>Need hotel assignment</small>
             </div>
           </div>
 
           <div className="ha-stat-card">
             <div className="ha-stat-icon purple">▣</div>
-
             <div>
               <span>Hotels</span>
-
               <strong>{loading ? "—" : hotels.length}</strong>
-
               <small>Available properties</small>
             </div>
           </div>
         </section>
 
-        {/* =================================================
-            TABLE SECTION
-        ================================================== */}
-
         <section className="ha-content-card">
           <div className="ha-content-header">
             <div>
               <span className="ha-content-label">ADMINISTRATOR DIRECTORY</span>
-
               <h3>Hotel Admin Accounts</h3>
             </div>
 
             <div className="ha-header-actions">
               <div className="ha-search">
                 <span>⌕</span>
-
                 <input
                   type="text"
                   placeholder="Search name, email or hotel..."
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
-
                 {search && <button onClick={() => setSearch("")}>×</button>}
               </div>
 
-              <button className="ha-refresh" onClick={loadData} title="Refresh">
+              <button
+                className="ha-refresh"
+                onClick={loadData}
+                title="Refresh"
+                disabled={loading}
+              >
                 ↻
               </button>
             </div>
           </div>
 
-          {/* TABLE */}
-
           {loading ? (
             <div className="ha-loading">
               <div className="ha-spinner"></div>
-
               <p>Loading hotel administrators...</p>
             </div>
           ) : filteredAdmins.length === 0 ? (
             <div className="ha-empty">
               <div className="ha-empty-icon">♙</div>
-
               <h3>
                 {search
                   ? "No administrators found"
                   : "No hotel administrators yet"}
               </h3>
-
               <p>
                 {search
                   ? "Try another search term."
                   : "Create your first hotel administrator to get started."}
               </p>
-
               {!search && (
                 <button onClick={openAddModal}>＋ Add Hotel Admin</button>
               )}
@@ -641,39 +604,37 @@ function HotelAdminManagement() {
                   {filteredAdmins.map((admin, index) => {
                     const hotel = getHotel(admin);
                     const adminKey =
-                      admin._id ||
-                      admin.id ||
-                      `${admin.email || "admin"}-${index}`;
+                      getId(admin) || `${admin.email || "admin"}-${index}`;
 
                     return (
                       <tr key={adminKey}>
-                        {/* ADMIN */}
-
                         <td>
                           <div className="ha-user">
                             <div className="ha-user-avatar">
                               {getInitial(admin.name)}
                             </div>
-
                             <div>
-                              <strong>{admin.name}</strong>
-
-                              <span>{admin.email}</span>
+                              <strong>{admin.name || "Unnamed admin"}</strong>
+                              <span>{admin.email || "No email"}</span>
                             </div>
                           </div>
                         </td>
-
-                        {/* HOTEL */}
 
                         <td>
                           {hotel ? (
                             <div className="ha-hotel">
                               <div className="ha-hotel-icon">▣</div>
-
                               <div>
-                                <strong>{hotel.name}</strong>
-
-                                <span>{hotel.rooms || 0} rooms</span>
+                                <strong>
+                                  {hotel.name || "Assigned hotel"}
+                                </strong>
+                                <span>
+                                  {hotel.rooms ??
+                                    hotel.roomCount ??
+                                    hotel.totalRooms ??
+                                    0}{" "}
+                                  rooms
+                                </span>
                               </div>
                             </div>
                           ) : (
@@ -683,32 +644,26 @@ function HotelAdminManagement() {
                           )}
                         </td>
 
-                        {/* LOCATION */}
-
                         <td>
                           <div className="ha-location">
                             <span>⌖</span>
-
-                            {hotel?.location || "—"}
+                            {hotel?.location ||
+                              hotel?.city ||
+                              hotel?.address ||
+                              "—"}
                           </div>
                         </td>
-
-                        {/* ROLE */}
 
                         <td>
                           <span className="ha-role">Hotel Admin</span>
                         </td>
 
-                        {/* STATUS */}
-
                         <td>
                           <span className="ha-status">
                             <i></i>
-                            Active
+                            {admin.status || "Active"}
                           </span>
                         </td>
-
-                        {/* ACTIONS */}
 
                         <td>
                           <div className="ha-actions">
@@ -719,7 +674,6 @@ function HotelAdminManagement() {
                             >
                               ✎
                             </button>
-
                             <button
                               className="ha-delete"
                               onClick={() => handleDelete(admin)}
@@ -743,35 +697,25 @@ function HotelAdminManagement() {
                 Showing <strong>{filteredAdmins.length}</strong> of{" "}
                 <strong>{admins.length}</strong> administrators
               </span>
-
               <span>Hotel Admin Management</span>
             </div>
           )}
         </section>
-
-        {/* FOOTER */}
 
         <footer className="ha-footer">
           <div>
             <strong>StayHub</strong>
             <span>Hotel Management System</span>
           </div>
-
           <span>© 2026 StayHub · Administration</span>
         </footer>
       </main>
-
-      {/* =====================================================
-          MODAL
-      ====================================================== */}
 
       {showModal && (
         <div
           className="ha-modal-overlay"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeModal();
-            }
+            if (event.target === event.currentTarget) closeModal();
           }}
         >
           <div className="ha-modal">
@@ -780,9 +724,7 @@ function HotelAdminManagement() {
                 <span className="ha-modal-label">
                   {editingAdmin ? "ACCOUNT SETTINGS" : "NEW ACCOUNT"}
                 </span>
-
                 <h2>{editingAdmin ? "Edit Hotel Admin" : "Add Hotel Admin"}</h2>
-
                 <p>
                   {editingAdmin
                     ? "Update administrator information and hotel assignment."
@@ -790,7 +732,11 @@ function HotelAdminManagement() {
                 </p>
               </div>
 
-              <button className="ha-modal-close" onClick={closeModal}>
+              <button
+                className="ha-modal-close"
+                onClick={closeModal}
+                disabled={saving}
+              >
                 ×
               </button>
             </div>
@@ -798,55 +744,45 @@ function HotelAdminManagement() {
             {error && <div className="ha-modal-error">{error}</div>}
 
             <form className="ha-form" onSubmit={handleSubmit}>
-              {/* NAME */}
-
               <div className="ha-form-group">
                 <label>Administrator Name</label>
-
                 <div className="ha-input-wrapper">
                   <span>♙</span>
-
                   <input
                     type="text"
                     name="name"
                     placeholder="Enter full name"
                     value={formData.name}
                     onChange={handleChange}
+                    required
                   />
                 </div>
               </div>
 
-              {/* EMAIL */}
-
               <div className="ha-form-group">
                 <label>Email Address</label>
-
                 <div className="ha-input-wrapper">
                   <span>@</span>
-
                   <input
                     type="email"
                     name="email"
                     placeholder="admin@example.com"
                     value={formData.email}
                     onChange={handleChange}
+                    required
                   />
                 </div>
               </div>
 
-              {/* PASSWORD */}
-
               <div className="ha-form-group">
                 <label>
-                  Password
+                  Password{" "}
                   {editingAdmin && (
                     <small>Leave blank to keep current password</small>
                   )}
                 </label>
-
                 <div className="ha-input-wrapper">
                   <span>●</span>
-
                   <input
                     type="password"
                     name="password"
@@ -855,33 +791,36 @@ function HotelAdminManagement() {
                     }
                     value={formData.password}
                     onChange={handleChange}
+                    required={!editingAdmin}
                   />
                 </div>
               </div>
 
-              {/* HOTEL */}
-
               <div className="ha-form-group">
                 <label>Assign Hotel</label>
-
                 <div className="ha-input-wrapper">
                   <span>▣</span>
-
                   <select
                     name="hotelId"
                     value={formData.hotelId}
                     onChange={handleChange}
+                    required
                   >
                     <option value="">Select a hotel</option>
-
-                    {hotels.map((hotel) => (
-                      <option key={hotel._id} value={hotel._id}>
-                        {hotel.name}
+                    {hotels.map((hotel, index) => (
+                      <option key={getId(hotel) || index} value={getId(hotel)}>
+                        {hotel.name || "Unnamed hotel"}
                         {hotel.location ? ` — ${hotel.location}` : ""}
                       </option>
                     ))}
                   </select>
                 </div>
+
+                {hotels.length === 0 && (
+                  <small>
+                    No hotels were returned by the API. Add a hotel first.
+                  </small>
+                )}
               </div>
 
               <div className="ha-modal-info">
@@ -902,16 +841,20 @@ function HotelAdminManagement() {
                   Cancel
                 </button>
 
-                <button type="submit" className="ha-submit" disabled={saving}>
+                <button
+                  type="submit"
+                  className="ha-submit"
+                  disabled={saving || hotels.length === 0}
+                >
                   {saving ? (
                     <>
                       <span className="button-spinner"></span>
                       Saving...
                     </>
+                  ) : editingAdmin ? (
+                    "Save Changes"
                   ) : (
-                    <>
-                      {editingAdmin ? "Save Changes" : "Create Administrator"}
-                    </>
+                    "Create Administrator"
                   )}
                 </button>
               </div>

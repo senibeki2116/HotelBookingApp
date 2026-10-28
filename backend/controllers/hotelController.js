@@ -224,6 +224,14 @@ const updateHotel = async (req, res) => {
     }
 
     const hotel = await Hotel.findById(req.params.id);
+    console.log("========== UPDATE HOTEL DEBUG ==========");
+    console.log("REQUEST METHOD:", req.method);
+    console.log("REQUEST URL:", req.originalUrl);
+    console.log("HOTEL ID:", req.params.id);
+    console.log("USER ID:", String(userId));
+    console.log("USER ROLE:", req.user?.role);
+    console.log("EXISTING HOTEL:", hotel ? hotel.toObject() : "NOT FOUND");
+    console.log("REQUEST BODY:", req.body);
 
     if (!hotel) {
       return res.status(404).json({
@@ -244,6 +252,7 @@ const updateHotel = async (req, res) => {
     }
 
     const { name, location, description, price, rooms, image } = req.body;
+    const updates = {};
 
     if (name !== undefined) {
       if (!String(name).trim()) {
@@ -251,7 +260,7 @@ const updateHotel = async (req, res) => {
           message: "Hotel name cannot be empty",
         });
       }
-      hotel.name = String(name).trim();
+      updates.name = String(name).trim();
     }
 
     if (location !== undefined) {
@@ -260,7 +269,7 @@ const updateHotel = async (req, res) => {
           message: "Hotel location cannot be empty",
         });
       }
-      hotel.location = String(location).trim();
+      updates.location = String(location).trim();
     }
 
     if (description !== undefined) {
@@ -269,7 +278,7 @@ const updateHotel = async (req, res) => {
           message: "Hotel description cannot be empty",
         });
       }
-      hotel.description = String(description).trim();
+      updates.description = String(description).trim();
     }
 
     if (price !== undefined) {
@@ -282,7 +291,7 @@ const updateHotel = async (req, res) => {
           message: "Valid hotel price is required",
         });
       }
-      hotel.price = Number(price);
+      updates.price = Number(price);
     }
 
     if (rooms !== undefined) {
@@ -295,25 +304,35 @@ const updateHotel = async (req, res) => {
           message: "Valid number of rooms is required",
         });
       }
-      hotel.rooms = Number(rooms);
+      updates.rooms = Number(rooms);
     }
 
     if (image !== undefined) {
-      hotel.image = String(image).trim();
+      updates.image = String(image).trim();
     }
 
-    await hotel.save();
+    const updatedHotel =
+      Object.keys(updates).length > 0
+        ? await Hotel.findByIdAndUpdate(
+            hotel._id,
+            { $set: updates },
+            { new: true, runValidators: true },
+          )
+        : hotel;
 
-    const updatedHotel = await Hotel.findById(hotel._id)
+    const populatedHotel = await Hotel.findById(updatedHotel._id)
       .populate("createdBy", "name email")
       .populate("hotelAdmin", "name email");
 
     return res.status(200).json({
       message: "Hotel updated successfully",
-      hotel: updatedHotel,
+      hotel: populatedHotel,
     });
   } catch (error) {
-    console.error("UPDATE HOTEL ERROR:", error);
+    console.error("========== UPDATE HOTEL ERROR ==========");
+    console.error("ERROR MESSAGE:", error.message);
+    console.error("ERROR STACK:", error.stack);
+    console.error("ERROR NAME:", error.name);
 
     return res.status(500).json({
       message: "Failed to update hotel",

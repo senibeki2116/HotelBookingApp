@@ -18,11 +18,11 @@ const EditHotel = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  // =========================
-  // GET HOTEL
-  // =========================
   useEffect(() => {
+    let cancelled = false;
+
     const fetchHotel = async () => {
       try {
         setLoading(true);
@@ -30,73 +30,132 @@ const EditHotel = () => {
 
         const response = await API.get(`/hotels/${id}`);
 
-        const hotel = response.data;
+        // Support either { hotel: {...} } or a direct hotel object.
+        const hotel = response.data?.hotel || response.data;
 
-        console.log("Hotel loaded:", hotel);
+        if (!hotel?._id && !hotel?.id) {
+          throw new Error("The server did not return a valid hotel.");
+        }
 
-        setFormData({
-          name: hotel.name || "",
-          location: hotel.location || "",
-          price: hotel.price || "",
-          image: hotel.image || "",
-          description: hotel.description || "",
-        });
-      } catch (error) {
-        console.error("Error loading hotel:", error);
+        if (!cancelled) {
+          setFormData({
+            name: hotel.name ?? "",
+            location: hotel.location ?? "",
+            price: hotel.price ?? "",
+            image: hotel.image ?? "",
+            description: hotel.description ?? "",
+          });
+        }
+      } catch (err) {
+        console.error("Error loading hotel:", err);
 
-        setError(error.response?.data?.message || "Failed to load hotel.");
+        if (!cancelled) {
+          setError(
+            err.response?.data?.message ||
+              err.message ||
+              "Failed to load hotel details.",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
     if (id) {
       fetchHotel();
+    } else {
+      setError("Hotel ID is missing.");
+      setLoading(false);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
-  // =========================
-  // HANDLE INPUT
-  // =========================
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+
+    setError("");
+    setSuccess("");
   };
 
-  // =========================
-  // UPDATE HOTEL
-  // =========================
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (saving) return;
+
+    setSaving(true);
+    setError("");
+    setSuccess("");
 
     try {
       const token = localStorage.getItem("token");
 
-      console.log("Updating hotel:", id);
-      console.log("Token exists:", !!token);
-
-      const response = await API.put(`/admin/hotels/${id}`, formData);
-
-      console.log("Hotel updated:", response.data);
-
-      alert("Hotel updated successfully!");
-
-      navigate("/admin/hotels");
-    } catch (error) {
-      console.error("Error updating hotel:", error);
-
-      if (error.response) {
-        console.log("Status:", error.response.status);
-        console.log("Server message:", error.response.data);
+      if (!token) {
+        throw new Error("Your session has expired. Please log in again.");
       }
+
+      if (!String(formData.name).trim()) {
+        throw new Error("Hotel name is required.");
+      }
+
+      if (!String(formData.location).trim()) {
+        throw new Error("Hotel location is required.");
+      }
+
+      if (
+        formData.price === "" ||
+        !Number.isFinite(Number(formData.price)) ||
+        Number(formData.price) < 0
+      ) {
+        throw new Error("Enter a valid price per night.");
+      }
+
+      // Send only the fields accepted by the hotel controller.
+      const payload = {
+        name: formData.name.trim(),
+        location: formData.location.trim(),
+        price: Number(formData.price),
+        image: formData.image.trim(),
+        description: formData.description.trim(),
+      };
+
+      console.log("Saving hotel:", id, payload);
+
+      // This is the existing admin route in adminRoutes.js.
+      const response = await API.put(`/admin/hotels/${id}`, payload);
+
+      console.log("Hotel save response:", response.data);
+
+      setSuccess("Hotel changes saved successfully.");
+
+      // Navigate only after the server confirms success.
+      window.setTimeout(() => {
+        navigate("/admin/manage-hotels");
+      }, 800);
+    } catch (err) {
+      console.error("Error saving hotel:", err);
+
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Unable to save hotel changes.";
+
+      setError(message);
+    } finally {
+      setSaving(false);
     }
   };
 
-  // =========================
-  // LOADING
-  // =========================
   if (loading) {
     return (
       <div className="edit-hotel-page">
@@ -105,23 +164,18 @@ const EditHotel = () => {
     );
   }
 
-  // =========================
-  // PAGE
-  // =========================
   return (
     <div className="edit-hotel-page">
       <div className="edit-hotel-container">
-        {/* HEADER */}
         <div className="edit-header">
           <div>
             <span>ADMIN PANEL</span>
-
             <h1>Edit Hotel</h1>
-
-            <p>Update the information of your hotel.</p>
+            <p>Update your hotel's information.</p>
           </div>
 
           <button
+            type="button"
             className="back-btn"
             onClick={() => navigate("/admin/manage-hotels")}
           >
@@ -129,16 +183,23 @@ const EditHotel = () => {
           </button>
         </div>
 
-        {/* ERROR */}
-        {error && <div className="edit-error">{error}</div>}
+        {error && (
+          <div className="edit-error" role="alert">
+            {error}
+          </div>
+        )}
 
-        {/* FORM */}
+        {success && (
+          <div className="edit-success" role="status">
+            {success}
+          </div>
+        )}
+
         <form className="edit-hotel-form" onSubmit={handleSubmit}>
-          {/* HOTEL NAME */}
           <div className="form-group">
-            <label>Hotel Name</label>
-
+            <label htmlFor="hotel-name">Hotel Name</label>
             <input
+              id="hotel-name"
               type="text"
               name="name"
               value={formData.name}
@@ -148,11 +209,10 @@ const EditHotel = () => {
             />
           </div>
 
-          {/* LOCATION */}
           <div className="form-group">
-            <label>Location</label>
-
+            <label htmlFor="hotel-location">Location</label>
             <input
+              id="hotel-location"
               type="text"
               name="location"
               value={formData.location}
@@ -162,26 +222,26 @@ const EditHotel = () => {
             />
           </div>
 
-          {/* PRICE */}
           <div className="form-group">
-            <label>Price Per Night</label>
-
+            <label htmlFor="hotel-price">Price Per Night</label>
             <input
+              id="hotel-price"
               type="number"
               name="price"
               value={formData.price}
               onChange={handleChange}
               placeholder="Enter price"
+              min="0"
+              step="any"
               required
             />
           </div>
 
-          {/* IMAGE */}
           <div className="form-group">
-            <label>Hotel Image URL</label>
-
+            <label htmlFor="hotel-image">Hotel Image URL</label>
             <input
-              type="text"
+              id="hotel-image"
+              type="url"
               name="image"
               value={formData.image}
               onChange={handleChange}
@@ -189,39 +249,40 @@ const EditHotel = () => {
             />
           </div>
 
-          {/* DESCRIPTION */}
           <div className="form-group">
-            <label>Description</label>
-
+            <label htmlFor="hotel-description">Description</label>
             <textarea
+              id="hotel-description"
               name="description"
               value={formData.description}
               onChange={handleChange}
               placeholder="Enter hotel description"
-              rows="5"
+              rows={5}
+              required
             />
           </div>
 
-          {/* IMAGE PREVIEW */}
-          {formData.image && (
+          {formData.image.trim() && (
             <div className="image-preview">
               <p>Image Preview</p>
-
               <img
-                src={formData.image}
+                src={formData.image.trim()}
                 alt="Hotel preview"
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
+                }}
+                onLoad={(e) => {
+                  e.currentTarget.style.display = "block";
                 }}
               />
             </div>
           )}
 
-          {/* BUTTONS */}
           <div className="form-actions">
             <button
               type="button"
               className="cancel-btn"
+              disabled={saving}
               onClick={() => navigate("/admin/manage-hotels")}
             >
               Cancel

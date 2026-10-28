@@ -1,6 +1,9 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
+
 const User = require("../models/user");
+const Hotel = require("../models/Hotel");
 
 // =====================================================
 // CREATE JWT TOKEN
@@ -23,9 +26,7 @@ const generateToken = (user) => {
 
 // =====================================================
 // CHECK PASSWORD
-// Supports:
-// 1. Existing plain-text passwords
-// 2. New bcrypt hashed passwords
+// Supports bcrypt hashes and legacy plain-text passwords
 // =====================================================
 
 const checkPassword = async (enteredPassword, storedPassword) => {
@@ -42,7 +43,6 @@ const checkPassword = async (enteredPassword, storedPassword) => {
     return bcrypt.compare(enteredPassword, storedPassword);
   }
 
-  // Backward compatibility for old plain-text passwords
   return enteredPassword === storedPassword;
 };
 
@@ -131,12 +131,6 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    console.log("=================================");
-    console.log("LOGIN REQUEST");
-    console.log("=================================");
-    console.log("Email:", email);
-    console.log("Password provided:", !!password);
-
     if (!email || !password) {
       return res.status(400).json({
         message: "Email and password are required",
@@ -149,26 +143,13 @@ exports.login = async (req, res) => {
       email: cleanEmail,
     });
 
-    console.log("USER FOUND:", !!user);
-
-    if (user) {
-      console.log("USER ID:", user._id);
-      console.log("USER EMAIL:", user.email);
-      console.log("USER ROLE:", user.role);
-      console.log("USER ACTIVE:", user.isActive);
-    }
-
     if (!user) {
-      console.log("LOGIN FAILED: USER NOT FOUND");
-
       return res.status(401).json({
         message: "Invalid email or password",
       });
     }
 
     if (user.isActive === false) {
-      console.log("LOGIN FAILED: ACCOUNT DEACTIVATED");
-
       return res.status(401).json({
         message: "Your account has been deactivated",
       });
@@ -179,20 +160,13 @@ exports.login = async (req, res) => {
       user.password,
     );
 
-    console.log("PASSWORD CORRECT:", passwordCorrect);
-
     if (!passwordCorrect) {
-      console.log("LOGIN FAILED: WRONG PASSWORD");
-
       return res.status(401).json({
         message: "Invalid email or password",
       });
     }
 
-    // =================================================
-    // MIGRATE OLD PLAIN-TEXT PASSWORD
-    // =================================================
-
+    // Migrate legacy plain-text passwords to bcrypt.
     const isAlreadyHashed =
       user.password &&
       (user.password.startsWith("$2a$") ||
@@ -200,22 +174,11 @@ exports.login = async (req, res) => {
         user.password.startsWith("$2y$"));
 
     if (!isAlreadyHashed) {
-      console.log("OLD PASSWORD FORMAT DETECTED");
-      console.log("HASHING PASSWORD...");
-
       user.password = await bcrypt.hash(String(password), 10);
-
       await user.save();
-
-      console.log("PASSWORD SUCCESSFULLY MIGRATED TO BCRYPT");
     }
 
     const token = generateToken(user);
-
-    console.log("TOKEN GENERATED:", !!token);
-    console.log("LOGIN SUCCESS");
-    console.log("USER ROLE:", user.role);
-    console.log("=================================");
 
     return res.status(200).json({
       message: "Login successful",
@@ -229,10 +192,7 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("=================================");
-    console.error("LOGIN ERROR");
-    console.error("=================================");
-    console.error(error);
+    console.error("LOGIN ERROR:", error);
 
     return res.status(500).json({
       message: error.message || "Login failed",
@@ -242,17 +202,14 @@ exports.login = async (req, res) => {
 
 // =====================================================
 // CREATE HOTEL ADMIN
-// ADMIN ONLY
+// Optionally assigns a hotel using hotelId
 // =====================================================
 
 exports.createHotelAdmin = async (req, res) => {
-  try {
-    console.log("=================================");
-    console.log("CREATE HOTEL ADMIN");
-    console.log("REQUEST USER:", req.user);
-    console.log("=================================");
+  let createdAdminId = null;
 
-    const { name, email, password } = req.body;
+  try {
+    const { name, email, password, hotelId } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -263,15 +220,9 @@ exports.createHotelAdmin = async (req, res) => {
     const cleanName = String(name).trim();
     const cleanEmail = String(email).toLowerCase().trim();
 
-    if (!cleanName) {
+    if (!cleanName || !cleanEmail) {
       return res.status(400).json({
-        message: "Name is required",
-      });
-    }
-
-    if (!cleanEmail) {
-      return res.status(400).json({
-        message: "Email is required",
+        message: "Name and email are required",
       });
     }
 
@@ -291,6 +242,30 @@ exports.createHotelAdmin = async (req, res) => {
       });
     }
 
+    let selectedHotel = null;
+
+    if (hotelId !== undefined && hotelId !== null && hotelId !== "") {
+      if (!mongoose.Types.ObjectId.isValid(hotelId)) {
+        return res.status(400).json({
+          message: "Invalid hotel ID",
+        });
+      }
+
+      selectedHotel = await Hotel.findById(hotelId);
+
+      if (!selectedHotel) {
+        return res.status(404).json({
+          message: "Selected hotel not found",
+        });
+      }
+
+      if (selectedHotel.hotelAdmin) {
+        return res.status(409).json({
+          message: "This hotel already has an assigned hotel admin",
+        });
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(String(password), 10);
 
     const hotelAdmin = await User.create({
@@ -301,11 +276,20 @@ exports.createHotelAdmin = async (req, res) => {
       isActive: true,
     });
 
-    console.log("HOTEL ADMIN CREATED:");
-    console.log("ID:", hotelAdmin._id);
-    console.log("NAME:", hotelAdmin.name);
-    console.log("EMAIL:", hotelAdmin.email);
-    console.log("ROLE:", hotelAdmin.role);
+    createdAdminId = hotelAdmin._id;
+
+    if (selectedHotel) {
+      selectedHotel.hotelAdmin = hotelAdmin._id;
+      await selectedHotel.save();
+    }
+
+    const assignedHotel = selectedHotel
+      ? {
+          _id: selectedHotel._id,
+          name: selectedHotel.name,
+          location: selectedHotel.location,
+        }
+      : null;
 
     return res.status(201).json({
       message: "Hotel admin created successfully",
@@ -316,9 +300,24 @@ exports.createHotelAdmin = async (req, res) => {
         email: hotelAdmin.email,
         role: hotelAdmin.role,
         isActive: hotelAdmin.isActive,
+        assignedHotel,
+        hotelId: selectedHotel?._id || null,
       },
     });
   } catch (error) {
+    // Avoid leaving a newly created account behind if assignment fails.
+    if (createdAdminId) {
+      try {
+        await Hotel.updateMany(
+          { hotelAdmin: createdAdminId },
+          { $set: { hotelAdmin: null } },
+        );
+        await User.deleteOne({ _id: createdAdminId });
+      } catch (cleanupError) {
+        console.error("CREATE ADMIN CLEANUP ERROR:", cleanupError);
+      }
+    }
+
     console.error("CREATE HOTEL ADMIN ERROR:", error);
 
     return res.status(500).json({
@@ -329,17 +328,11 @@ exports.createHotelAdmin = async (req, res) => {
 
 // =====================================================
 // GET ALL HOTEL ADMINS
-// ADMIN ONLY
+// Includes each admin's assigned hotel
 // =====================================================
 
 exports.getHotelAdmins = async (req, res) => {
   try {
-    console.log("=================================");
-    console.log("GET ALL HOTEL ADMINS");
-    console.log("REQUEST USER:", req.user);
-    console.log("REQUEST USER ROLE:", req.user?.role);
-    console.log("=================================");
-
     const hotelAdmins = await User.find({
       role: "hoteladmin",
     })
@@ -347,22 +340,37 @@ exports.getHotelAdmins = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    console.log("TOTAL HOTEL ADMINS:", hotelAdmins.length);
+    const adminIds = hotelAdmins.map((admin) => admin._id);
 
-    if (hotelAdmins.length > 0) {
-      console.log(
-        "HOTEL ADMINS:",
-        hotelAdmins.map((admin) => ({
-          id: admin._id,
-          name: admin.name,
-          email: admin.email,
-          role: admin.role,
-          isActive: admin.isActive,
-        })),
-      );
+    const hotels = await Hotel.find({
+      hotelAdmin: { $in: adminIds },
+    })
+      .select("name location hotelAdmin")
+      .lean();
+
+    const hotelByAdminId = new Map();
+
+    for (const hotel of hotels) {
+      if (hotel.hotelAdmin) {
+        hotelByAdminId.set(String(hotel.hotelAdmin), {
+          _id: hotel._id,
+          name: hotel.name,
+          location: hotel.location,
+        });
+      }
     }
 
-    return res.status(200).json(hotelAdmins);
+    const result = hotelAdmins.map((admin) => {
+      const assignedHotel = hotelByAdminId.get(String(admin._id)) || null;
+
+      return {
+        ...admin,
+        assignedHotel,
+        hotelId: assignedHotel?._id || null,
+      };
+    });
+
+    return res.status(200).json(result);
   } catch (error) {
     console.error("GET HOTEL ADMINS ERROR:", error);
 
@@ -374,18 +382,12 @@ exports.getHotelAdmins = async (req, res) => {
 
 // =====================================================
 // UPDATE HOTEL ADMIN
-// ADMIN ONLY
+// Can assign, change, or remove a hotel assignment
 // =====================================================
 
 exports.updateHotelAdmin = async (req, res) => {
   try {
-    console.log("=================================");
-    console.log("UPDATE HOTEL ADMIN");
-    console.log("ADMIN ID:", req.params.id);
-    console.log("REQUEST USER:", req.user);
-    console.log("=================================");
-
-    const { name, email, password, isActive } = req.body;
+    const { name, email, password, isActive, hotelId } = req.body;
 
     const hotelAdmin = await User.findOne({
       _id: req.params.id,
@@ -398,10 +400,39 @@ exports.updateHotelAdmin = async (req, res) => {
       });
     }
 
-    // =================================================
-    // UPDATE NAME
-    // =================================================
+    // Validate the requested assignment before changing anything.
+    let selectedHotel = null;
+    const assignmentIncluded = Object.prototype.hasOwnProperty.call(
+      req.body,
+      "hotelId",
+    );
 
+    if (assignmentIncluded && hotelId !== null && hotelId !== "") {
+      if (!mongoose.Types.ObjectId.isValid(hotelId)) {
+        return res.status(400).json({
+          message: "Invalid hotel ID",
+        });
+      }
+
+      selectedHotel = await Hotel.findById(hotelId);
+
+      if (!selectedHotel) {
+        return res.status(404).json({
+          message: "Selected hotel not found",
+        });
+      }
+
+      if (
+        selectedHotel.hotelAdmin &&
+        String(selectedHotel.hotelAdmin) !== String(hotelAdmin._id)
+      ) {
+        return res.status(409).json({
+          message: "This hotel is already assigned to another admin",
+        });
+      }
+    }
+
+    // Update name.
     if (name !== undefined) {
       const cleanName = String(name).trim();
 
@@ -414,10 +445,7 @@ exports.updateHotelAdmin = async (req, res) => {
       hotelAdmin.name = cleanName;
     }
 
-    // =================================================
-    // UPDATE EMAIL
-    // =================================================
-
+    // Update email.
     if (email !== undefined) {
       const cleanEmail = String(email).toLowerCase().trim();
 
@@ -441,10 +469,7 @@ exports.updateHotelAdmin = async (req, res) => {
       hotelAdmin.email = cleanEmail;
     }
 
-    // =================================================
-    // UPDATE PASSWORD
-    // =================================================
-
+    // Update password.
     if (password !== undefined && password !== "") {
       if (String(password).length < 6) {
         return res.status(400).json({
@@ -455,22 +480,37 @@ exports.updateHotelAdmin = async (req, res) => {
       hotelAdmin.password = await bcrypt.hash(String(password), 10);
     }
 
-    // =================================================
-    // UPDATE ACTIVE STATUS
-    // =================================================
-
+    // Update active status.
     if (isActive !== undefined) {
-      hotelAdmin.isActive = Boolean(isActive);
+      hotelAdmin.isActive = isActive === true || isActive === "true";
     }
 
     await hotelAdmin.save();
 
-    console.log("HOTEL ADMIN UPDATED:");
-    console.log("ID:", hotelAdmin._id);
-    console.log("NAME:", hotelAdmin.name);
-    console.log("EMAIL:", hotelAdmin.email);
-    console.log("ROLE:", hotelAdmin.role);
-    console.log("ACTIVE:", hotelAdmin.isActive);
+    // Change the assignment only if hotelId was included.
+    if (assignmentIncluded) {
+      await Hotel.updateMany(
+        { hotelAdmin: hotelAdmin._id },
+        { $set: { hotelAdmin: null } },
+      );
+
+      if (selectedHotel) {
+        selectedHotel.hotelAdmin = hotelAdmin._id;
+        await selectedHotel.save();
+      }
+    } else {
+      selectedHotel = await Hotel.findOne({
+        hotelAdmin: hotelAdmin._id,
+      }).select("name location");
+    }
+
+    const assignedHotel = selectedHotel
+      ? {
+          _id: selectedHotel._id,
+          name: selectedHotel.name,
+          location: selectedHotel.location,
+        }
+      : null;
 
     return res.status(200).json({
       message: "Hotel admin updated successfully",
@@ -481,6 +521,8 @@ exports.updateHotelAdmin = async (req, res) => {
         email: hotelAdmin.email,
         role: hotelAdmin.role,
         isActive: hotelAdmin.isActive,
+        assignedHotel,
+        hotelId: selectedHotel?._id || null,
       },
     });
   } catch (error) {
@@ -494,17 +536,11 @@ exports.updateHotelAdmin = async (req, res) => {
 
 // =====================================================
 // DELETE HOTEL ADMIN
-// ADMIN ONLY
+// Clears hotel assignments before deleting the account
 // =====================================================
 
 exports.deleteHotelAdmin = async (req, res) => {
   try {
-    console.log("=================================");
-    console.log("DELETE HOTEL ADMIN");
-    console.log("ADMIN ID:", req.params.id);
-    console.log("REQUEST USER:", req.user);
-    console.log("=================================");
-
     const hotelAdmin = await User.findOne({
       _id: req.params.id,
       role: "hoteladmin",
@@ -516,9 +552,12 @@ exports.deleteHotelAdmin = async (req, res) => {
       });
     }
 
-    await hotelAdmin.deleteOne();
+    await Hotel.updateMany(
+      { hotelAdmin: hotelAdmin._id },
+      { $set: { hotelAdmin: null } },
+    );
 
-    console.log("HOTEL ADMIN DELETED:", req.params.id);
+    await hotelAdmin.deleteOne();
 
     return res.status(200).json({
       message: "Hotel admin deleted successfully",
