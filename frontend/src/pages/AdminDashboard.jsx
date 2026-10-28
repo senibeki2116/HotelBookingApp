@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "./AdminDashboard.css";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
@@ -20,139 +20,117 @@ function AdminDashboard() {
      LOAD DASHBOARD DATA
   ========================================== */
 
-  useEffect(() => {
-    const loadDashboard = async () => {
-      setLoading(true);
-      setError("");
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    setError("");
 
-      const errors = [];
+    const errors = [];
 
-      // ========================================
-      // LOAD HOTELS
-      // ========================================
+    // LOAD HOTELS
+    try {
+      const response = await API.get("/hotels");
 
-      try {
-        const response = await API.get("/hotels");
+      console.log("HOTELS:", response.status, response.data);
 
-        console.log("HOTELS:", response.status, response.data);
+      const hotelData = Array.isArray(response.data)
+        ? response.data
+        : response.data?.hotels || [];
 
-        const hotelData = Array.isArray(response.data)
-          ? response.data
-          : response.data?.hotels || [];
+      setHotels(hotelData);
+    } catch (err) {
+      console.error("HOTELS ERROR:", err.response?.status, err.response?.data);
 
-        setHotels(hotelData);
-      } catch (err) {
-        console.error(
-          "HOTELS ERROR:",
-          err.response?.status,
-          err.response?.data,
+      errors.push({
+        name: "Hotels",
+        status: err.response?.status,
+      });
+    }
+
+    // LOAD BOOKINGS
+    try {
+      const response = await API.get("/bookings");
+
+      console.log("BOOKINGS:", response.status, response.data);
+
+      const bookingData = Array.isArray(response.data)
+        ? response.data
+        : response.data?.bookings || [];
+
+      setBookings(bookingData);
+    } catch (err) {
+      console.error(
+        "BOOKINGS ERROR:",
+        err.response?.status,
+        err.response?.data,
+      );
+
+      errors.push({
+        name: "Bookings",
+        status: err.response?.status,
+      });
+    }
+
+    // LOAD HOTEL ADMINS
+    try {
+      const response = await API.get("/users/hotel-admins");
+
+      console.log("HOTEL ADMINS:", response.status, response.data);
+
+      const adminData = Array.isArray(response.data)
+        ? response.data
+        : response.data?.hotelAdmins || response.data?.admins || [];
+
+      setHotelAdmins(adminData);
+    } catch (err) {
+      console.error(
+        "HOTEL ADMINS ERROR:",
+        err.response?.status,
+        err.response?.data,
+      );
+
+      errors.push({
+        name: "Hotel Admins",
+        status: err.response?.status,
+      });
+    }
+
+    // DISPLAY ERRORS WITHOUT RELOADING THE PAGE
+    if (errors.length > 0) {
+      console.error("DASHBOARD API ERRORS:", errors);
+
+      if (errors.some((item) => item.status === 401)) {
+        setError(
+          "Your session could not be authenticated. Please check your login session.",
         );
-
-        errors.push({
-          name: "Hotels",
-          status: err.response?.status,
-          message: err.response?.data?.message,
-        });
-      }
-
-      // ========================================
-      // LOAD BOOKINGS
-      // ========================================
-
-      try {
-        const response = await API.get("/bookings");
-
-        console.log("BOOKINGS:", response.status, response.data);
-
-        const bookingData = Array.isArray(response.data)
-          ? response.data
-          : response.data?.bookings || [];
-
-        setBookings(bookingData);
-      } catch (err) {
-        console.error(
-          "BOOKINGS ERROR:",
-          err.response?.status,
-          err.response?.data,
+      } else if (errors.some((item) => item.status === 403)) {
+        setError(
+          "Your account does not have permission to access some dashboard data.",
         );
-
-        errors.push({
-          name: "Bookings",
-          status: err.response?.status,
-          message: err.response?.data?.message,
-        });
-      }
-
-      // ========================================
-      // LOAD HOTEL ADMINS
-      // ========================================
-
-      try {
-        const response = await API.get("/users/hotel-admins");
-
-        console.log("HOTEL ADMINS:", response.status, response.data);
-
-        const adminData = Array.isArray(response.data)
-          ? response.data
-          : response.data?.hotelAdmins || response.data?.admins || [];
-
-        setHotelAdmins(adminData);
-      } catch (err) {
-        console.error(
-          "HOTEL ADMINS ERROR:",
-          err.response?.status,
-          err.response?.data,
+      } else {
+        setError(
+          `Some dashboard data could not be loaded: ${errors
+            .map((item) => item.name)
+            .join(", ")}.`,
         );
-
-        errors.push({
-          name: "Hotel Admins",
-          status: err.response?.status,
-          message: err.response?.data?.message,
-        });
       }
+    }
 
-      // ========================================
-      // SHOW ACTUAL ERROR
-      // ========================================
-
-      if (errors.length > 0) {
-        console.error("DASHBOARD API ERRORS:", errors);
-
-        const unauthorized = errors.find((item) => item.status === 401);
-
-        const forbidden = errors.find((item) => item.status === 403);
-
-        if (unauthorized) {
-          setError(
-            `${unauthorized.name} request returned 401. Your login token was not accepted by that endpoint.`,
-          );
-        } else if (forbidden) {
-          setError(
-            `${forbidden.name} request returned 403. Your account does not have permission for that endpoint.`,
-          );
-        } else {
-          setError(
-            `Some dashboard data could not be loaded: ${errors
-              .map((item) => item.name)
-              .join(", ")}.`,
-          );
-        }
-      }
-
-      setLoading(false);
-    };
-
-    loadDashboard();
+    setLoading(false);
   }, []);
+
+  // LOAD DATA WHEN THE DASHBOARD OPENS
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   /* ==========================================
      CALCULATIONS
   ========================================== */
 
   const totalHotels = hotels.length;
-
   const totalBookings = bookings.length;
 
+  // Customer count is not loaded by the current API calls.
   const totalUsers = 0;
 
   const totalHotelAdmins = hotelAdmins.length;
@@ -167,7 +145,7 @@ function AdminDashboard() {
 
   const totalRevenue = bookings
     .filter(
-      (booking) => String(booking.status || "").toLowerCase() !== "cancelled",
+      (booking) => String(booking.status || "").toLowerCase() === "confirmed",
     )
     .reduce((total, booking) => total + Number(booking.totalPrice || 0), 0);
 
@@ -195,42 +173,22 @@ function AdminDashboard() {
     });
   };
 
-  const formatMoney = (amount) => {
-    return `$${Number(amount || 0).toLocaleString()}`;
-  };
+  const formatMoney = (amount) => `$${Number(amount || 0).toLocaleString()}`;
 
-  const getGuestName = (booking) => {
-    if (booking.user?.name) {
-      return booking.user.name;
-    }
+  const getGuestName = (booking) =>
+    booking.user?.name || booking.user?.email || "Guest";
 
-    if (booking.user?.email) {
-      return booking.user.email;
-    }
+  const getHotelName = (booking) => booking.hotel?.name || "Hotel";
 
-    return "Guest";
-  };
-
-  const getHotelName = (booking) => {
-    if (booking.hotel?.name) {
-      return booking.hotel.name;
-    }
-
-    return "Hotel";
-  };
-
-  const getInitial = (name) => {
-    return String(name || "G")
+  const getInitial = (name) =>
+    String(name || "G")
       .charAt(0)
       .toUpperCase();
-  };
 
   const getStatusClass = (status) => {
     const value = String(status || "confirmed").toLowerCase();
 
-    if (value === "cancelled") {
-      return "cancelled";
-    }
+    if (value === "cancelled") return "cancelled";
 
     return "confirmed";
   };
@@ -259,18 +217,22 @@ function AdminDashboard() {
   };
 
   /* ==========================================
-     REFRESH
+     REFRESH DASHBOARD
   ========================================== */
 
   const refreshDashboard = () => {
-    window.location.reload();
+    if (!loading) {
+      loadDashboard();
+    }
   };
+
+  /* ==========================================
+     RENDER
+  ========================================== */
 
   return (
     <div className="super-admin-layout">
-      {/* ======================================
-          SIDEBAR
-      ====================================== */}
+      {/* SIDEBAR */}
 
       <aside className="admin-sidebar">
         <div className="sidebar-brand">
@@ -282,7 +244,6 @@ function AdminDashboard() {
             <h2>
               Stay<span>Hub</span>
             </h2>
-
             <small>HOTEL MANAGEMENT</small>
           </div>
         </div>
@@ -365,9 +326,7 @@ function AdminDashboard() {
         </div>
       </aside>
 
-      {/* ======================================
-          MAIN CONTENT
-      ====================================== */}
+      {/* MAIN CONTENT */}
 
       <main className="admin-main">
         <header className="admin-topbar">
@@ -383,11 +342,14 @@ function AdminDashboard() {
 
           <div className="topbar-right">
             <button
+              type="button"
               className="refresh-btn"
               onClick={refreshDashboard}
-              title="Refresh dashboard"
+              disabled={loading}
+              title={loading ? "Refreshing dashboard..." : "Refresh dashboard"}
+              aria-label="Refresh dashboard"
             >
-              ↻
+              <span className={loading ? "refresh-spinning" : ""}>↻</span>
             </button>
 
             <div className="topbar-divider"></div>
@@ -404,15 +366,13 @@ function AdminDashboard() {
         </header>
 
         {error && (
-          <div className="dashboard-error">
+          <div className="dashboard-error" role="alert">
             <span>!</span>
             {error}
           </div>
         )}
 
-        {/* ======================================
-            WELCOME
-        ====================================== */}
+        {/* WELCOME BANNER */}
 
         <section className="welcome-banner">
           <div className="welcome-content">
@@ -460,9 +420,7 @@ function AdminDashboard() {
           </div>
         </section>
 
-        {/* ======================================
-            STATS
-        ====================================== */}
+        {/* BUSINESS SUMMARY */}
 
         <section className="dashboard-section">
           <div className="section-heading">
@@ -476,7 +434,7 @@ function AdminDashboard() {
 
             <div className="live-status">
               <span></span>
-              Live data
+              {loading ? "Updating data..." : "Live data"}
             </div>
           </div>
 
@@ -493,7 +451,6 @@ function AdminDashboard() {
               <div className="stat-number">{loading ? "—" : totalHotels}</div>
 
               <div className="stat-name">Total Hotels</div>
-
               <div className="stat-description">Properties on platform</div>
             </div>
 
@@ -509,7 +466,6 @@ function AdminDashboard() {
               <div className="stat-number">{loading ? "—" : totalBookings}</div>
 
               <div className="stat-name">Total Bookings</div>
-
               <div className="stat-description">All reservations</div>
             </div>
 
@@ -522,7 +478,6 @@ function AdminDashboard() {
               <div className="stat-number">{loading ? "—" : totalUsers}</div>
 
               <div className="stat-name">Customers</div>
-
               <div className="stat-description">Registered users</div>
             </div>
 
@@ -540,15 +495,12 @@ function AdminDashboard() {
               </div>
 
               <div className="stat-name">Total Revenue</div>
-
               <div className="stat-description">From confirmed bookings</div>
             </div>
           </div>
         </section>
 
-        {/* ======================================
-            SECONDARY STATS
-        ====================================== */}
+        {/* SECONDARY STATS */}
 
         <section className="secondary-stats">
           <div className="mini-stat">
@@ -579,17 +531,13 @@ function AdminDashboard() {
           </div>
         </section>
 
-        {/* ======================================
-            QUICK ACTIONS
-        ====================================== */}
+        {/* QUICK ACTIONS */}
 
         <section className="dashboard-section">
           <div className="section-heading">
             <div>
               <span className="section-label">MANAGEMENT</span>
-
               <h2>Quick Actions</h2>
-
               <p>Frequently used administration tools.</p>
             </div>
           </div>
@@ -602,15 +550,13 @@ function AdminDashboard() {
               </div>
 
               <h3>Hotels</h3>
-
               <p>
                 Create new hotels, update property information and manage
                 available rooms.
               </p>
 
               <button onClick={() => navigate("/admin/manage-hotels")}>
-                Manage Hotels
-                <span>→</span>
+                Manage Hotels <span>→</span>
               </button>
             </div>
 
@@ -621,15 +567,13 @@ function AdminDashboard() {
               </div>
 
               <h3>Bookings</h3>
-
               <p>
                 Review customer reservations and monitor booking activity across
                 your properties.
               </p>
 
               <button onClick={() => navigate("/admin/bookings")}>
-                View Bookings
-                <span>→</span>
+                View Bookings <span>→</span>
               </button>
             </div>
 
@@ -640,15 +584,13 @@ function AdminDashboard() {
               </div>
 
               <h3>Customers</h3>
-
               <p>
                 View registered customers and manage customer accounts on your
                 platform.
               </p>
 
               <button onClick={() => navigate("/admin/users")}>
-                Manage Users
-                <span>→</span>
+                Manage Users <span>→</span>
               </button>
             </div>
 
@@ -659,15 +601,13 @@ function AdminDashboard() {
               </div>
 
               <h3>Hotel Admins</h3>
-
               <p>
                 Create hotel administrator accounts and assign them to
                 individual properties.
               </p>
 
               <button onClick={() => navigate("/admin/hotel-admins")}>
-                Manage Admins
-                <span>→</span>
+                Manage Admins <span>→</span>
               </button>
             </div>
 
@@ -678,12 +618,10 @@ function AdminDashboard() {
               </div>
 
               <h3>Reports</h3>
-
               <p>Analyze hotel activity, bookings and financial performance.</p>
 
               <button onClick={() => navigate("/admin/reports")}>
-                Open Reports
-                <span>→</span>
+                Open Reports <span>→</span>
               </button>
             </div>
 
@@ -694,31 +632,25 @@ function AdminDashboard() {
               </div>
 
               <h3>Add Hotel</h3>
-
               <p>
                 Register a new property and make it available on the booking
                 platform.
               </p>
 
               <button onClick={() => navigate("/admin/add-hotel")}>
-                Add New Hotel
-                <span>→</span>
+                Add New Hotel <span>→</span>
               </button>
             </div>
           </div>
         </section>
 
-        {/* ======================================
-            RECENT BOOKINGS
-        ====================================== */}
+        {/* RECENT BOOKINGS */}
 
         <section className="dashboard-section recent-section">
           <div className="section-heading">
             <div>
               <span className="section-label">RESERVATIONS</span>
-
               <h2>Recent Bookings</h2>
-
               <p>Latest reservations received by the platform.</p>
             </div>
 
@@ -726,8 +658,7 @@ function AdminDashboard() {
               className="view-all-button"
               onClick={() => navigate("/admin/bookings")}
             >
-              View all
-              <span>→</span>
+              View all <span>→</span>
             </button>
           </div>
 
@@ -740,9 +671,7 @@ function AdminDashboard() {
             ) : recentBookings.length === 0 ? (
               <div className="empty-bookings">
                 <div className="empty-icon">▤</div>
-
                 <h3>No bookings yet</h3>
-
                 <p>
                   Customer reservations will appear here once bookings are
                   created.
@@ -764,11 +693,11 @@ function AdminDashboard() {
                   </thead>
 
                   <tbody>
-                    {recentBookings.map((booking) => {
+                    {recentBookings.map((booking, index) => {
                       const guestName = getGuestName(booking);
 
                       return (
-                        <tr key={booking._id}>
+                        <tr key={booking._id || booking.id || index}>
                           <td>
                             <div className="guest-cell">
                               <div className="guest-avatar">
@@ -777,7 +706,6 @@ function AdminDashboard() {
 
                               <div>
                                 <strong>{guestName}</strong>
-
                                 <span>{booking.user?.email || "Customer"}</span>
                               </div>
                             </div>
@@ -785,16 +713,13 @@ function AdminDashboard() {
 
                           <td>
                             <strong>{getHotelName(booking)}</strong>
-
                             <span className="table-secondary">
                               {booking.hotel?.location || "Hotel"}
                             </span>
                           </td>
 
                           <td>{formatDate(booking.checkIn)}</td>
-
                           <td>{formatDate(booking.checkOut)}</td>
-
                           <td>{booking.guests || 1}</td>
 
                           <td>
@@ -808,7 +733,6 @@ function AdminDashboard() {
                               )}`}
                             >
                               <i></i>
-
                               {String(booking.status || "confirmed")
                                 .charAt(0)
                                 .toUpperCase() +
@@ -825,9 +749,7 @@ function AdminDashboard() {
           </div>
         </section>
 
-        {/* ======================================
-            FOOTER
-        ====================================== */}
+        {/* FOOTER */}
 
         <footer className="admin-footer">
           <div className="footer-brand">
