@@ -886,7 +886,6 @@ function HotelAdminManagement() {
 
               <div className="ha-modal-info">
                 <span>i</span>
-
                 <p>
                   This administrator will be able to manage bookings and
                   information for the assigned hotel.
