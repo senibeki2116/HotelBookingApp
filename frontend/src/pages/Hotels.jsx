@@ -397,22 +397,29 @@ function Hotels() {
 
       let candidates = hotels;
 
-      // If a city was requested, only consider hotels in that city.
+      // Match the requested city against every available location field.
       if (requestedLocation) {
-        candidates = hotels.filter((hotel) => {
-          const location = normalize(getLocation(hotel));
-          const city = normalize(requestedLocation);
+        const city = normalize(requestedLocation);
 
-          return location.includes(city);
+        candidates = hotels.filter((hotel) => {
+          const locationFields = [
+            hotel?.location,
+            hotel?.city,
+            hotel?.address,
+            hotel?.hotelAddress,
+          ]
+            .filter(Boolean)
+            .map((value) => normalize(value));
+
+          return locationFields.some((location) => location.includes(city));
         });
 
         if (candidates.length === 0) {
           setAiSearched(true);
           setAiError(
-            `We couldn't find hotels listed in ${requestedLocation.replace(
-              /\b\w/g,
-              (letter) => letter.toUpperCase(),
-            )}. Try another destination.`,
+            `No hotels in ${requestedLocation.replace(/\b\w/g, (letter) =>
+              letter.toUpperCase(),
+            )} were found in the current hotel database. Please add hotels for this city or try another destination.`,
           );
           return;
         }

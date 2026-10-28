@@ -2604,3 +2604,202 @@ button:focus-visible {
     padding: 9px 12px;
   }
 }
+
+/* =========================================================
+   STAYORA AI HOTEL FINDER — FINAL LAYOUT FIX
+   ========================================================= */
+
+/* Keep the AI finder content inside its card */
+.ai-section .ai-container {
+  width: min(1100px, 92%);
+  margin-inline: auto;
+}
+
+.ai-section .ai-card {
+  width: 100%;
+  padding: 32px;
+  border: 1px solid #ebe7de;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgba(13, 27, 42, 0.07);
+}
+
+/* Finder heading */
+.ai-section .ai-card-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.ai-section .ai-card-top strong {
+  color: #0d1b2a;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.ai-section .ai-card-top span {
+  color: #718096;
+  font-size: 13px;
+}
+
+/* Input and button must be separate elements */
+.ai-section .ai-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  position: static;
+}
+
+/* Text area */
+.ai-section .ai-input-wrapper textarea {
+  display: block;
+  position: static;
+  width: 100%;
+  min-width: 0;
+  min-height: 145px;
+  height: 145px;
+  margin: 0;
+  padding: 20px 22px;
+  border: 1px solid #e8e5df;
+  border-radius: 16px;
+  background: #fcfbf8;
+  color: #182331;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+  box-shadow: none;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ai-section .ai-input-wrapper textarea::placeholder {
+  color: #8a929d;
+  opacity: 1;
+}
+
+.ai-section .ai-input-wrapper textarea:focus {
+  border-color: #c89b3c;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(200, 155, 60, 0.1);
+}
+
+/* Find My Hotel button — below the input */
+.ai-section .ai-input-wrapper .ai-find-button {
+  position: static;
+  inset: auto;
+  transform: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  margin: 0;
+  padding: 15px 22px;
+  border: 0;
+  border-radius: 12px;
+  background: #0d1b2a;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ai-section .ai-input-wrapper .ai-find-button:hover:not(:disabled) {
+  background: #17324b;
+  box-shadow: 0 7px 18px rgba(13, 27, 42, 0.12);
+}
+
+.ai-section .ai-input-wrapper .ai-find-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Example prompts */
+.ai-section .example-prompts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.ai-section .example-prompts > span {
+  margin-right: 3px;
+  color: #718096;
+  font-size: 12px;
+}
+
+.ai-section .example-prompts button {
+  position: static;
+  transform: none;
+  max-width: 100%;
+  padding: 9px 14px;
+  border: 1px solid #e8e5df;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #526174;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.ai-section .example-prompts button:hover {
+  border-color: #c89b3c;
+  background: #faf6ec;
+  color: #0d1b2a;
+}
+
+/* Mobile layout */
+@media (max-width: 640px) {
+  .ai-section .ai-container {
+    width: 92%;
+  }
+
+  .ai-section .ai-card {
+    padding: 20px;
+    border-radius: 18px;
+  }
+
+  .ai-section .ai-card-top {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .ai-section .ai-input-wrapper textarea {
+    min-height: 125px;
+    height: 125px;
+    padding: 16px;
+    font-size: 14px;
+  }
+
+  .ai-section .ai-input-wrapper .ai-find-button {
+    min-height: 52px;
+  }
+
+  .ai-section .example-prompts {
+    gap: 8px;
+  }
+
+  .ai-section .example-prompts button {
+    padding: 9px 12px;
+  }
+}
