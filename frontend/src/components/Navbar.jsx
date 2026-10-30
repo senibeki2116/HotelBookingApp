@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useContext, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
+
 import {
   FiMenu,
   FiX,
@@ -12,6 +13,8 @@ import {
   FiLogOut,
 } from "react-icons/fi";
 
+import "./Navbar.css";
+
 function Navbar() {
   const { user, logout } = useContext(AuthContext);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -22,28 +25,29 @@ function Navbar() {
 
   return (
     <nav className="navbar">
-      {/* Hotel Logo / Brand */}
+      {/* BRAND */}
       <Link to="/" className="navbar-brand" onClick={closeMenu}>
         <span className="brand-icon">✦</span>
         <span>Hotel Booking</span>
       </Link>
 
-      {/* Hamburger Menu */}
+      {/* HAMBURGER MENU */}
       <div
         className="menu-wrapper"
         onMouseEnter={() => setMenuOpen(true)}
         onMouseLeave={() => setMenuOpen(false)}
       >
         <button
+          type="button"
           className={`menu-button ${menuOpen ? "active" : ""}`}
-          onClick={() => setMenuOpen(!menuOpen)}
+          onClick={() => setMenuOpen((prev) => !prev)}
           aria-label="Toggle navigation menu"
           aria-expanded={menuOpen}
         >
           {menuOpen ? <FiX /> : <FiMenu />}
         </button>
 
-        {/* Dropdown Menu */}
+        {/* DROPDOWN */}
         <div className={`dropdown-menu ${menuOpen ? "show" : ""}`}>
           <Link to="/" onClick={closeMenu}>
             <FiHome />
@@ -65,6 +69,7 @@ function Navbar() {
               <div className="menu-divider"></div>
 
               <button
+                type="button"
                 className="logout-button"
                 onClick={() => {
                   logout();

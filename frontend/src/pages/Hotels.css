@@ -2803,3 +2803,48 @@ button:focus-visible {
     padding: 9px 12px;
   }
 }
+
+.menu-hover-area {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  flex: 0 0 auto;
+}
+
+.menu-hover-area > .top-menu {
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  left: auto !important;
+  margin: 0 !important;
+  z-index: 10050 !important;
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(10px);
+
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease,
+    visibility 0.22s ease;
+}
+
+.menu-hover-area > .top-menu.top-menu-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.menu-hover-area > .top-menu .top-menu-glass {
+  pointer-events: auto;
+}
+
+@media (max-width: 768px) {
+  .menu-hover-area > .top-menu {
+    right: 0 !important;
+    max-width: calc(100vw - 24px);
+  }
+}

@@ -1,0 +1,227 @@
+/* ================================
+   NAVBAR
+================================ */
+
+.navbar {
+  width: 100%;
+  height: 75px;
+  padding: 0 6%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background: #0d1b2a;
+  position: relative;
+  z-index: 10000;
+
+  box-sizing: border-box;
+}
+
+/* BRAND */
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  color: #ffffff;
+  text-decoration: none;
+
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.brand-icon {
+  color: #c89b3c;
+  font-size: 30px;
+}
+
+/* ================================
+   HAMBURGER WRAPPER
+================================ */
+
+.menu-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* BURGER BUTTON */
+
+.menu-button {
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: transparent;
+  border: 1px solid rgba(200, 155, 60, 0.5);
+  border-radius: 10px;
+
+  color: #c89b3c;
+  font-size: 25px;
+
+  cursor: pointer;
+
+  transition: all 0.25s ease;
+}
+
+.menu-button:hover,
+.menu-button.active {
+  background: #c89b3c;
+  color: #0d1b2a;
+  border-color: #c89b3c;
+}
+
+/* ================================
+   DROPDOWN MENU
+================================ */
+
+.dropdown-menu {
+  position: absolute;
+
+  top: 100%;
+  right: 0;
+
+  min-width: 230px;
+  margin-top: 10px;
+  padding: 10px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  background: #ffffff;
+
+  border: 1px solid #eee;
+  border-radius: 12px;
+
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+
+  transform: translateY(10px);
+
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease,
+    visibility 0.25s ease;
+
+  z-index: 10001;
+}
+
+/* OPEN MENU */
+
+.dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* MENU LINKS */
+
+.dropdown-menu a {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  padding: 13px 15px;
+
+  color: #182331;
+  text-decoration: none;
+
+  font-size: 15px;
+  font-weight: 500;
+
+  border-radius: 8px;
+
+  transition: all 0.2s ease;
+}
+
+.dropdown-menu a svg {
+  font-size: 19px;
+  color: #c89b3c;
+}
+
+.dropdown-menu a:hover {
+  background: #f7f2e7;
+  color: #b1842e;
+  padding-left: 20px;
+}
+
+/* DIVIDER */
+
+.menu-divider {
+  height: 1px;
+  background: #eeeeee;
+  margin: 6px 8px;
+}
+
+/* LOGOUT BUTTON */
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  width: 100%;
+  padding: 13px 15px;
+
+  border: none;
+  border-radius: 8px;
+
+  background: transparent;
+
+  color: #d9534f;
+  font-size: 15px;
+  font-weight: 500;
+
+  text-align: left;
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+}
+
+.logout-button svg {
+  font-size: 19px;
+}
+
+.logout-button:hover {
+  background: #fff0ef;
+  padding-left: 20px;
+}
+
+/* ================================
+   RESPONSIVE
+================================ */
+
+@media (max-width: 600px) {
+  .navbar {
+    height: 65px;
+    padding: 0 5%;
+  }
+
+  .navbar-brand {
+    font-size: 19px;
+  }
+
+  .brand-icon {
+    font-size: 25px;
+  }
+
+  .menu-button {
+    width: 42px;
+    height: 42px;
+    font-size: 23px;
+  }
+
+  .dropdown-menu {
+    min-width: 210px;
+  }
+}
