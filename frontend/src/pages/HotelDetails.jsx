@@ -168,9 +168,9 @@ function HotelDetails() {
 
   const rooms = Number(hotel.rooms ?? 0);
 
-  const rating = Number(hotel.rating ?? 0);
+  const rating = Number(hotel.averageRating ?? hotel.rating ?? 0);
 
-  const reviews = Number(hotel.reviews ?? 0);
+  const reviews = Number(hotel.totalReviews ?? hotel.reviewCount ?? 0);
 
   const hotelImage = getHotelImage(hotel.image);
 
@@ -219,23 +219,27 @@ function HotelDetails() {
           ===================================== */}
 
           <div className="details-rating">
-            <span className="stars">
-              {"★★★★★".split("").map((star, index) => (
-                <span
-                  key={index}
-                  className={index < Math.round(rating) ? "filled" : ""}
-                >
-                  {star}
+            {reviews > 0 ? (
+              <>
+                <span className="stars">
+                  {"★★★★★".split("").map((star, index) => (
+                    <span
+                      key={index}
+                      className={index < Math.round(rating) ? "filled" : ""}
+                    >
+                      {star}
+                    </span>
+                  ))}
                 </span>
-              ))}
-            </span>
 
-            <span className="rating-number">
-              {rating > 0 ? `${rating.toFixed(1)}/5` : "No rating yet"}
-            </span>
+                <strong className="rating-number">{rating.toFixed(1)}/5</strong>
 
-            {reviews > 0 && (
-              <span className="reviews-count">({reviews} reviews)</span>
+                <span className="reviews-count">
+                  ({reviews} {reviews === 1 ? "review" : "reviews"})
+                </span>
+              </>
+            ) : (
+              <span className="no-reviews">No customer reviews yet</span>
             )}
           </div>
 
@@ -288,7 +292,7 @@ function HotelDetails() {
               <div>
                 <small>Rating</small>
 
-                <strong>{rating > 0 ? rating.toFixed(1) : "N/A"}</strong>
+                <strong>{reviews > 0 ? rating.toFixed(1) : "N/A"}</strong>
 
                 <small>guest rating</small>
               </div>

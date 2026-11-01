@@ -2779,3 +2779,158 @@
   }
 }
 
+/* Reservation action buttons */
+.booking-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  min-width: 145px;
+}
+
+.booking-action-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.booking-confirm-button {
+  background: #e8f5ed;
+  color: #21834b;
+}
+
+.booking-confirm-button:hover:not(:disabled) {
+  background: #21834b;
+  color: #fff;
+}
+
+.booking-cancel-button {
+  background: #fff0ef;
+  color: #c94a45;
+}
+
+.booking-cancel-button:hover:not(:disabled) {
+  background: #c94a45;
+  color: #fff;
+}
+
+.booking-action-buttons button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.booking-action-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #c94a45;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.reservation-card-actions {
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid #edf0f4;
+}
+
+.reservation-card-actions .booking-action-buttons {
+  justify-content: flex-end;
+}
+
+.reservation-table th:last-child,
+.reservation-table td:last-child {
+  min-width: 155px;
+}
+
+@media (max-width: 900px) {
+  .booking-action-buttons {
+    min-width: 0;
+  }
+}
+
+/* ========================================
+   STAYORA - CLEAN REFRESH BUTTON
+======================================== */
+
+.stayora-app .refresh-bookings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 145px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #dbe5f0;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(31, 54, 92, 0.05);
+  transition: all 0.2s ease;
+}
+
+.stayora-app .refresh-bookings-button:hover:not(:disabled) {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+
+.stayora-app .refresh-bookings-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+  transform: none;
+}
+
+.stayora-app .refresh-character {
+  display: inline-block;
+  flex-shrink: 0;
+  color: #2563eb;
+  font-size: 22px;
+  line-height: 1;
+  transform-origin: center;
+}
+
+.stayora-app .refresh-character.spinning {
+  animation: stayora-refresh-clean-spin 0.8s linear infinite;
+}
+
+@keyframes stayora-refresh-clean-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mobile layout */
+@media (max-width: 720px) {
+  .stayora-app .refresh-bookings-button {
+    min-width: 42px;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+  }
+
+  .stayora-app .refresh-bookings-button > span:not(.refresh-character) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stayora-app .refresh-character.spinning {
+    animation: none;
+  }
+}

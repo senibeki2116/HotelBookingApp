@@ -11,16 +11,25 @@ import "./HotelAdminBookings.css";
 
 const POLL_INTERVAL = 20000;
 
+// =========================================================
+// HELPER FUNCTIONS
+// =========================================================
+
 const getValue = (object, keys, fallback = "") => {
   for (const key of keys) {
     const value = object?.[key];
-    if (value !== undefined && value !== null && value !== "") return value;
+
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
   }
+
   return fallback;
 };
 
 const getGuest = (booking) => {
   const guest = booking?.guest || booking?.user || booking?.customer || {};
+
   const name =
     getValue(booking, ["guestName", "customerName", "fullName", "name"]) ||
     getValue(guest, ["name", "fullName", "username"]) ||
@@ -71,13 +80,19 @@ const getAmount = (booking) =>
     ),
   ) || 0;
 
+// FIXED: Backend saves room count using the "rooms" property.
 const getRoomCount = (booking) =>
-  Number(getValue(booking, ["numberOfRooms", "roomCount", "roomsBooked"], 1)) ||
-  1;
+  Number(
+    getValue(
+      booking,
+      ["rooms", "numberOfRooms", "roomCount", "roomsBooked"],
+      1,
+    ),
+  ) || 1;
 
 const getGuestCount = (booking) =>
   Number(
-    getValue(booking, ["numberOfGuests", "guestCount", "guests", "adults"], 1),
+    getValue(booking, ["guests", "numberOfGuests", "guestCount", "adults"], 1),
   ) || 1;
 
 const getHotelName = (hotel) =>
@@ -93,6 +108,7 @@ const getHotelImage = (hotel) => {
   if (!image) return "";
 
   const value = String(image);
+
   if (/^https?:\/\//i.test(value)) return value;
 
   return `http://localhost:5000${value.startsWith("/") ? "" : "/"}${value}`;
@@ -100,7 +116,9 @@ const getHotelImage = (hotel) => {
 
 const dateOnly = (value) => {
   if (!value) return "";
+
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return "";
 
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
@@ -111,7 +129,9 @@ const dateOnly = (value) => {
 
 const formatDate = (value) => {
   if (!value) return "—";
+
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleDateString("en-US", {
@@ -171,6 +191,10 @@ const statusLabel = (status) => {
   );
 };
 
+// =========================================================
+// HOTEL ADMIN BOOKINGS COMPONENT
+// =========================================================
+
 const HotelAdminBookings = () => {
   const navigate = useNavigate();
 
@@ -178,6 +202,7 @@ const HotelAdminBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [updatingBookingId, setUpdatingBookingId] = useState(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -188,19 +213,28 @@ const HotelAdminBookings = () => {
   const [newBookingIds, setNewBookingIds] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Prevent overlapping requests and repeated initial loading screens.
   const requestInProgress = useRef(false);
   const manualRefreshQueued = useRef(false);
   const hasLoadedOnce = useRef(false);
+  const notificationRef = useRef(null);
+  const bookingsRef = useRef([]);
+
+  // Keep the latest bookings available without relying on an old closure.
+  useEffect(() => {
+    bookingsRef.current = bookings;
+  }, [bookings]);
+
+  // =========================================================
+  // FETCH HOTEL AND BOOKINGS
+  // =========================================================
 
   const fetchData = useCallback(async (manual = false) => {
-    // If automatic polling is running, queue a manual refresh
-    // instead of silently ignoring the button click.
     if (requestInProgress.current) {
       if (manual) {
         manualRefreshQueued.current = true;
         setRefreshing(true);
       }
+
       return;
     }
 
@@ -216,10 +250,15 @@ const HotelAdminBookings = () => {
 
     try {
       const [hotelResponse, bookingsResponse] = await Promise.all([
-        API.get("/hotels/my-hotel").catch(() => null),
+        API.get("/hotels/my-hotel").catch((err) => {
+          console.warn("Hotel information could not be loaded:", err);
+          return null;
+        }),
+
         API.get("/bookings/my-hotel"),
       ]);
 
+      // Resolve hotel response.
       const hotelData = hotelResponse?.data;
       const resolvedHotel = hotelData?.hotel || hotelData?.data || hotelData;
 
@@ -227,7 +266,17 @@ const HotelAdminBookings = () => {
         setHotel(resolvedHotel);
       }
 
+      // =====================================================
+      // DEBUG: CHECK BOOKINGS API RESPONSE
+      // =====================================================
+
       const responseData = bookingsResponse?.data;
+
+      console.log("BOOKINGS API RESPONSE:", bookingsResponse);
+      console.log("BOOKINGS RESPONSE DATA:", responseData);
+      console.log("IS ARRAY:", Array.isArray(responseData));
+
+      // Resolve bookings response.
       const resolvedBookings = Array.isArray(responseData)
         ? responseData
         : (responseData?.bookings ??
@@ -239,24 +288,33 @@ const HotelAdminBookings = () => {
         throw new Error("The server returned an unexpected bookings format.");
       }
 
-      setBookings((previous) => {
-        const previousIds = new Set(previous.map(getBookingId).filter(Boolean));
+      console.log("BOOKINGS COUNT:", resolvedBookings.length);
 
-        const added = resolvedBookings.filter((booking) => {
-          const id = getBookingId(booking);
-          return id && !previousIds.has(id);
-        });
+      // Detect newly received reservations.
+      const previousIds = new Set(
+        bookingsRef.current.map(getBookingId).filter(Boolean),
+      );
 
-        if (hasLoadedOnce.current && added.length > 0) {
-          setNewBookingIds((current) =>
-            [...added.map(getBookingId), ...current]
-              .filter((id, index, array) => id && array.indexOf(id) === index)
-              .slice(0, 20),
-          );
-        }
-
-        return resolvedBookings;
+      const addedBookings = resolvedBookings.filter((booking) => {
+        const id = getBookingId(booking);
+        return id && !previousIds.has(id);
       });
+
+      if (hasLoadedOnce.current && addedBookings.length > 0) {
+        setNewBookingIds((current) =>
+          [...addedBookings.map(getBookingId), ...current]
+            .filter((id, index, array) => id && array.indexOf(id) === index)
+            .slice(0, 20),
+        );
+      }
+
+      // Update React state.
+      bookingsRef.current = resolvedBookings;
+      setBookings(resolvedBookings);
+
+      // Debug: verify frontend received the bookings.
+      console.log("BOOKINGS SAVED TO FRONTEND:", resolvedBookings);
+      console.log("FRONTEND BOOKINGS COUNT:", resolvedBookings.length);
 
       hasLoadedOnce.current = true;
       setLastUpdated(new Date());
@@ -271,27 +329,56 @@ const HotelAdminBookings = () => {
     } finally {
       requestInProgress.current = false;
       setLoading(false);
-      setRefreshing(false);
 
-      // Run a queued manual refresh after the current request finishes.
       if (manualRefreshQueued.current) {
         manualRefreshQueued.current = false;
         void fetchData(true);
+      } else {
+        setRefreshing(false);
       }
     }
   }, []);
 
+  // =========================================================
+  // INITIAL LOAD AND AUTOMATIC REFRESH
+  // =========================================================
+
   useEffect(() => {
-    fetchData(false);
+    void fetchData(false);
 
     const interval = setInterval(() => {
-      fetchData(false);
+      void fetchData(false);
     }, POLL_INTERVAL);
 
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  // =========================================================
+  // CLOSE NOTIFICATIONS WHEN CLICKING OUTSIDE
+  // =========================================================
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
   const today = dateOnly(new Date());
+
+  // =========================================================
+  // BOOKING STATISTICS
+  // =========================================================
 
   const stats = useMemo(
     () => ({
@@ -305,59 +392,90 @@ const HotelAdminBookings = () => {
     [bookings],
   );
 
-  const handleRefresh = async () => {
-    if (refreshing) return;
+  // =========================================================
+  // MANUAL REFRESH
+  // =========================================================
 
-    console.log("Refresh started...");
-    setRefreshing(true);
-    setError("");
+  const handleRefresh = () => {
+    if (refreshing && manualRefreshQueued.current) return;
+
+    void fetchData(true);
+  };
+
+  // =========================================================
+  // CONFIRM OR CANCEL BOOKING
+  // =========================================================
+
+  const handleBookingStatus = async (bookingId, status) => {
+    if (!bookingId || updatingBookingId) return;
+
+    const action = status === "confirmed" ? "confirm" : "cancel";
+
+    if (
+      status === "cancelled" &&
+      !window.confirm("Are you sure you want to cancel this reservation?")
+    ) {
+      return;
+    }
 
     try {
-      const response = await API.get("/bookings/my-hotel");
+      setUpdatingBookingId(bookingId);
+      setError("");
 
-      console.log("Bookings API response:", response.status, response.data);
+      const response = await API.patch(`/bookings/${bookingId}/status`, {
+        status,
+      });
 
-      const data = response.data;
+      const updatedBooking = response.data?.booking;
 
-      const latestBookings = Array.isArray(data)
-        ? data
-        : (data?.bookings ?? data?.data?.bookings ?? data?.data ?? []);
+      if (updatedBooking) {
+        setBookings((previous) => {
+          const updated = previous.map((booking) =>
+            getBookingId(booking) === bookingId ? updatedBooking : booking,
+          );
 
-      if (!Array.isArray(latestBookings)) {
-        throw new Error("Invalid bookings data from server.");
+          bookingsRef.current = updated;
+          return updated;
+        });
+      } else {
+        await fetchData(true);
       }
 
-      setBookings(latestBookings);
       setLastUpdated(new Date());
+    } catch (err) {
+      console.error(`Unable to ${action} reservation:`, err);
 
-      console.log("Bookings updated:", latestBookings.length);
-    } catch (error) {
-      console.error("Refresh failed:", error);
       setError(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to refresh bookings.",
+        err?.response?.data?.message ||
+          `Unable to ${action} this reservation. Please try again.`,
       );
     } finally {
-      setRefreshing(false);
-      console.log("Refresh finished.");
+      setUpdatingBookingId(null);
     }
   };
+
+  // =========================================================
+  // SEARCH AND FILTER BOOKINGS
+  // =========================================================
 
   const filteredBookings = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return bookings.filter((booking) => {
       const guest = getGuest(booking);
+
       const hotelName =
         getValue(booking, ["hotelName", "propertyName"]) ||
         getHotelName(booking?.hotel || hotel);
+
       const id = getBookingId(booking);
+
       const roomName = getValue(booking, [
         "roomName",
         "roomType",
         "roomNumber",
       ]);
+
       const status = getStatus(booking);
 
       const matchesSearch =
@@ -374,8 +492,14 @@ const HotelAdminBookings = () => {
 
       let matchesTab = true;
 
-      if (activeTab === "checkins") matchesTab = checkIn === selectedDate;
-      if (activeTab === "checkouts") matchesTab = checkOut === selectedDate;
+      if (activeTab === "checkins") {
+        matchesTab = checkIn === selectedDate;
+      }
+
+      if (activeTab === "checkouts") {
+        matchesTab = checkOut === selectedDate;
+      }
+
       if (activeTab === "stays") {
         matchesTab =
           Boolean(checkIn && checkOut) &&
@@ -392,6 +516,10 @@ const HotelAdminBookings = () => {
       return matchesSearch && matchesTab && matchesDate;
     });
   }, [bookings, search, activeTab, selectedDate, dateFilterEnabled, hotel]);
+
+  // =========================================================
+  // TODAY'S BOOKINGS
+  // =========================================================
 
   const todayCheckIns = bookings.filter(
     (booking) =>
@@ -414,26 +542,10 @@ const HotelAdminBookings = () => {
   const moveDate = (days) => {
     const date = new Date(`${selectedDate}T12:00:00`);
     date.setDate(date.getDate() + days);
+
     setSelectedDate(dateOnly(date));
     setDateFilterEnabled(true);
   };
-  const notificationRef = useRef(null);
-  useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (
-        notificationRef.current &&
-        !notificationRef.current.contains(event.target)
-      ) {
-        setNotificationsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, []);
 
   const resetFilters = () => {
     setSearch("");
@@ -442,10 +554,15 @@ const HotelAdminBookings = () => {
     setDateFilterEnabled(false);
   };
 
+  // =========================================================
+  // LOGOUT
+  // =========================================================
+
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
+
     navigate("/login");
   };
 
@@ -454,6 +571,63 @@ const HotelAdminBookings = () => {
     ["address", "location", "city", "hotelAddress"],
     "Manage your property",
   );
+
+  // =========================================================
+  // RESERVATION ACTION BUTTONS
+  // =========================================================
+
+  const renderBookingActions = (booking) => {
+    const bookingId = getBookingId(booking);
+    const isUpdating = updatingBookingId === bookingId;
+
+    if (isCancelled(booking)) {
+      return (
+        <span className="booking-action-complete">
+          <i className="fa-solid fa-circle-xmark" /> Cancelled
+        </span>
+      );
+    }
+
+    return (
+      <div className="booking-action-buttons">
+        {!isConfirmed(booking) && (
+          <button
+            type="button"
+            className="booking-confirm-button"
+            disabled={!bookingId || Boolean(updatingBookingId)}
+            onClick={() => handleBookingStatus(bookingId, "confirmed")}
+            title="Confirm reservation"
+          >
+            {isUpdating ? (
+              <i className="fa-solid fa-spinner fa-spin" />
+            ) : (
+              <i className="fa-solid fa-check" />
+            )}
+            Confirm
+          </button>
+        )}
+
+        <button
+          type="button"
+          className="booking-cancel-button"
+          disabled={!bookingId || Boolean(updatingBookingId)}
+          onClick={() => handleBookingStatus(bookingId, "cancelled")}
+          title="Cancel reservation"
+        >
+          {isUpdating ? (
+            <i className="fa-solid fa-spinner fa-spin" />
+          ) : (
+            <i className="fa-solid fa-xmark" />
+          )}
+          Cancel
+        </button>
+      </div>
+    );
+  };
+
+  // =========================================================
+  // PAGE UI
+  // =========================================================
 
   return (
     <div className="stayora-app">
@@ -466,6 +640,7 @@ const HotelAdminBookings = () => {
           <span className="brand-mark">
             <i className="fa-solid fa-hotel" />
           </span>
+
           <span>
             STAYORA
             <small>HOTEL MANAGEMENT</small>
@@ -510,8 +685,10 @@ const HotelAdminBookings = () => {
             <div className="help-icon">
               <i className="fa-regular fa-circle-question" />
             </div>
+
             <strong>Need assistance?</strong>
             <p>We're here to help you manage your property.</p>
+
             <button
               type="button"
               onClick={() => {
@@ -523,7 +700,8 @@ const HotelAdminBookings = () => {
           </div>
 
           <button type="button" className="sidebar-logout" onClick={logout}>
-            <i className="fa-solid fa-arrow-right-from-bracket" /> Log out
+            <i className="fa-solid fa-arrow-right-from-bracket" />
+            Log out
           </button>
 
           <div className="sidebar-version">STAYORA · HOTEL ADMIN</div>
@@ -540,12 +718,14 @@ const HotelAdminBookings = () => {
           <div className="topbar-actions">
             <label className="topbar-search">
               <i className="fa-solid fa-magnifying-glass" />
+
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search reservations..."
                 aria-label="Search reservations"
               />
+
               {search && (
                 <button
                   type="button"
@@ -559,6 +739,7 @@ const HotelAdminBookings = () => {
 
             <div className="topbar-date">
               <i className="fa-regular fa-calendar" />
+
               <span>
                 {new Date().toLocaleDateString("en-US", {
                   weekday: "short",
@@ -571,7 +752,9 @@ const HotelAdminBookings = () => {
             <div className="notification-wrap" ref={notificationRef}>
               <button
                 type="button"
-                className={`topbar-icon-button ${notificationsOpen ? "selected" : ""}`}
+                className={`topbar-icon-button ${
+                  notificationsOpen ? "selected" : ""
+                }`}
                 onClick={() => setNotificationsOpen((open) => !open)}
                 aria-label="Booking notifications"
                 aria-expanded={notificationsOpen}
@@ -642,6 +825,7 @@ const HotelAdminBookings = () => {
                   ) : (
                     <div className="popover-empty">
                       <div className="notification-empty-icon">✓</div>
+
                       <strong>You're all caught up!</strong>
                       <p>New booking updates will appear here.</p>
                     </div>
@@ -662,16 +846,16 @@ const HotelAdminBookings = () => {
               <div className="stayora-eyebrow">
                 OVERVIEW <span>/</span> BOOKINGS
               </div>
+
               <h1>
                 Reservations <span className="heading-sparkle">✦</span>
               </h1>
+
               <p>
                 Manage guest stays, track arrivals, and keep every booking
                 organized.
               </p>
             </div>
-
-            {/* Working refresh button */}
 
             <button
               type="button"
@@ -683,12 +867,6 @@ const HotelAdminBookings = () => {
             >
               <span
                 className={`refresh-character ${refreshing ? "spinning" : ""}`}
-                style={{
-                  display: "inline-block",
-                  animation: refreshing
-                    ? "refresh-spin 0.8s linear infinite"
-                    : "none",
-                }}
               >
                 ↻
               </span>
@@ -708,24 +886,33 @@ const HotelAdminBookings = () => {
             }
           >
             <div className="property-banner-shade" />
+
             <div className="property-banner-content">
               <span className="property-label">
-                <i className="fa-solid fa-circle-check" /> PROPERTY OVERVIEW
+                <i className="fa-solid fa-circle-check" />
+                PROPERTY OVERVIEW
               </span>
+
               <h2>{getHotelName(hotel)}</h2>
+
               <p>
-                <i className="fa-solid fa-location-dot" /> {propertyLocation}
+                <i className="fa-solid fa-location-dot" />
+                {propertyLocation}
               </p>
+
               <div className="property-banner-meta">
                 <span>
-                  <i className="fa-solid fa-calendar-check" /> Reservation
-                  management
+                  <i className="fa-solid fa-calendar-check" />
+                  Reservation management
                 </span>
+
                 <span>
-                  <i className="fa-solid fa-shield-halved" /> Admin workspace
+                  <i className="fa-solid fa-shield-halved" />
+                  Admin workspace
                 </span>
               </div>
             </div>
+
             <div className="property-banner-symbol">
               <i className="fa-solid fa-hotel" />
             </div>
@@ -734,19 +921,23 @@ const HotelAdminBookings = () => {
           {error && (
             <div className="stayora-error">
               <i className="fa-solid fa-triangle-exclamation" />
+
               <div>
                 <strong>Couldn't update reservations</strong>
                 <p>{error}</p>
               </div>
+
               <button
                 type="button"
                 disabled={refreshing}
-                onClick={() => fetchData(true)}
+                onClick={handleRefresh}
               >
                 Try again
               </button>
             </div>
           )}
+
+          {/* BOOKING STATISTICS */}
 
           <section className="booking-stat-grid">
             {[
@@ -786,23 +977,29 @@ const HotelAdminBookings = () => {
               <article className="booking-stat-card" key={stat.label}>
                 <div className="stat-topline">
                   <span>{stat.label}</span>
+
                   <span className={`stat-icon ${stat.color}`}>
                     <i className={`fa-solid ${stat.icon}`} />
                   </span>
                 </div>
+
                 <div className="stat-number">
                   {loading ? "—" : stat.value.toLocaleString()}
                 </div>
+
                 <div className="stat-footnote">
                   <span className={`stat-${stat.color}-dot`} />
                   {stat.note}
                 </div>
+
                 <div className={`stat-decoration ${stat.decoration}`}>
                   <i className={`fa-solid ${stat.icon}`} />
                 </div>
               </article>
             ))}
           </section>
+
+          {/* RESERVATIONS WORKSPACE */}
 
           <div className="stayora-workspace">
             <section className="reservations-panel">
@@ -814,17 +1011,21 @@ const HotelAdminBookings = () => {
                       {filteredBookings.length}
                     </span>
                   </h3>
+
                   <p>Review and manage your guest reservations.</p>
                 </div>
+
                 <button
                   type="button"
                   className="subtle-button"
                   onClick={resetFilters}
                 >
-                  <i className="fa-solid fa-filter-circle-xmark" /> Reset
-                  filters
+                  <i className="fa-solid fa-filter-circle-xmark" />
+                  Reset filters
                 </button>
               </div>
+
+              {/* TABS */}
 
               <div className="reservation-tabs">
                 {[
@@ -839,17 +1040,24 @@ const HotelAdminBookings = () => {
                     className={activeTab === key ? "active" : ""}
                     onClick={() => {
                       setActiveTab(key);
-                      if (key !== "all") setDateFilterEnabled(true);
+
+                      if (key !== "all") {
+                        setDateFilterEnabled(true);
+                      }
                     }}
                   >
                     {label}
+
                     {key === "checkins" && <span>{todayCheckIns.length}</span>}
+
                     {key === "checkouts" && (
                       <span>{todayCheckOuts.length}</span>
                     )}
                   </button>
                 ))}
               </div>
+
+              {/* DATE AND VIEW TOOLBAR */}
 
               <div className="reservation-toolbar">
                 <div className="date-navigator">
@@ -860,8 +1068,10 @@ const HotelAdminBookings = () => {
                   >
                     <i className="fa-solid fa-chevron-left" />
                   </button>
+
                   <label>
                     <i className="fa-regular fa-calendar" />
+
                     <input
                       type="date"
                       value={selectedDate}
@@ -872,6 +1082,7 @@ const HotelAdminBookings = () => {
                       aria-label="Filter by date"
                     />
                   </label>
+
                   <button
                     type="button"
                     onClick={() => moveDate(1)}
@@ -879,6 +1090,7 @@ const HotelAdminBookings = () => {
                   >
                     <i className="fa-solid fa-chevron-right" />
                   </button>
+
                   <button
                     type="button"
                     className="today-button"
@@ -900,6 +1112,7 @@ const HotelAdminBookings = () => {
                   >
                     <i className="fa-solid fa-list" />
                   </button>
+
                   <button
                     type="button"
                     className={viewMode === "grid" ? "active" : ""}
@@ -910,6 +1123,8 @@ const HotelAdminBookings = () => {
                   </button>
                 </div>
               </div>
+
+              {/* LOADING, EMPTY, TABLE OR CARD VIEW */}
 
               {loading ? (
                 <div className="stayora-loading">
@@ -922,12 +1137,15 @@ const HotelAdminBookings = () => {
                   <div className="empty-icon">
                     <i className="fa-regular fa-calendar-xmark" />
                   </div>
+
                   <h4>No reservations found</h4>
+
                   <p>
                     {search || activeTab !== "all" || dateFilterEnabled
                       ? "Try changing your search or filters to find a reservation."
                       : "New reservations will appear here when guests book your property."}
                   </p>
+
                   {(search || activeTab !== "all" || dateFilterEnabled) && (
                     <button
                       type="button"
@@ -949,13 +1167,17 @@ const HotelAdminBookings = () => {
                         <th>GUESTS / ROOMS</th>
                         <th>AMOUNT</th>
                         <th>STATUS</th>
+                        <th>ACTIONS</th>
                       </tr>
                     </thead>
+
                     <tbody>
                       {filteredBookings.map((booking) => {
                         const guest = getGuest(booking);
                         const id = getBookingId(booking) || guest.name;
+
                         const status = getStatus(booking);
+
                         const roomName = getValue(booking, [
                           "roomType",
                           "roomName",
@@ -969,28 +1191,34 @@ const HotelAdminBookings = () => {
                                 <span className="guest-avatar">
                                   {getInitials(guest.name)}
                                 </span>
+
                                 <div>
                                   <strong>{guest.name}</strong>
                                   <small>{guest.email}</small>
                                 </div>
                               </div>
                             </td>
+
                             <td>
                               <strong className="date-primary">
                                 {formatDate(getDate(booking, "checkIn"))}
                               </strong>
+
                               <small className="date-sub">
                                 {getValue(booking, ["checkInTime"])}
                               </small>
                             </td>
+
                             <td>
                               <strong className="date-primary">
                                 {formatDate(getDate(booking, "checkOut"))}
                               </strong>
+
                               <small className="date-sub">
                                 {getValue(booking, ["checkOutTime"])}
                               </small>
                             </td>
+
                             <td>
                               <strong>
                                 {getGuestCount(booking)}{" "}
@@ -998,22 +1226,27 @@ const HotelAdminBookings = () => {
                                   ? "guest"
                                   : "guests"}
                               </strong>
+
                               <small className="date-sub">
                                 {getRoomCount(booking)}{" "}
                                 {getRoomCount(booking) === 1 ? "room" : "rooms"}
                                 {roomName ? ` · ${roomName}` : ""}
                               </small>
                             </td>
+
                             <td>
                               <strong className="amount-value">
                                 {formatMoney(booking)}
                               </strong>
                             </td>
+
                             <td>
                               <span className={`status-badge status-${status}`}>
                                 {statusLabel(status)}
                               </span>
                             </td>
+
+                            <td>{renderBookingActions(booking)}</td>
                           </tr>
                         );
                       })}
@@ -1033,14 +1266,17 @@ const HotelAdminBookings = () => {
                           <span className="guest-avatar">
                             {getInitials(guest.name)}
                           </span>
+
                           <div className="reservation-card-guest">
                             <strong>{guest.name}</strong>
                             <small>{guest.email}</small>
                           </div>
+
                           <span className={`status-badge status-${status}`}>
                             {statusLabel(status)}
                           </span>
                         </div>
+
                         <div className="reservation-card-dates">
                           <div>
                             <small>CHECK-IN</small>
@@ -1048,7 +1284,9 @@ const HotelAdminBookings = () => {
                               {formatDate(getDate(booking, "checkIn"))}
                             </strong>
                           </div>
+
                           <i className="fa-solid fa-arrow-right" />
+
                           <div>
                             <small>CHECK-OUT</small>
                             <strong>
@@ -1056,13 +1294,19 @@ const HotelAdminBookings = () => {
                             </strong>
                           </div>
                         </div>
+
                         <div className="reservation-card-bottom">
                           <span>
                             <i className="fa-solid fa-user-group" />{" "}
                             {getGuestCount(booking)} guests ·{" "}
                             {getRoomCount(booking)} rooms
                           </span>
+
                           <strong>{formatMoney(booking)}</strong>
+                        </div>
+
+                        <div className="reservation-card-actions">
+                          {renderBookingActions(booking)}
                         </div>
                       </article>
                     );
@@ -1075,19 +1319,26 @@ const HotelAdminBookings = () => {
                   Showing <strong>{filteredBookings.length}</strong> of{" "}
                   <strong>{bookings.length}</strong> reservations
                 </span>
+
                 <span className="auto-refresh-label">
-                  <span /> Auto-refresh every 20 seconds
+                  <span />
+                  Auto-refresh every 20 seconds
                 </span>
               </div>
             </section>
 
+            {/* RIGHT SIDEBAR */}
+
             <aside className="stayora-right-column">
+              {/* RECENT BOOKINGS */}
+
               <section className="side-panel new-bookings-panel">
                 <div className="side-panel-heading">
                   <div>
                     <h3>Recent bookings</h3>
                     <p>Latest reservations received</p>
                   </div>
+
                   <span className="side-panel-icon">
                     <i className="fa-regular fa-bell" />
                   </span>
@@ -1104,13 +1355,16 @@ const HotelAdminBookings = () => {
                           <span className="guest-avatar small-avatar">
                             {getInitials(guest.name)}
                           </span>
+
                           <div className="recent-booking-info">
                             <strong>{guest.name}</strong>
+
                             <small>
                               {formatDate(getDate(booking, "checkIn"))} –{" "}
                               {formatDate(getDate(booking, "checkOut"))}
                             </small>
                           </div>
+
                           <strong className="recent-booking-price">
                             {formatMoney(booking)}
                           </strong>
@@ -1136,12 +1390,15 @@ const HotelAdminBookings = () => {
                 </button>
               </section>
 
+              {/* QUICK ACTIONS */}
+
               <section className="side-panel quick-actions-panel">
                 <div className="side-panel-heading">
                   <div>
                     <h3>Quick actions</h3>
                     <p>Get to your workspace faster</p>
                   </div>
+
                   <span className="side-panel-icon purple">
                     <i className="fa-solid fa-bolt" />
                   </span>
@@ -1155,10 +1412,12 @@ const HotelAdminBookings = () => {
                   <span className="quick-action-icon blue">
                     <i className="fa-solid fa-chart-line" />
                   </span>
+
                   <span>
                     <strong>Open dashboard</strong>
                     <small>View property performance</small>
                   </span>
+
                   <i className="fa-solid fa-chevron-right quick-chevron" />
                 </button>
 
@@ -1170,17 +1429,19 @@ const HotelAdminBookings = () => {
                   <span className="quick-action-icon green">
                     <i className="fa-solid fa-globe" />
                   </span>
+
                   <span>
                     <strong>View website</strong>
                     <small>See your public website</small>
                   </span>
+
                   <i className="fa-solid fa-chevron-right quick-chevron" />
                 </button>
 
                 <button
                   type="button"
                   className="quick-action-row"
-                  onClick={() => fetchData(true)}
+                  onClick={handleRefresh}
                   disabled={refreshing}
                 >
                   <span className="quick-action-icon amber">
@@ -1190,15 +1451,20 @@ const HotelAdminBookings = () => {
                       }`}
                     />
                   </span>
+
                   <span>
                     <strong>
                       {refreshing ? "Syncing..." : "Sync reservations"}
                     </strong>
+
                     <small>Fetch the latest booking data</small>
                   </span>
+
                   <i className="fa-solid fa-chevron-right quick-chevron" />
                 </button>
               </section>
+
+              {/* TODAY'S SUMMARY */}
 
               <section className="side-panel today-summary-panel">
                 <div className="side-panel-heading">
@@ -1206,6 +1472,7 @@ const HotelAdminBookings = () => {
                     <h3>Today's summary</h3>
                     <p>{formatDate(new Date())}</p>
                   </div>
+
                   <span className="side-panel-icon green-icon">
                     <i className="fa-regular fa-calendar-check" />
                   </span>
@@ -1213,25 +1480,33 @@ const HotelAdminBookings = () => {
 
                 <div className="summary-metric">
                   <span>
-                    <i className="summary-dot checkin-dot" /> Expected check-ins
+                    <i className="summary-dot checkin-dot" />
+                    Expected check-ins
                   </span>
+
                   <strong>{todayCheckIns.length}</strong>
                 </div>
+
                 <div className="summary-metric">
                   <span>
-                    <i className="summary-dot checkout-dot" /> Expected
-                    check-outs
+                    <i className="summary-dot checkout-dot" />
+                    Expected check-outs
                   </span>
+
                   <strong>{todayCheckOuts.length}</strong>
                 </div>
+
                 <div className="summary-metric">
                   <span>
-                    <i className="summary-dot stay-dot" /> Guests staying today
+                    <i className="summary-dot stay-dot" />
+                    Guests staying today
                   </span>
+
                   <strong>
                     {
                       bookings.filter((booking) => {
                         const checkIn = dateOnly(getDate(booking, "checkIn"));
+
                         const checkOut = dateOnly(getDate(booking, "checkOut"));
 
                         return (
@@ -1248,6 +1523,7 @@ const HotelAdminBookings = () => {
 
                 <div className="summary-updated">
                   <i className="fa-regular fa-clock" />
+
                   {lastUpdated
                     ? `Updated at ${lastUpdated.toLocaleTimeString([], {
                         hour: "2-digit",
@@ -1259,13 +1535,16 @@ const HotelAdminBookings = () => {
             </aside>
           </div>
 
+          {/* FOOTER */}
+
           <footer className="stayora-footer">
             <span>
               © {new Date().getFullYear()} STAYORA. Hotel management workspace.
             </span>
+
             <span>
-              <i className="fa-solid fa-circle-check" /> Your reservations stay
-              up to date
+              <i className="fa-solid fa-circle-check" />
+              Your reservations stay up to date
             </span>
           </footer>
         </div>

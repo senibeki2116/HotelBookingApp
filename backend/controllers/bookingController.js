@@ -11,12 +11,14 @@ exports.createBooking = async (req, res) => {
 
     if (!userId) {
       return res.status(401).json({
+        success: false,
         message: "Authentication required",
       });
     }
 
     if (!hotelId || !checkIn || !checkOut) {
       return res.status(400).json({
+        success: false,
         message: "Hotel, check-in date and check-out date are required.",
       });
     }
@@ -26,12 +28,14 @@ exports.createBooking = async (req, res) => {
 
     if (!Number.isInteger(guestCount) || guestCount < 1) {
       return res.status(400).json({
+        success: false,
         message: "Guests must be at least 1.",
       });
     }
 
     if (!Number.isInteger(roomCount) || roomCount < 1) {
       return res.status(400).json({
+        success: false,
         message: "Rooms must be at least 1.",
       });
     }
@@ -44,12 +48,14 @@ exports.createBooking = async (req, res) => {
       Number.isNaN(checkOutDate.getTime())
     ) {
       return res.status(400).json({
+        success: false,
         message: "Invalid booking dates.",
       });
     }
 
     if (checkOutDate <= checkInDate) {
       return res.status(400).json({
+        success: false,
         message: "Check-out date must be after check-in date.",
       });
     }
@@ -58,6 +64,7 @@ exports.createBooking = async (req, res) => {
 
     if (!hotel) {
       return res.status(404).json({
+        success: false,
         message: "Hotel not found",
       });
     }
@@ -66,6 +73,7 @@ exports.createBooking = async (req, res) => {
 
     if (roomCount > availableRooms) {
       return res.status(400).json({
+        success: false,
         message: `Only ${availableRooms} room${
           availableRooms === 1 ? "" : "s"
         } available.`,
@@ -77,6 +85,7 @@ exports.createBooking = async (req, res) => {
 
     if (nights < 1) {
       return res.status(400).json({
+        success: false,
         message: "Booking must be at least one night.",
       });
     }
@@ -86,7 +95,7 @@ exports.createBooking = async (req, res) => {
 
     const booking = await Booking.create({
       user: userId,
-      hotel: hotelId,
+      hotel: hotel._id,
       checkIn: checkInDate,
       checkOut: checkOutDate,
       guests: guestCount,
@@ -95,9 +104,14 @@ exports.createBooking = async (req, res) => {
       status: "confirmed",
     });
 
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate("user", "name email")
+      .populate("hotel", "name location price image");
+
     return res.status(201).json({
+      success: true,
       message: "Booking created successfully",
-      booking,
+      booking: populatedBooking,
       summary: {
         hotel: hotel.name,
         pricePerNight,
@@ -109,7 +123,9 @@ exports.createBooking = async (req, res) => {
     });
   } catch (error) {
     console.error("CREATE BOOKING ERROR:", error);
+
     return res.status(500).json({
+      success: false,
       message: error.message || "Unable to create booking.",
     });
   }
@@ -124,6 +140,7 @@ exports.getMyBookings = async (req, res) => {
 
     if (!userId) {
       return res.status(401).json({
+        success: false,
         message: "Authentication required",
       });
     }
@@ -135,7 +152,9 @@ exports.getMyBookings = async (req, res) => {
     return res.status(200).json(bookings);
   } catch (error) {
     console.error("GET MY BOOKINGS ERROR:", error);
+
     return res.status(500).json({
+      success: false,
       message: error.message || "Unable to get bookings.",
     });
   }
@@ -152,22 +171,34 @@ exports.getBookingById = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({
+        success: false,
         message: "Booking not found",
       });
     }
 
-    // Customers may access only their own bookings.
-    // Admins and hotel admins may access bookings according
-    // to their application's role and authorization rules.
     const userId = req.user?._id || req.user?.id;
     const role = req.user?.role;
 
-    if (
+    // Customers can access only their own bookings.
+    // Admins can access bookings across the platform.
+    // Hotel admins can access only bookings for their own hotel.
+    if (role === "hoteladmin" || role === "hotelAdmin") {
+      const hotel = await Hotel.findOne({
+        hotelAdmin: userId,
+      });
+
+      if (!hotel || booking.hotel?._id?.toString() !== hotel._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not authorized to view this booking.",
+        });
+      }
+    } else if (
       role !== "admin" &&
-      role !== "hotelAdmin" &&
       (!userId || booking.user?._id?.toString() !== userId.toString())
     ) {
       return res.status(403).json({
+        success: false,
         message: "You are not authorized to view this booking.",
       });
     }
@@ -175,7 +206,9 @@ exports.getBookingById = async (req, res) => {
     return res.status(200).json(booking);
   } catch (error) {
     console.error("GET BOOKING ERROR:", error);
+
     return res.status(500).json({
+      success: false,
       message: error.message || "Unable to get booking.",
     });
   }
@@ -190,6 +223,7 @@ exports.deleteBooking = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({
+        success: false,
         message: "Booking not found",
       });
     }
@@ -199,12 +233,14 @@ exports.deleteBooking = async (req, res) => {
 
     if (!userId) {
       return res.status(401).json({
+        success: false,
         message: "Authentication required",
       });
     }
 
     if (booking.user.toString() !== userId.toString() && role !== "admin") {
       return res.status(403).json({
+        success: false,
         message: "You are not authorized to cancel this booking",
       });
     }
@@ -212,11 +248,14 @@ exports.deleteBooking = async (req, res) => {
     await booking.deleteOne();
 
     return res.status(200).json({
+      success: true,
       message: "Booking cancelled successfully",
     });
   } catch (error) {
     console.error("DELETE BOOKING ERROR:", error);
+
     return res.status(500).json({
+      success: false,
       message: error.message || "Unable to cancel booking.",
     });
   }
@@ -229,12 +268,14 @@ exports.getAllBookings = async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({
+        success: false,
         message: "Authentication required",
       });
     }
 
     if (req.user.role !== "admin") {
       return res.status(403).json({
+        success: false,
         message: "Admin access required",
       });
     }
@@ -247,7 +288,9 @@ exports.getAllBookings = async (req, res) => {
     return res.status(200).json(bookings);
   } catch (error) {
     console.error("GET ALL BOOKINGS ERROR:", error);
+
     return res.status(500).json({
+      success: false,
       message: error.message || "Unable to get all bookings.",
     });
   }
@@ -260,33 +303,59 @@ exports.getMyHotelBookings = async (req, res) => {
   try {
     const userId = req.user?._id || req.user?.id;
 
+    console.log("\n=================================");
+    console.log("GET HOTEL ADMIN BOOKINGS STARTED");
+    console.log("USER ID:", userId);
+    console.log("USER ROLE:", req.user?.role);
+
     if (!userId) {
       return res.status(401).json({
+        success: false,
         message: "Authentication required",
       });
     }
 
+    // Find the hotel assigned to this hotel administrator.
     const hotel = await Hotel.findOne({
       hotelAdmin: userId,
     });
 
     if (!hotel) {
+      console.log("NO HOTEL FOUND FOR USER:", userId);
+
       return res.status(404).json({
+        success: false,
         message: "No hotel is assigned to this hotel admin",
       });
     }
 
+    console.log("HOTEL FOUND:", hotel.name);
+    console.log("HOTEL ID:", hotel._id);
+
+    // Find all bookings belonging to this hotel.
     const bookings = await Booking.find({
       hotel: hotel._id,
     })
       .populate("user", "name email")
       .populate("hotel", "name location price image")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log("TOTAL BOOKINGS FOUND:", bookings.length);
+    console.log(
+      "BOOKING IDS:",
+      bookings.map((booking) => booking._id),
+    );
+
+    console.log("GET HOTEL ADMIN BOOKINGS COMPLETED");
+    console.log("=================================\n");
 
     return res.status(200).json(bookings);
   } catch (error) {
     console.error("GET HOTEL ADMIN BOOKINGS ERROR:", error);
+
     return res.status(500).json({
+      success: false,
       message: error.message || "Unable to get hotel bookings",
     });
   }
@@ -302,6 +371,7 @@ exports.updateBookingStatus = async (req, res) => {
 
     if (!userId) {
       return res.status(401).json({
+        success: false,
         message: "Authentication required",
       });
     }
@@ -310,6 +380,7 @@ exports.updateBookingStatus = async (req, res) => {
 
     if (!["confirmed", "cancelled"].includes(status)) {
       return res.status(400).json({
+        success: false,
         message: "Invalid booking status.",
       });
     }
@@ -318,6 +389,7 @@ exports.updateBookingStatus = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({
+        success: false,
         message: "Booking not found",
       });
     }
@@ -328,6 +400,7 @@ exports.updateBookingStatus = async (req, res) => {
 
     if (!hotel) {
       return res.status(404).json({
+        success: false,
         message: "No hotel is assigned to this hotel admin",
       });
     }
@@ -335,6 +408,7 @@ exports.updateBookingStatus = async (req, res) => {
     // Ensure the booking belongs to this hotel admin's hotel.
     if (booking.hotel.toString() !== hotel._id.toString()) {
       return res.status(403).json({
+        success: false,
         message: "You are not authorized to manage this booking.",
       });
     }
@@ -347,12 +421,15 @@ exports.updateBookingStatus = async (req, res) => {
       .populate("hotel", "name location price image");
 
     return res.status(200).json({
+      success: true,
       message: `Booking ${status} successfully`,
       booking: updatedBooking,
     });
   } catch (error) {
     console.error("UPDATE BOOKING STATUS ERROR:", error);
+
     return res.status(500).json({
+      success: false,
       message: error.message || "Unable to update booking status.",
     });
   }
