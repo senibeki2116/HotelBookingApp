@@ -81,6 +81,7 @@ exports.createBooking = async (req, res) => {
     }
 
     const millisecondsPerDay = 1000 * 60 * 60 * 24;
+
     const nights = Math.ceil((checkOutDate - checkInDate) / millisecondsPerDay);
 
     if (nights < 1) {
@@ -92,6 +93,13 @@ exports.createBooking = async (req, res) => {
 
     const pricePerNight = Number(hotel.price) || 0;
     const totalPrice = pricePerNight * nights * roomCount;
+
+    if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid hotel booking price.",
+      });
+    }
 
     const booking = await Booking.create({
       user: userId,
@@ -179,9 +187,7 @@ exports.getBookingById = async (req, res) => {
     const userId = req.user?._id || req.user?.id;
     const role = req.user?.role;
 
-    // Customers can access only their own bookings.
-    // Admins can access bookings across the platform.
-    // Hotel admins can access only bookings for their own hotel.
+    // Hotel admins can access only their own hotel's bookings.
     if (role === "hoteladmin" || role === "hotelAdmin") {
       const hotel = await Hotel.findOne({
         hotelAdmin: userId,
@@ -215,7 +221,8 @@ exports.getBookingById = async (req, res) => {
 };
 
 // =========================================================
-// DELETE / CANCEL BOOKING
+// CANCEL BOOKING
+// PRESERVE BOOKING AND PAYMENT HISTORY
 // =========================================================
 exports.deleteBooking = async (req, res) => {
   try {
@@ -238,6 +245,7 @@ exports.deleteBooking = async (req, res) => {
       });
     }
 
+    // Only the booking owner or platform admin can cancel.
     if (booking.user.toString() !== userId.toString() && role !== "admin") {
       return res.status(403).json({
         success: false,
@@ -245,14 +253,43 @@ exports.deleteBooking = async (req, res) => {
       });
     }
 
-    await booking.deleteOne();
+    if (booking.status === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "This booking is already cancelled.",
+      });
+    }
+
+    // Paid bookings require a separate refund process.
+    if (booking.paymentStatus === "paid") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This booking has already been paid. Please contact support to request cancellation and a refund.",
+      });
+    }
+
+    // Do not cancel while a payment is pending.
+    if (booking.paymentReference && booking.paymentStatus === "pending") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Payment is pending. Please verify its status before cancelling this booking.",
+      });
+    }
+
+    // Preserve the database record.
+    booking.status = "cancelled";
+
+    await booking.save();
 
     return res.status(200).json({
       success: true,
       message: "Booking cancelled successfully",
+      booking,
     });
   } catch (error) {
-    console.error("DELETE BOOKING ERROR:", error);
+    console.error("CANCEL BOOKING ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -315,7 +352,6 @@ exports.getMyHotelBookings = async (req, res) => {
       });
     }
 
-    // Find the hotel assigned to this hotel administrator.
     const hotel = await Hotel.findOne({
       hotelAdmin: userId,
     });
@@ -332,7 +368,6 @@ exports.getMyHotelBookings = async (req, res) => {
     console.log("HOTEL FOUND:", hotel.name);
     console.log("HOTEL ID:", hotel._id);
 
-    // Find all bookings belonging to this hotel.
     const bookings = await Booking.find({
       hotel: hotel._id,
     })
@@ -413,7 +448,37 @@ exports.updateBookingStatus = async (req, res) => {
       });
     }
 
+    if (booking.status === "cancelled" && status === "confirmed") {
+      return res.status(400).json({
+        success: false,
+        message: "A cancelled booking cannot be confirmed again.",
+      });
+    }
+
+    // Paid bookings need a refund process before cancellation.
+    if (status === "cancelled" && booking.paymentStatus === "paid") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This booking has been paid. A refund process is required before cancellation.",
+      });
+    }
+
+    // Verify pending payments before allowing cancellation.
+    if (
+      status === "cancelled" &&
+      booking.paymentReference &&
+      booking.paymentStatus === "pending"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Payment is pending. Verify payment before cancelling this booking.",
+      });
+    }
+
     booking.status = status;
+
     await booking.save();
 
     const updatedBooking = await Booking.findById(booking._id)

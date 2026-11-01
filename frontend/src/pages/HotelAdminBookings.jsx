@@ -28,14 +28,23 @@ const getValue = (object, keys, fallback = "") => {
 };
 
 const getGuest = (booking) => {
-  const guest = booking?.guest || booking?.user || booking?.customer || {};
+  const guest =
+    booking?.guest ||
+    booking?.user ||
+    booking?.customer ||
+    booking?.bookedBy ||
+    {};
+
+  const firstName =
+    booking?.firstName || guest?.firstName || guest?.first_name || "";
+
+  const lastName =
+    booking?.lastName || guest?.lastName || guest?.last_name || "";
 
   const name =
     getValue(booking, ["guestName", "customerName", "fullName", "name"]) ||
-    getValue(guest, ["name", "fullName", "username"]) ||
-    `${booking?.firstName || guest.firstName || ""} ${
-      booking?.lastName || guest.lastName || ""
-    }`.trim();
+    getValue(guest, ["name", "fullName", "full_name", "username"]) ||
+    `${firstName} ${lastName}`.trim();
 
   return {
     name: name || "Guest",
@@ -56,44 +65,78 @@ const getStatus = (booking) =>
     .toLowerCase()
     .replaceAll(" ", "_");
 
-const getDate = (booking, type) =>
-  getValue(
-    booking,
+const getDate = (booking, type) => {
+  const keys =
     type === "checkIn"
-      ? ["checkIn", "checkInDate", "arrivalDate", "startDate"]
-      : ["checkOut", "checkOutDate", "departureDate", "endDate"],
+      ? [
+          "checkIn",
+          "checkInDate",
+          "check_in",
+          "check_in_date",
+          "arrivalDate",
+          "startDate",
+        ]
+      : [
+          "checkOut",
+          "checkOutDate",
+          "check_out",
+          "check_out_date",
+          "departureDate",
+          "endDate",
+        ];
+
+  return getValue(booking, keys);
+};
+
+const getAmount = (booking) => {
+  const value = getValue(
+    booking,
+    ["totalPrice", "totalAmount", "amount", "price", "total", "bookingAmount"],
+    0,
   );
 
-const getAmount = (booking) =>
-  Number(
-    getValue(
-      booking,
-      [
-        "totalPrice",
-        "totalAmount",
-        "amount",
-        "price",
-        "total",
-        "bookingAmount",
-      ],
-      0,
-    ),
-  ) || 0;
+  if (typeof value === "object" && value !== null) {
+    return Number(value.amount || value.total || value.value || 0) || 0;
+  }
 
-// FIXED: Backend saves room count using the "rooms" property.
-const getRoomCount = (booking) =>
-  Number(
-    getValue(
-      booking,
-      ["rooms", "numberOfRooms", "roomCount", "roomsBooked"],
-      1,
-    ),
-  ) || 1;
+  return Number(value) || 0;
+};
 
-const getGuestCount = (booking) =>
-  Number(
-    getValue(booking, ["guests", "numberOfGuests", "guestCount", "adults"], 1),
-  ) || 1;
+const getRoomCount = (booking) => {
+  const value = getValue(
+    booking,
+    ["rooms", "numberOfRooms", "roomCount", "roomsBooked"],
+    1,
+  );
+
+  if (Array.isArray(value)) {
+    return value.length || 1;
+  }
+
+  if (typeof value === "object" && value !== null) {
+    return Number(value.count || value.quantity || 1) || 1;
+  }
+
+  return Number(value) || 1;
+};
+
+const getGuestCount = (booking) => {
+  const value = getValue(
+    booking,
+    ["guests", "numberOfGuests", "guestCount", "adults"],
+    1,
+  );
+
+  if (Array.isArray(value)) {
+    return value.length || 1;
+  }
+
+  if (typeof value === "object" && value !== null) {
+    return Number(value.count || value.total || 1) || 1;
+  }
+
+  return Number(value) || 1;
+};
 
 const getHotelName = (hotel) =>
   getValue(hotel, ["name", "hotelName", "propertyName"], "Your Hotel");
@@ -203,23 +246,27 @@ const HotelAdminBookings = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingBookingId, setUpdatingBookingId] = useState(null);
+
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+
   const [selectedDate, setSelectedDate] = useState(dateOnly(new Date()));
   const [dateFilterEnabled, setDateFilterEnabled] = useState(false);
+
   const [viewMode, setViewMode] = useState("table");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [newBookingIds, setNewBookingIds] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const requestInProgress = useRef(false);
-  const manualRefreshQueued = useRef(false);
+  const pendingManualRefresh = useRef(false);
+  const mountedRef = useRef(false);
   const hasLoadedOnce = useRef(false);
+
   const notificationRef = useRef(null);
   const bookingsRef = useRef([]);
 
-  // Keep the latest bookings available without relying on an old closure.
   useEffect(() => {
     bookingsRef.current = bookings;
   }, [bookings]);
@@ -231,10 +278,8 @@ const HotelAdminBookings = () => {
   const fetchData = useCallback(async (manual = false) => {
     if (requestInProgress.current) {
       if (manual) {
-        manualRefreshQueued.current = true;
-        setRefreshing(true);
+        pendingManualRefresh.current = true;
       }
-
       return;
     }
 
@@ -242,41 +287,53 @@ const HotelAdminBookings = () => {
 
     if (manual) {
       setRefreshing(true);
-    } else if (!hasLoadedOnce.current) {
+    }
+
+    if (!hasLoadedOnce.current) {
       setLoading(true);
     }
 
     setError("");
 
     try {
-      const [hotelResponse, bookingsResponse] = await Promise.all([
-        API.get("/hotels/my-hotel").catch((err) => {
-          console.warn("Hotel information could not be loaded:", err);
-          return null;
-        }),
-
+      const [hotelResult, bookingsResult] = await Promise.allSettled([
+        API.get("/hotels/my-hotel"),
         API.get("/bookings/my-hotel"),
       ]);
 
-      // Resolve hotel response.
-      const hotelData = hotelResponse?.data;
-      const resolvedHotel = hotelData?.hotel || hotelData?.data || hotelData;
+      if (!mountedRef.current) return;
 
-      if (resolvedHotel && !Array.isArray(resolvedHotel)) {
-        setHotel(resolvedHotel);
+      // HOTEL DATA
+      if (hotelResult.status === "fulfilled") {
+        const hotelData = hotelResult.value?.data;
+
+        const resolvedHotel =
+          hotelData?.hotel ||
+          hotelData?.data?.hotel ||
+          hotelData?.data ||
+          hotelData;
+
+        if (
+          resolvedHotel &&
+          !Array.isArray(resolvedHotel) &&
+          typeof resolvedHotel === "object"
+        ) {
+          setHotel(resolvedHotel);
+        }
+      } else {
+        console.warn(
+          "Hotel information could not be loaded:",
+          hotelResult.reason,
+        );
       }
 
-      // =====================================================
-      // DEBUG: CHECK BOOKINGS API RESPONSE
-      // =====================================================
+      // BOOKINGS DATA
+      if (bookingsResult.status === "rejected") {
+        throw bookingsResult.reason;
+      }
 
-      const responseData = bookingsResponse?.data;
+      const responseData = bookingsResult.value?.data;
 
-      console.log("BOOKINGS API RESPONSE:", bookingsResponse);
-      console.log("BOOKINGS RESPONSE DATA:", responseData);
-      console.log("IS ARRAY:", Array.isArray(responseData));
-
-      // Resolve bookings response.
       const resolvedBookings = Array.isArray(responseData)
         ? responseData
         : (responseData?.bookings ??
@@ -285,12 +342,11 @@ const HotelAdminBookings = () => {
           []);
 
       if (!Array.isArray(resolvedBookings)) {
-        throw new Error("The server returned an unexpected bookings format.");
+        throw new Error(
+          "The server returned an unexpected reservations format.",
+        );
       }
 
-      console.log("BOOKINGS COUNT:", resolvedBookings.length);
-
-      // Detect newly received reservations.
       const previousIds = new Set(
         bookingsRef.current.map(getBookingId).filter(Boolean),
       );
@@ -308,33 +364,40 @@ const HotelAdminBookings = () => {
         );
       }
 
-      // Update React state.
       bookingsRef.current = resolvedBookings;
       setBookings(resolvedBookings);
 
-      // Debug: verify frontend received the bookings.
-      console.log("BOOKINGS SAVED TO FRONTEND:", resolvedBookings);
-      console.log("FRONTEND BOOKINGS COUNT:", resolvedBookings.length);
-
       hasLoadedOnce.current = true;
       setLastUpdated(new Date());
+
+      console.log("RESERVATIONS UPDATED:", resolvedBookings.length);
     } catch (err) {
       console.error("Loading reservations failed:", err);
 
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to load reservations. Please try again.",
-      );
+      if (mountedRef.current) {
+        setError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Unable to load reservations. Please try again.",
+        );
+      }
     } finally {
       requestInProgress.current = false;
-      setLoading(false);
 
-      if (manualRefreshQueued.current) {
-        manualRefreshQueued.current = false;
-        void fetchData(true);
-      } else {
-        setRefreshing(false);
+      if (mountedRef.current) {
+        setLoading(false);
+
+        if (pendingManualRefresh.current) {
+          pendingManualRefresh.current = false;
+
+          Promise.resolve().then(() => {
+            if (mountedRef.current) {
+              void fetchData(true);
+            }
+          });
+        } else {
+          setRefreshing(false);
+        }
       }
     }
   }, []);
@@ -344,13 +407,32 @@ const HotelAdminBookings = () => {
   // =========================================================
 
   useEffect(() => {
+    mountedRef.current = true;
+
     void fetchData(false);
 
     const interval = setInterval(() => {
       void fetchData(false);
     }, POLL_INTERVAL);
 
-    return () => clearInterval(interval);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(interval);
+    };
+  }, [fetchData]);
+
+  // =========================================================
+  // MANUAL REFRESH
+  // =========================================================
+
+  const handleRefresh = useCallback(() => {
+    if (requestInProgress.current) {
+      pendingManualRefresh.current = true;
+      setRefreshing(true);
+      return;
+    }
+
+    void fetchData(true);
   }, [fetchData]);
 
   // =========================================================
@@ -383,24 +465,17 @@ const HotelAdminBookings = () => {
   const stats = useMemo(
     () => ({
       total: bookings.length,
+
       confirmed: bookings.filter(isConfirmed).length,
+
       pending: bookings.filter(
         (booking) => !isCancelled(booking) && !isConfirmed(booking),
       ).length,
+
       cancelled: bookings.filter(isCancelled).length,
     }),
     [bookings],
   );
-
-  // =========================================================
-  // MANUAL REFRESH
-  // =========================================================
-
-  const handleRefresh = () => {
-    if (refreshing && manualRefreshQueued.current) return;
-
-    void fetchData(true);
-  };
 
   // =========================================================
   // CONFIRM OR CANCEL BOOKING
@@ -426,19 +501,25 @@ const HotelAdminBookings = () => {
         status,
       });
 
-      const updatedBooking = response.data?.booking;
+      const updatedBooking =
+        response.data?.booking ||
+        response.data?.data?.booking ||
+        response.data?.data;
 
-      if (updatedBooking) {
+      if (updatedBooking && typeof updatedBooking === "object") {
         setBookings((previous) => {
           const updated = previous.map((booking) =>
-            getBookingId(booking) === bookingId ? updatedBooking : booking,
+            getBookingId(booking) === bookingId
+              ? { ...booking, ...updatedBooking }
+              : booking,
           );
 
           bookingsRef.current = updated;
           return updated;
         });
       } else {
-        await fetchData(true);
+        // Reload from the server if the API does not return a booking.
+        await fetchData(false);
       }
 
       setLastUpdated(new Date());
@@ -531,13 +612,23 @@ const HotelAdminBookings = () => {
       dateOnly(getDate(booking, "checkOut")) === today && !isCancelled(booking),
   );
 
-  const recentBookings = [...bookings]
-    .sort(
-      (a, b) =>
-        new Date(getValue(b, ["createdAt", "created_at"], 0)).getTime() -
-        new Date(getValue(a, ["createdAt", "created_at"], 0)).getTime(),
-    )
-    .slice(0, 4);
+  const recentBookings = useMemo(
+    () =>
+      [...bookings]
+        .sort((a, b) => {
+          const dateA = new Date(
+            getValue(a, ["createdAt", "created_at"], 0),
+          ).getTime();
+
+          const dateB = new Date(
+            getValue(b, ["createdAt", "created_at"], 0),
+          ).getTime();
+
+          return dateB - dateA;
+        })
+        .slice(0, 4),
+    [bookings],
+  );
 
   const moveDate = (days) => {
     const date = new Date(`${selectedDate}T12:00:00`);
@@ -583,7 +674,8 @@ const HotelAdminBookings = () => {
     if (isCancelled(booking)) {
       return (
         <span className="booking-action-complete">
-          <i className="fa-solid fa-circle-xmark" /> Cancelled
+          <i className="fa-solid fa-circle-xmark" />
+          Cancelled
         </span>
       );
     }
@@ -695,7 +787,8 @@ const HotelAdminBookings = () => {
                 window.location.href = "mailto:support@stayora.com";
               }}
             >
-              Contact support <i className="fa-solid fa-arrow-right" />
+              Contact support
+              <i className="fa-solid fa-arrow-right" />
             </button>
           </div>
 
@@ -825,7 +918,6 @@ const HotelAdminBookings = () => {
                   ) : (
                     <div className="popover-empty">
                       <div className="notification-empty-icon">✓</div>
-
                       <strong>You're all caught up!</strong>
                       <p>New booking updates will appear here.</p>
                     </div>
@@ -870,8 +962,12 @@ const HotelAdminBookings = () => {
               >
                 ↻
               </span>
+
+              <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
             </button>
           </div>
+
+          {/* PROPERTY BANNER */}
 
           <section
             className="property-banner"
@@ -917,6 +1013,8 @@ const HotelAdminBookings = () => {
               <i className="fa-solid fa-hotel" />
             </div>
           </section>
+
+          {/* ERROR MESSAGE */}
 
           {error && (
             <div className="stayora-error">
@@ -1041,7 +1139,9 @@ const HotelAdminBookings = () => {
                     onClick={() => {
                       setActiveTab(key);
 
-                      if (key !== "all") {
+                      if (key === "all") {
+                        setDateFilterEnabled(false);
+                      } else {
                         setDateFilterEnabled(true);
                       }
                     }}
@@ -1385,7 +1485,7 @@ const HotelAdminBookings = () => {
                     setSearch("");
                   }}
                 >
-                  View all reservations{" "}
+                  View all reservations
                   <i className="fa-solid fa-arrow-right" />
                 </button>
               </section>

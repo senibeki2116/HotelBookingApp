@@ -30,17 +30,34 @@ const formatDate = (date) => {
   });
 };
 
+const formatAmount = (amount, currency = "ETB") => {
+  const number = Number(amount || 0);
+
+  return `${currency} ${number.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
 function MyBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Review states
   const [reviewedBookingIds, setReviewedBookingIds] = useState([]);
   const [reviewTarget, setReviewTarget] = useState(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // Payment states
+  const [payingBookingId, setPayingBookingId] = useState(null);
+  const [receipt, setReceipt] = useState(null);
+  const [loadingReceiptId, setLoadingReceiptId] = useState(null);
+
   const { token } = useContext(AuthContext);
 
+  // Fetch bookings and reviews
   useEffect(() => {
     const fetchData = async () => {
       if (!token) {
@@ -103,6 +120,90 @@ function MyBookings() {
     fetchData();
   }, [token]);
 
+  // Initialize Chapa payment
+  const initializePayment = async (bookingId) => {
+    if (!token) {
+      alert("Please log in to make a payment.");
+      return;
+    }
+
+    setPayingBookingId(bookingId);
+
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/payments/initialize/${bookingId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const checkoutUrl = response.data?.checkoutUrl;
+
+      if (!checkoutUrl) {
+        throw new Error("Chapa did not return a checkout link.");
+      }
+
+      // Redirect customer to Chapa checkout
+      window.location.href = checkoutUrl;
+    } catch (error) {
+      console.error(
+        "PAYMENT INITIALIZATION ERROR:",
+        error.response?.data || error.message,
+      );
+
+      alert(
+        error.response?.data?.message ||
+          error.message ||
+          "Unable to start payment. Please try again.",
+      );
+
+      setPayingBookingId(null);
+    }
+  };
+
+  // Load payment receipt
+  const viewReceipt = async (bookingId) => {
+    if (!token) {
+      alert("Please log in to view your receipt.");
+      return;
+    }
+
+    setLoadingReceiptId(bookingId);
+
+    try {
+      const response = await axios.get(
+        `${API_URL}/api/payments/receipt/${bookingId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      setReceipt(response.data.receipt);
+    } catch (error) {
+      console.error("RECEIPT ERROR:", error.response?.data || error.message);
+
+      alert(
+        error.response?.data?.message || "Unable to load your payment receipt.",
+      );
+    } finally {
+      setLoadingReceiptId(null);
+    }
+  };
+
+  const closeReceipt = () => {
+    setReceipt(null);
+  };
+
+  const printReceipt = () => {
+    window.print();
+  };
+
+  // Cancel booking
   const deleteBooking = async (id) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to cancel this booking?",
@@ -124,10 +225,12 @@ function MyBookings() {
       alert("Booking cancelled successfully!");
     } catch (error) {
       console.error(error.response?.data || error.message);
+
       alert(error.response?.data?.message || "Failed to cancel booking.");
     }
   };
 
+  // Check whether a booking is eligible for a review
   const canReviewBooking = (booking) => {
     if (!booking || booking.status !== "confirmed" || !booking.checkOut) {
       return false;
@@ -152,6 +255,7 @@ function MyBookings() {
     setComment("");
   };
 
+  // Submit hotel review
   const submitReview = async (event) => {
     event.preventDefault();
 
@@ -223,8 +327,13 @@ function MyBookings() {
     (booking) => booking.status === "confirmed",
   ).length;
 
+  const paidCount = bookings.filter(
+    (booking) => booking.paymentStatus === "paid",
+  ).length;
+
   return (
     <main className="my-bookings-page">
+      {/* PAGE HEADING */}
       <section className="bookings-heading">
         <div className="heading-content">
           <span className="heading-eyebrow">
@@ -251,9 +360,17 @@ function MyBookings() {
             <span className="overview-number">{confirmedCount}</span>
             <span className="overview-label">Confirmed</span>
           </div>
+
+          <div className="overview-divider" />
+
+          <div className="overview-item">
+            <span className="overview-number">{paidCount}</span>
+            <span className="overview-label">Paid</span>
+          </div>
         </div>
       </section>
 
+      {/* BOOKINGS SECTION */}
       <section className="bookings-content">
         <div className="bookings-section-heading">
           <div>
@@ -270,8 +387,11 @@ function MyBookings() {
         {bookings.length === 0 ? (
           <div className="empty-bookings">
             <div className="empty-bookings-icon">⌂</div>
+
             <span className="section-eyebrow">YOUR NEXT ADVENTURE</span>
+
             <h2>No reservations yet</h2>
+
             <p>
               Your next memorable stay is waiting. Explore our hotels and find a
               place you'll love.
@@ -281,15 +401,25 @@ function MyBookings() {
           <div className="booking-list">
             {bookings.map((booking) => {
               const hotel = booking.hotel || {};
+
               const hasReviewed = reviewedBookingIds.includes(
                 String(booking._id),
               );
+
               const eligibleForReview = canReviewBooking(booking);
+
               const isReviewOpen = reviewTarget?._id === booking._id;
+
+              const paymentStatus = (
+                booking.paymentStatus || "pending"
+              ).toLowerCase();
+
+              const isPaid = paymentStatus === "paid";
 
               return (
                 <article className="booking-card" key={booking._id}>
                   <div className="booking-card-main">
+                    {/* HOTEL IMAGE */}
                     <div className="booking-photo-wrap">
                       <img
                         className="booking-image"
@@ -303,13 +433,16 @@ function MyBookings() {
                       <span className="photo-label">YOUR STAY</span>
                     </div>
 
+                    {/* BOOKING INFORMATION */}
                     <div className="booking-information">
                       <div className="hotel-title-row">
                         <div>
                           <span className="hotel-category">
                             HOTEL RESERVATION
                           </span>
+
                           <h3>{hotel.name || "Hotel"}</h3>
+
                           <p className="hotel-location">
                             <span>⌖</span>
                             {hotel.location || "Location not available"}
@@ -328,10 +461,25 @@ function MyBookings() {
                         </span>
                       </div>
 
+                      {/* PAYMENT STATUS */}
+                      <div className="payment-status-row">
+                        <span className="payment-label">Payment status:</span>
+
+                        <span
+                          className={`payment-status payment-${paymentStatus}`}
+                        >
+                          <span className="status-dot" />
+                          {paymentStatus}
+                        </span>
+                      </div>
+
+                      {/* STAY DATES */}
                       <div className="stay-dates">
                         <div className="stay-date-box">
                           <span className="date-caption">CHECK-IN</span>
+
                           <strong>{formatDate(booking.checkIn)}</strong>
+
                           <span className="date-subtitle">Arrival date</span>
                         </div>
 
@@ -341,14 +489,18 @@ function MyBookings() {
 
                         <div className="stay-date-box">
                           <span className="date-caption">CHECK-OUT</span>
+
                           <strong>{formatDate(booking.checkOut)}</strong>
+
                           <span className="date-subtitle">Departure date</span>
                         </div>
                       </div>
 
+                      {/* BOOKING DETAILS */}
                       <div className="booking-meta">
                         <div className="meta-item">
                           <span className="meta-icon">♙</span>
+
                           <span>
                             <small>Guests</small>
                             <strong>{booking.guests ?? "—"}</strong>
@@ -357,8 +509,10 @@ function MyBookings() {
 
                         <div className="meta-item">
                           <span className="meta-icon">▦</span>
+
                           <span>
                             <small>Booking ID</small>
+
                             <strong>
                               {String(booking._id).slice(-8).toUpperCase()}
                             </strong>
@@ -367,14 +521,51 @@ function MyBookings() {
 
                         <div className="meta-price">
                           <small>Total price</small>
+
                           <strong>
-                            ${Number(booking.totalPrice || 0).toLocaleString()}
+                            {formatAmount(
+                              booking.totalPrice,
+                              booking.paymentCurrency || "ETB",
+                            )}
                           </strong>
                         </div>
                       </div>
 
+                      {/* ACTION BUTTONS */}
                       <div className="booking-card-footer">
                         <div className="booking-actions">
+                          {/* PAYMENT BUTTONS */}
+                          {booking.status !== "cancelled" && (
+                            <>
+                              {isPaid ? (
+                                <button
+                                  type="button"
+                                  className="receipt-btn"
+                                  onClick={() => viewReceipt(booking._id)}
+                                  disabled={loadingReceiptId === booking._id}
+                                >
+                                  {loadingReceiptId === booking._id
+                                    ? "Loading receipt..."
+                                    : "View Receipt ↗"}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="pay-now-btn"
+                                  onClick={() => initializePayment(booking._id)}
+                                  disabled={payingBookingId === booking._id}
+                                >
+                                  {payingBookingId === booking._id
+                                    ? "Connecting to Chapa..."
+                                    : paymentStatus === "failed"
+                                      ? "Try Payment Again →"
+                                      : "Pay Now →"}
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {/* REVIEW BUTTONS */}
                           {eligibleForReview &&
                             (hasReviewed ? (
                               <button
@@ -394,6 +585,7 @@ function MyBookings() {
                               </button>
                             ))}
 
+                          {/* CANCEL BUTTON */}
                           {booking.status === "confirmed" && (
                             <button
                               className="cancel-btn"
@@ -414,6 +606,7 @@ function MyBookings() {
                     </div>
                   </div>
 
+                  {/* REVIEW FORM */}
                   {isReviewOpen && (
                     <form className="review-form" onSubmit={submitReview}>
                       <div className="review-form-heading">
@@ -421,7 +614,9 @@ function MyBookings() {
                           <span className="section-eyebrow">
                             SHARE YOUR EXPERIENCE
                           </span>
+
                           <h3>How was your stay?</h3>
+
                           <p>
                             Your feedback helps other travelers choose their
                             perfect stay.
@@ -516,6 +711,124 @@ function MyBookings() {
           </div>
         )}
       </section>
+
+      {/* PAYMENT RECEIPT MODAL */}
+      {receipt && (
+        <div className="receipt-overlay">
+          <div className="receipt-modal" id="payment-receipt">
+            <div className="receipt-header">
+              <div>
+                <span className="section-eyebrow">STAYORA PAYMENT</span>
+
+                <h2>Payment Receipt</h2>
+
+                <p>Thank you for choosing Stayora.</p>
+              </div>
+
+              <button
+                type="button"
+                className="receipt-close"
+                onClick={closeReceipt}
+                aria-label="Close receipt"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="receipt-success">
+              <span>✓</span>
+              <strong>Payment successful</strong>
+            </div>
+
+            <div className="receipt-details">
+              <div>
+                <small>Receipt number</small>
+                <strong>{receipt.receiptNumber}</strong>
+              </div>
+
+              <div>
+                <small>Customer</small>
+                <strong>{receipt.customer || "—"}</strong>
+              </div>
+
+              <div>
+                <small>Email</small>
+                <strong>{receipt.customerEmail || "—"}</strong>
+              </div>
+
+              <div>
+                <small>Hotel</small>
+                <strong>{receipt.hotel || "—"}</strong>
+              </div>
+
+              <div>
+                <small>Hotel location</small>
+                <strong>{receipt.hotelLocation || "—"}</strong>
+              </div>
+
+              <div>
+                <small>Booking ID</small>
+                <strong>
+                  {String(receipt.bookingId).slice(-8).toUpperCase()}
+                </strong>
+              </div>
+
+              <div>
+                <small>Transaction reference</small>
+                <strong>{receipt.transactionReference || "—"}</strong>
+              </div>
+
+              <div>
+                <small>Check-in</small>
+                <strong>{formatDate(receipt.checkIn)}</strong>
+              </div>
+
+              <div>
+                <small>Check-out</small>
+                <strong>{formatDate(receipt.checkOut)}</strong>
+              </div>
+
+              <div>
+                <small>Guests</small>
+                <strong>{receipt.guests ?? "—"}</strong>
+              </div>
+
+              <div>
+                <small>Rooms</small>
+                <strong>{receipt.rooms ?? "—"}</strong>
+              </div>
+
+              <div>
+                <small>Payment date</small>
+                <strong>{formatDate(receipt.paidAt)}</strong>
+              </div>
+
+              <div>
+                <small>Payment provider</small>
+                <strong>{receipt.paymentProvider || "Chapa"}</strong>
+              </div>
+            </div>
+
+            <div className="receipt-total">
+              <span>Total paid</span>
+
+              <strong>
+                {formatAmount(receipt.amount, receipt.currency || "ETB")}
+              </strong>
+            </div>
+
+            <div className="receipt-actions">
+              <button type="button" onClick={printReceipt}>
+                Print Receipt
+              </button>
+
+              <button type="button" onClick={closeReceipt}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

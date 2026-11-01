@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 // ================= USER PAGES =================
@@ -12,6 +13,7 @@ import HotelDetails from "./pages/HotelDetails";
 import Booking from "./pages/Booking";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import MyBookings from "./pages/MyBookings";
+import PaymentResult from "./pages/PaymentResult";
 
 // ================= ADMIN PAGES =================
 import AdminDashboard from "./pages/AdminDashboard";
@@ -53,6 +55,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/booking-confirmation/:id"
           element={
@@ -61,6 +64,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/my-bookings"
           element={
@@ -69,6 +73,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/my-booking"
           element={
@@ -77,11 +82,22 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/bookings"
           element={
             <ProtectedRoute>
               <MyBookings />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* CHAPA PAYMENT RESULT */}
+        <Route
+          path="/payment/result"
+          element={
+            <ProtectedRoute>
+              <PaymentResult />
             </ProtectedRoute>
           }
         />
@@ -95,6 +111,7 @@ function App() {
             </HotelAdminRoute>
           }
         />
+
         <Route
           path="/admin/hotel-dashbord"
           element={
@@ -103,6 +120,7 @@ function App() {
             </HotelAdminRoute>
           }
         />
+
         <Route
           path="/hotel-admin-dashboard"
           element={
@@ -111,6 +129,7 @@ function App() {
             </HotelAdminRoute>
           }
         />
+
         <Route
           path="/admin/hotel-bookings"
           element={
@@ -139,6 +158,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/profile/edit"
           element={
@@ -157,6 +177,7 @@ function App() {
             </AdminRoute>
           }
         />
+
         <Route
           path="/AdminDashboard"
           element={
@@ -165,6 +186,7 @@ function App() {
             </AdminRoute>
           }
         />
+
         <Route
           path="/admin/dashboard"
           element={
@@ -183,6 +205,7 @@ function App() {
             </AdminRoute>
           }
         />
+
         <Route
           path="/admin/manage-hotels"
           element={
@@ -191,6 +214,7 @@ function App() {
             </AdminRoute>
           }
         />
+
         <Route
           path="/admin/add-hotel"
           element={
@@ -199,6 +223,7 @@ function App() {
             </AdminRoute>
           }
         />
+
         <Route
           path="/admin/hotels/add"
           element={
@@ -207,6 +232,7 @@ function App() {
             </AdminRoute>
           }
         />
+
         <Route
           path="/admin/hotels/edit/:id"
           element={
@@ -257,7 +283,7 @@ function App() {
         />
       </Routes>
 
-      {/* Globally available on all routes; must stay inside BrowserRouter for navigation. */}
+      {/* GLOBAL CHATBOT */}
       <HotelChatbot />
     </BrowserRouter>
   );

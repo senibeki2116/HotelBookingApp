@@ -43,10 +43,59 @@ const bookingSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // Booking status
     status: {
       type: String,
       enum: ["confirmed", "cancelled"],
       default: "confirmed",
+    },
+
+    // Payment information
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "failed", "cancelled", "refunded"],
+      default: "pending",
+    },
+
+    paymentProvider: {
+      type: String,
+      enum: ["chapa", "other"],
+      default: "chapa",
+    },
+
+    paymentReference: {
+      type: String,
+      default: null,
+    },
+
+    merchantReference: {
+      type: String,
+      default: null,
+    },
+
+    checkoutUrl: {
+      type: String,
+      default: null,
+    },
+
+    paymentMethod: {
+      type: String,
+      default: null,
+    },
+
+    processorReference: {
+      type: String,
+      default: null,
+    },
+
+    paymentCurrency: {
+      type: String,
+      default: "ETB",
+    },
+
+    paidAt: {
+      type: Date,
+      default: null,
     },
   },
   {

@@ -4,13 +4,22 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
+// ========================================
+// ROUTE IMPORTS
+// ========================================
+
 const roomRoutes = require("./routes/roomRoutes");
 const hotelRoutes = require("./routes/hotelRoutes");
 const userRoutes = require("./routes/userRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+
+// ========================================
+// DATABASE
+// ========================================
 
 const connectDB = require("./config/db");
 
@@ -27,12 +36,18 @@ const app = express();
 // MIDDLEWARE
 // ========================================
 
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5174",
+    credentials: true,
+  }),
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ========================================
-// DATABASE
+// DATABASE CONNECTION
 // ========================================
 
 connectDB();
@@ -53,7 +68,11 @@ app.use("/api/hotels", hotelRoutes);
 
 app.use("/api/bookings", bookingRoutes);
 
-// REVIEW ROUTES
+// CHAPA PAYMENT ROUTES
+app.use("/api/payments", paymentRoutes);
+
+console.log("💳 PAYMENT ROUTES REGISTERED");
+
 app.use("/api/reviews", reviewRoutes);
 
 console.log("🔥 REVIEW ROUTES REGISTERED");
@@ -74,6 +93,7 @@ app.use("/api/ai", aiRoutes);
 
 app.get("/admin-test", (req, res) => {
   res.json({
+    success: true,
     message: "SERVER.JS TEST ROUTE WORKS",
   });
 });
@@ -84,7 +104,9 @@ app.get("/admin-test", (req, res) => {
 
 app.get("/", (req, res) => {
   res.json({
-    message: "Hotel Booking Backend is Running!",
+    success: true,
+    message: "Stayora Hotel Booking Backend is Running!",
+    paymentProvider: "Chapa",
   });
 });
 
@@ -98,6 +120,7 @@ app.use((req, res) => {
   console.log("URL:", req.originalUrl);
 
   res.status(404).json({
+    success: false,
     message: "Route not found",
     method: req.method,
     url: req.originalUrl,
@@ -112,6 +135,7 @@ app.use((err, req, res, next) => {
   console.error("SERVER ERROR:", err);
 
   res.status(err.status || 500).json({
+    success: false,
     message: err.message || "Internal server error",
   });
 });
@@ -124,7 +148,8 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log("=================================");
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Stayora server running on port ${PORT}`);
   console.log(`📁 Server file: ${__filename}`);
+  console.log("💳 Chapa payment routes: /api/payments");
   console.log("=================================");
 });
