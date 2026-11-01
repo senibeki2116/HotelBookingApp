@@ -40,6 +40,10 @@ const LOCATIONS = [
   "harar",
 ];
 
+// ======================================================
+// HELPER FUNCTIONS
+// ======================================================
+
 function normalize(value) {
   return String(value || "")
     .toLowerCase()
@@ -65,9 +69,18 @@ function getHotelPriceValue(hotel) {
   return Number(hotel?.price ?? hotel?.pricePerNight ?? hotel?.amount ?? 0);
 }
 
+// Read the customer average rating from the backend
 function getHotelRatingValue(hotel) {
-  return Number(hotel?.rating ?? hotel?.averageRating ?? hotel?.stars ?? 0);
+  const value = hotel?.averageRating ?? hotel?.rating ?? hotel?.stars ?? 0;
+
+  const rating = Number(value);
+
+  return Number.isFinite(rating) ? rating : 0;
 }
+
+// ======================================================
+// MAIN HOTELS COMPONENT
+// ======================================================
 
 function Hotels() {
   const navigate = useNavigate();
@@ -102,7 +115,10 @@ function Hotels() {
   const [aiError, setAiError] = useState("");
   const [aiSearched, setAiSearched] = useState(false);
 
+  // ======================================================
   // FETCH HOTELS
+  // ======================================================
+
   useEffect(() => {
     let cancelled = false;
 
@@ -145,12 +161,18 @@ function Hotels() {
     };
   }, []);
 
+  // ======================================================
   // SAVE FAVORITES
+  // ======================================================
+
   useEffect(() => {
     localStorage.setItem("favoriteHotels", JSON.stringify(favorites));
   }, [favorites]);
 
+  // ======================================================
   // AUTHENTICATION
+  // ======================================================
+
   const handleAuthButton = () => {
     setMenuOpen(false);
 
@@ -166,7 +188,10 @@ function Hotels() {
     }
   };
 
+  // ======================================================
   // FAVORITES
+  // ======================================================
+
   const toggleFavorite = (id) => {
     if (id === undefined || id === null) return;
 
@@ -177,7 +202,10 @@ function Hotels() {
     );
   };
 
+  // ======================================================
   // HOTEL IMAGES
+  // ======================================================
+
   const getImage = (hotel) => {
     if (!hotel?.image) return FALLBACK_HOTEL;
 
@@ -190,23 +218,33 @@ function Hotels() {
     return `${API_URL}/uploads/${image}`;
   };
 
+  // ======================================================
   // HOTEL VALUES
+  // ======================================================
+
   const getRating = (hotel) => {
-    const rating = getHotelRatingValue(hotel);
-    return Number.isFinite(rating) ? rating.toFixed(1) : "0.0";
+    return getHotelRatingValue(hotel).toFixed(1);
   };
 
-  const getReviews = (hotel) => hotel?.reviews ?? hotel?.reviewCount ?? 0;
+  const getReviews = (hotel) => {
+    const reviews = Number(hotel?.totalReviews ?? hotel?.reviewCount ?? 0);
+
+    return Number.isFinite(reviews) ? reviews : 0;
+  };
 
   const getPrice = (hotel) => {
     const price = getHotelPriceValue(hotel);
+
     return Number.isFinite(price) ? price.toLocaleString() : "0";
   };
 
   const getLocation = getHotelLocationValue;
   const getHotelName = getHotelNameValue;
 
+  // ======================================================
   // HOTEL DETAILS
+  // ======================================================
+
   const handleDetails = (hotel) => {
     const id = getHotelIdForCard(hotel);
 
@@ -219,7 +257,10 @@ function Hotels() {
     navigate(`/hotels/${id}`);
   };
 
+  // ======================================================
   // BOOK HOTEL
+  // ======================================================
+
   const handleBook = (hotel) => {
     const id = getHotelIdForCard(hotel);
 
@@ -232,9 +273,13 @@ function Hotels() {
     navigate(`/booking/hotel/${id}`);
   };
 
+  // ======================================================
   // NAVIGATION
+  // ======================================================
+
   const scrollToHotels = () => {
     setMenuOpen(false);
+
     document.getElementById("hotels")?.scrollIntoView({
       behavior: "smooth",
       block: "start",
@@ -243,6 +288,7 @@ function Hotels() {
 
   const scrollToDestinations = () => {
     setMenuOpen(false);
+
     document.getElementById("destinations")?.scrollIntoView({
       behavior: "smooth",
       block: "start",
@@ -251,6 +297,7 @@ function Hotels() {
 
   const scrollToAbout = () => {
     setMenuOpen(false);
+
     document.getElementById("about")?.scrollIntoView({
       behavior: "smooth",
       block: "start",
@@ -275,7 +322,10 @@ function Hotels() {
     }, 100);
   };
 
+  // ======================================================
   // AI EXAMPLE PROMPTS
+  // ======================================================
+
   const useExamplePrompt = (prompt) => {
     setAiPrompt(prompt);
     setAiError("");
@@ -287,7 +337,10 @@ function Hotels() {
     }, 0);
   };
 
+  // ======================================================
   // AI HOTEL RECOMMENDATIONS
+  // ======================================================
+
   const handleAIRecommend = async () => {
     const prompt = normalize(aiPrompt);
 
@@ -319,7 +372,6 @@ function Hotels() {
 
     setAiLoading(true);
 
-    // Yield one browser frame so the loading indicator can appear.
     await new Promise((resolve) => window.setTimeout(resolve, 50));
 
     try {
@@ -380,7 +432,6 @@ function Hotels() {
         "and",
         "in",
         "ababa",
-        "ababa",
       ]);
 
       const words = prompt
@@ -397,7 +448,7 @@ function Hotels() {
 
       let candidates = hotels;
 
-      // Match the requested city against every available location field.
+      // Match requested city against available location fields.
       if (requestedLocation) {
         const city = normalize(requestedLocation);
 
@@ -416,11 +467,13 @@ function Hotels() {
 
         if (candidates.length === 0) {
           setAiSearched(true);
+
           setAiError(
             `No hotels in ${requestedLocation.replace(/\b\w/g, (letter) =>
               letter.toUpperCase(),
             )} were found in the current hotel database. Please add hotels for this city or try another destination.`,
           );
+
           return;
         }
       }
@@ -431,6 +484,7 @@ function Hotels() {
 
         const name = normalize(getHotelName(hotel));
         const location = normalize(getLocation(hotel));
+
         const description = normalize(
           `${hotel?.description || ""} ${hotel?.about || ""}`,
         );
@@ -451,12 +505,10 @@ function Hotels() {
           reasons.push(`Located in ${requestedLocation}`);
         }
 
-        if (wantsCheap) {
-          if (price > 0) {
-            // Lower prices score better without assuming a particular currency.
-            score += Math.max(0, 50 - Math.log10(price + 1) * 10);
-            reasons.push("Budget-focused option");
-          }
+        if (wantsCheap && price > 0) {
+          score += Math.max(0, 50 - Math.log10(price + 1) * 10);
+
+          reasons.push("Budget-focused option");
         }
 
         if (wantsLuxury) {
@@ -536,9 +588,13 @@ function Hotels() {
           }
         }
 
-        if (rating >= 4.8) score += 30;
-        else if (rating >= 4.5) score += 20;
-        else if (rating >= 4) score += 10;
+        if (rating >= 4.8) {
+          score += 30;
+        } else if (rating >= 4.5) {
+          score += 20;
+        } else if (rating >= 4) {
+          score += 10;
+        }
 
         return {
           hotel,
@@ -549,10 +605,13 @@ function Hotels() {
         };
       });
 
-      // Stable sorting: score first, then rating.
+      // Sort by recommendation score, then average rating.
       const recommendations = scoredHotels
         .sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;
+          if (b.score !== a.score) {
+            return b.score - a.score;
+          }
+
           return getHotelRatingValue(b.hotel) - getHotelRatingValue(a.hotel);
         })
         .slice(0, 6)
@@ -571,6 +630,7 @@ function Hotels() {
       }
     } catch (err) {
       console.error("Hotel recommendation error:", err);
+
       setAiError(
         "Something went wrong while finding a hotel. Please try again.",
       );
@@ -579,7 +639,15 @@ function Hotels() {
     }
   };
 
+  // ======================================================
+  // DISPLAY HOTELS
+  // ======================================================
+
   const displayHotels = showAllHotels ? hotels : hotels.slice(0, 6);
+
+  // ======================================================
+  // RENDER
+  // ======================================================
 
   return (
     <div className="hotel-home">
@@ -622,6 +690,7 @@ function Hotels() {
               title="Wishlist"
             >
               <span className="header-action-icon">♡</span>
+
               {favorites.length > 0 && (
                 <span className="wishlist-count">{favorites.length}</span>
               )}
@@ -677,10 +746,17 @@ function Hotels() {
                     title: "Home",
                     action: () => {
                       setMenuOpen(false);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      window.scrollTo({
+                        top: 0,
+                        behavior: "smooth",
+                      });
                     },
                   },
-                  { number: "02", title: "Hotels", action: scrollToHotels },
+                  {
+                    number: "02",
+                    title: "Hotels",
+                    action: scrollToHotels,
+                  },
                   {
                     number: "03",
                     title: "Destinations",
@@ -718,14 +794,17 @@ function Hotels() {
                 ].map((item) => (
                   <button type="button" key={item.number} onClick={item.action}>
                     <span className="top-menu-index">{item.number}</span>
+
                     <span className="top-menu-title">
                       {item.title}
+
                       {item.title === "My Wishlist" && favorites.length > 0 && (
                         <span className="top-menu-count">
                           {favorites.length}
                         </span>
                       )}
                     </span>
+
                     <span className="top-menu-arrow">↗</span>
                   </button>
                 ))}
@@ -761,6 +840,7 @@ function Hotels() {
           src={FALLBACK_HERO}
           alt="Hotel destination"
         />
+
         <div className="hero-overlay"></div>
 
         <div className="hero-content">
@@ -852,12 +932,15 @@ function Hotels() {
       <section className="trust-section">
         <div className="trust-container">
           <TrustItem icon="✦" title="Best Price" subtitle="Guaranteed" />
+
           <TrustItem
             icon="★"
             title="Trusted Reviews"
             subtitle="From real guests"
           />
+
           <TrustItem icon="✓" title="Easy Booking" subtitle="Fast & secure" />
+
           <TrustItem
             icon="24"
             title="24/7 Support"
@@ -871,11 +954,13 @@ function Hotels() {
         <div className="ai-container">
           <div className="ai-heading">
             <span className="section-eyebrow">SMART TRAVEL SEARCH</span>
+
             <h2>
               Let AI find your
               <br />
               <span>perfect hotel.</span>
             </h2>
+
             <p>
               Tell us what you need in your own words. Our smart hotel finder
               will help you discover the best match.
@@ -885,6 +970,7 @@ function Hotels() {
           <div className="ai-card">
             <div className="ai-card-top">
               <div className="ai-symbol">✦</div>
+
               <div>
                 <strong>AI Hotel Finder</strong>
                 <span>Personalized recommendations</span>
@@ -932,6 +1018,7 @@ function Hotels() {
 
             <div className="example-prompts">
               <span>Try:</span>
+
               {WELCOME_EXAMPLES.map((example) => (
                 <button
                   type="button"
@@ -957,6 +1044,7 @@ function Hotels() {
                   <span></span>
                   <span></span>
                 </div>
+
                 <p>Finding hotels that match your preferences...</p>
               </div>
             )}
@@ -968,8 +1056,10 @@ function Hotels() {
                     <span className="section-eyebrow">
                       HOTEL RECOMMENDATIONS
                     </span>
+
                     <h3>We found these for you</h3>
                   </div>
+
                   <span className="result-count">
                     {aiResults.length} matches
                   </span>
@@ -1013,9 +1103,11 @@ function Hotels() {
           <div className="section-header">
             <div>
               <span className="section-eyebrow">HANDPICKED FOR YOU</span>
+
               <h2>
                 Popular <span>hotels</span>
               </h2>
+
               <p>
                 Beautiful places to stay, selected for comfort, quality and
                 unforgettable experiences.
@@ -1038,6 +1130,7 @@ function Hotels() {
                 className="view-all-button"
                 onClick={() => {
                   setShowAllHotels(false);
+
                   window.setTimeout(() => {
                     document.getElementById("hotels")?.scrollIntoView({
                       behavior: "smooth",
@@ -1102,15 +1195,18 @@ function Hotels() {
         <div className="offer-container">
           <div className="offer-content">
             <span className="offer-label">SPECIAL OFFER</span>
+
             <h2>
               Make your next stay
               <br />
               <span>extra special.</span>
             </h2>
+
             <p>
               Discover selected stays and enjoy an unforgettable experience with
               HotelBooking.
             </p>
+
             <button type="button" onClick={scrollToHotels}>
               Explore Our Hotels <span>→</span>
             </button>
@@ -1118,6 +1214,7 @@ function Hotels() {
 
           <div className="offer-decoration">
             <div className="offer-circle"></div>
+
             <div className="offer-card-small">
               <span>✦</span>
               <strong>Beautiful stays</strong>
@@ -1132,9 +1229,11 @@ function Hotels() {
         <div className="section-container">
           <div className="section-header centered">
             <span className="section-eyebrow">EXPLORE ETHIOPIA</span>
+
             <h2>
               Find your next <span>destination.</span>
             </h2>
+
             <p>
               From vibrant city life to peaceful lakeside escapes, discover
               somewhere worth remembering.
@@ -1148,12 +1247,14 @@ function Hotels() {
               subtitle="The capital city"
               onClick={scrollToHotels}
             />
+
             <DestinationCard
               image="https://images.unsplash.com/photo-1605640840605-14ac1855827b?auto=format&fit=crop&w=1000&q=85"
               name="Bahir Dar"
               subtitle="Lakeside escape"
               onClick={scrollToHotels}
             />
+
             <DestinationCard
               image="https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=1000&q=85"
               name="Hawassa"
@@ -1173,20 +1274,23 @@ function Hotels() {
               alt="Hotel interior"
               loading="lazy"
             />
-            <div className="about-stat">
-              <strong>4.9</strong>
-              <span>Guest rating</span>
-              <div>★★★★★</div>
-            </div>
-          </div>
 
-          <div className="about-content">
+        <div className="about-stat">
+  <strong>Real</strong>
+  <span>Customer reviews</span>
+  <div>★★★★★</div>
+</div>
+                  </div>
+
+                  <div className="about-content">
             <span className="section-eyebrow">WHY HOTELBOOKING</span>
+
             <h2>
               Travel more.
               <br />
               <span>Worry less.</span>
             </h2>
+
             <p>
               We make finding and booking your next stay simple. Whether you're
               traveling for business, relaxing with family, or planning your
@@ -1199,10 +1303,12 @@ function Hotels() {
                 title="Verified stays"
                 subtitle="Quality places you can trust."
               />
+
               <AboutFeature
                 title="Simple booking"
                 subtitle="Book your stay in just a few clicks."
               />
+
               <AboutFeature
                 title="Smart recommendations"
                 subtitle="Let the hotel finder help you find your match."
@@ -1219,9 +1325,15 @@ function Hotels() {
             <button
               type="button"
               className="brand footer-brand-logo"
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              onClick={() =>
+                window.scrollTo({
+                  top: 0,
+                  behavior: "smooth",
+                })
+              }
             >
               <span className="brand-icon">H</span>
+
               <span>
                 <strong>Hotel</strong>
                 <em>Booking</em>
@@ -1237,12 +1349,15 @@ function Hotels() {
 
           <div className="footer-column">
             <h4>Explore</h4>
+
             <button type="button" onClick={scrollToHotels}>
               Hotels
             </button>
+
             <button type="button" onClick={scrollToDestinations}>
               Destinations
             </button>
+
             <button type="button" onClick={scrollToAbout}>
               About Us
             </button>
@@ -1250,12 +1365,15 @@ function Hotels() {
 
           <div className="footer-column">
             <h4>Account</h4>
+
             <button type="button" onClick={() => navigate("/login")}>
               Sign In
             </button>
+
             <button type="button" onClick={() => navigate("/register")}>
               Register
             </button>
+
             <button type="button" onClick={() => navigate("/bookings")}>
               My Bookings
             </button>
@@ -1263,14 +1381,18 @@ function Hotels() {
 
           <div className="footer-column">
             <h4>Need help?</h4>
+
             <p>We're here for you 24/7.</p>
+
             <span className="footer-contact">✉ support@hotelbooking.com</span>
+
             <span className="footer-contact">☎ +251 900 000 000</span>
           </div>
         </div>
 
         <div className="footer-bottom">
           <span>© 2026 HotelBooking. All rights reserved.</span>
+
           <span>Made for unforgettable stays.</span>
         </div>
       </footer>
@@ -1278,12 +1400,15 @@ function Hotels() {
   );
 }
 
-// HELPER COMPONENTS
+// ======================================================
+// TRUST ITEM COMPONENT
+// ======================================================
 
 function TrustItem({ icon, title, subtitle }) {
   return (
     <div className="trust-item">
       <span>{icon}</span>
+
       <div>
         <strong>{title}</strong>
         <small>{subtitle}</small>
@@ -1292,10 +1417,15 @@ function TrustItem({ icon, title, subtitle }) {
   );
 }
 
+// ======================================================
+// ABOUT FEATURE COMPONENT
+// ======================================================
+
 function AboutFeature({ title, subtitle }) {
   return (
     <div>
       <span>✓</span>
+
       <div>
         <strong>{title}</strong>
         <small>{subtitle}</small>
@@ -1303,6 +1433,10 @@ function AboutFeature({ title, subtitle }) {
     </div>
   );
 }
+
+// ======================================================
+// HOTEL CARD COMPONENT
+// ======================================================
 
 function HotelCard({
   hotel,
@@ -1324,8 +1458,11 @@ function HotelCard({
 
   const rating = Math.max(0, Math.min(5, Number(getRating(hotel)) || 0));
 
+  const reviewCount = getReviews(hotel);
+
   return (
     <article className="hotel-card">
+      {/* HOTEL IMAGE */}
       <div className="hotel-image-wrapper">
         <img
           src={getImage(hotel)}
@@ -1357,11 +1494,13 @@ function HotelCard({
         {aiReason && <div className="ai-match-badge">✦ MATCH</div>}
       </div>
 
+      {/* HOTEL INFORMATION */}
       <div className="hotel-card-content">
         <div className="hotel-card-title-row">
           <div>
             <h3>{getHotelName(hotel)}</h3>
 
+            {/* CUSTOMER REVIEW RATING */}
             <div className="hotel-rating">
               <span className="stars">
                 {"★★★★★".split("").map((star, index) => (
@@ -1373,12 +1512,23 @@ function HotelCard({
                   </span>
                 ))}
               </span>
-              <strong>{getRating(hotel)}</strong>
-              <span>({getReviews(hotel)} reviews)</span>
+
+              {reviewCount > 0 ? (
+                <>
+                  <strong>{getRating(hotel)}</strong>
+
+                  <span>
+                    ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+                  </span>
+                </>
+              ) : (
+                <span className="no-reviews">No reviews yet</span>
+              )}
             </div>
           </div>
         </div>
 
+        {/* AI RECOMMENDATION REASON */}
         {aiReason && (
           <div className="ai-reason">
             <span>✦</span>
@@ -1386,6 +1536,7 @@ function HotelCard({
           </div>
         )}
 
+        {/* PRICE AND ACTIONS */}
         <div className="hotel-card-bottom">
           <div className="hotel-price">
             <strong>${getPrice(hotel)}</strong>
@@ -1400,6 +1551,7 @@ function HotelCard({
             >
               Details
             </button>
+
             <button
               type="button"
               className="book-button"
@@ -1414,11 +1566,17 @@ function HotelCard({
   );
 }
 
+// ======================================================
+// DESTINATION CARD COMPONENT
+// ======================================================
+
 function DestinationCard({ image, name, subtitle, onClick }) {
   return (
     <button type="button" className="destination-card" onClick={onClick}>
       <img src={image} alt={name} loading="lazy" />
+
       <div className="destination-overlay"></div>
+
       <div className="destination-content">
         <span>{subtitle}</span>
         <h3>{name}</h3>

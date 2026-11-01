@@ -1,18 +1,50 @@
 const Hotel = require("../models/Hotel");
+const Review = require("../models/Review");
 
 // ======================================================
-// GET ALL HOTELS
+// GET ALL HOTELS WITH CUSTOMER RATINGS
 // ======================================================
 const getHotels = async (req, res) => {
   try {
     res.set("Cache-Control", "no-store");
+
+    console.log("GET HOTELS WITH RATINGS");
 
     const hotels = await Hotel.find()
       .populate("createdBy", "name email")
       .populate("hotelAdmin", "name email")
       .sort({ createdAt: -1 });
 
-    return res.status(200).json(hotels);
+    // Calculate average rating and review count
+    const reviewStats = await Review.aggregate([
+      {
+        $group: {
+          _id: "$hotel",
+          averageRating: { $avg: "$rating" },
+          totalReviews: { $sum: 1 },
+        },
+      },
+    ]);
+
+    console.log("REVIEW STATISTICS:", reviewStats);
+
+    // Attach ratings to each hotel
+    const hotelsWithRatings = hotels.map((hotel) => {
+      const stats = reviewStats.find(
+        (item) => String(item._id) === String(hotel._id),
+      );
+
+      return {
+        ...hotel.toObject(),
+        averageRating: stats ? Number(stats.averageRating.toFixed(1)) : 0,
+        totalReviews: stats ? stats.totalReviews : 0,
+        reviewCount: stats ? stats.totalReviews : 0,
+      };
+    });
+
+    console.log("HOTELS WITH RATINGS:", hotelsWithRatings);
+
+    return res.status(200).json(hotelsWithRatings);
   } catch (error) {
     console.error("GET HOTELS ERROR:", error);
 
@@ -38,7 +70,30 @@ const getHotelById = async (req, res) => {
       });
     }
 
-    return res.status(200).json(hotel);
+    // Calculate this hotel's customer rating
+    const stats = await Review.aggregate([
+      {
+        $match: {
+          hotel: hotel._id,
+        },
+      },
+      {
+        $group: {
+          _id: "$hotel",
+          averageRating: { $avg: "$rating" },
+          totalReviews: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const rating = stats[0];
+
+    return res.status(200).json({
+      ...hotel.toObject(),
+      averageRating: rating ? Number(rating.averageRating.toFixed(1)) : 0,
+      totalReviews: rating ? rating.totalReviews : 0,
+      reviewCount: rating ? rating.totalReviews : 0,
+    });
   } catch (error) {
     console.error("GET HOTEL ERROR:", error);
 
@@ -120,7 +175,10 @@ const createHotel = async (req, res) => {
       const existingHotel = await Hotel.findOne({
         $or: [
           { hotelAdmin: userId },
-          { createdBy: userId, hotelAdmin: { $exists: false } },
+          {
+            createdBy: userId,
+            hotelAdmin: { $exists: false },
+          },
         ],
       });
 
@@ -177,7 +235,6 @@ const getMyHotel = async (req, res) => {
     console.log("GET MY HOTEL - USER ID:", String(userId));
     console.log("GET MY HOTEL - USER ROLE:", req.user?.role);
 
-    // Find the hotel assigned to this user or created by them.
     const hotel = await Hotel.findOne({
       $or: [{ hotelAdmin: userId }, { createdBy: userId }],
     })
@@ -224,6 +281,7 @@ const updateHotel = async (req, res) => {
     }
 
     const hotel = await Hotel.findById(req.params.id);
+
     console.log("========== UPDATE HOTEL DEBUG ==========");
     console.log("REQUEST METHOD:", req.method);
     console.log("REQUEST URL:", req.originalUrl);

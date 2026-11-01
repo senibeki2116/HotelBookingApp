@@ -2848,3 +2848,47 @@ button:focus-visible {
     max-width: calc(100vw - 24px);
   }
 }
+/* =====================================
+   REAL CUSTOMER REVIEW RATINGS
+===================================== */
+
+.hotel-rating {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+  font-size: 13px;
+}
+
+.hotel-rating .stars {
+  display: inline-flex;
+  gap: 2px;
+  letter-spacing: 1px;
+  font-size: 15px;
+}
+
+.hotel-rating .stars span {
+  color: #d9d9d9;
+}
+
+.hotel-rating .stars span.filled {
+  color: #d6a33a;
+}
+
+.hotel-rating strong {
+  color: #252525;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.hotel-rating > span:last-child {
+  color: #858585;
+  font-size: 12px;
+}
+
+.hotel-rating .no-reviews {
+  color: #858585;
+  font-size: 12px;
+  font-weight: 400;
+}
