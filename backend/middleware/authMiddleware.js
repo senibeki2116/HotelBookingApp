@@ -13,13 +13,17 @@ const protect = async (req, res, next) => {
     console.log("METHOD:", req.method);
     console.log("URL:", req.originalUrl);
 
-    // -------------------------------------------------
-    // CHECK AUTHORIZATION HEADER
-    // -------------------------------------------------
+    // 1. CHECK JWT SECRET
+    if (!process.env.JWT_SECRET) {
+      console.error("JWT_SECRET is missing from .env");
 
+      return res.status(500).json({
+        message: "Server authentication configuration error",
+      });
+    }
+
+    // 2. CHECK AUTHORIZATION HEADER
     const authHeader = req.headers.authorization || "";
-
-    console.log("Authorization header:", authHeader ? "Present" : "Missing");
 
     if (!authHeader) {
       return res.status(401).json({
@@ -33,16 +37,8 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // -------------------------------------------------
-    // GET TOKEN
-    // -------------------------------------------------
-
+    // 3. EXTRACT TOKEN
     const token = authHeader.substring(7).trim();
-
-    console.log(
-      "Token received:",
-      token ? `YES (${token.length} characters)` : "NO",
-    );
 
     if (!token) {
       return res.status(401).json({
@@ -50,123 +46,74 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // -------------------------------------------------
-    // VERIFY TOKEN
-    // -------------------------------------------------
+    console.log("Token received:", token.length, "characters");
 
+    // 4. VERIFY TOKEN
     let decoded;
 
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      console.log("✅ JWT verified");
-      console.log("JWT decoded:", decoded);
+      console.log("JWT VERIFIED SUCCESSFULLY");
+      console.log("Token user ID:", decoded.id);
+      console.log("Token email:", decoded.email);
     } catch (jwtError) {
-      console.error("❌ JWT VERIFY ERROR:", jwtError.message);
+      console.error("JWT VERIFY ERROR:", jwtError.name, jwtError.message);
+
+      if (jwtError.name === "TokenExpiredError") {
+        return res.status(401).json({
+          message: "Token expired. Please log in again.",
+        });
+      }
+
+      if (jwtError.name === "JsonWebTokenError") {
+        return res.status(401).json({
+          message: "Invalid token. Please log in again.",
+        });
+      }
 
       return res.status(401).json({
-        message: "Invalid or expired token",
+        message: "Token verification failed",
       });
     }
 
-    // -------------------------------------------------
-    // DATABASE INFORMATION
-    // -------------------------------------------------
-
-    console.log("\n=================================");
-    console.log("DATABASE USER LOOKUP");
-
+    // 5. CHECK DATABASE CONNECTION
     console.log("MongoDB readyState:", mongoose.connection.readyState);
 
-    console.log("MongoDB database:", User.db?.name || "UNKNOWN");
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        message: "Database is not connected",
+      });
+    }
 
-    console.log("MongoDB host:", User.db?.host || "UNKNOWN");
-
-    console.log("User collection:", User.collection?.name || "UNKNOWN");
-
-    console.log("Token user ID:", decoded.id);
-    console.log("Token email:", decoded.email);
-
-    // -------------------------------------------------
-    // FIND USER
-    // -------------------------------------------------
-
+    // 6. FIND USER
     let user = null;
 
-    // First try using the ObjectId directly.
     if (decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) {
-      try {
-        const objectId = new mongoose.Types.ObjectId(decoded.id);
-
-        user = await User.findOne({
-          _id: objectId,
-        }).select("-password");
-
-        console.log("FIND USER BY OBJECT ID:", user ? "FOUND" : "NOT FOUND");
-      } catch (idError) {
-        console.error("❌ OBJECT ID LOOKUP ERROR:", idError.message);
-      }
-    } else {
-      console.log("⚠️ Token ID is not a valid MongoDB ObjectId");
+      user = await User.findById(decoded.id).select("-password");
     }
 
-    // -------------------------------------------------
     // FALLBACK TO EMAIL
-    // -------------------------------------------------
-
     if (!user && decoded.email) {
-      console.log("Trying user lookup by verified JWT email...");
-
-      try {
-        user = await User.findOne({
-          email: String(decoded.email).toLowerCase().trim(),
-        }).select("-password");
-
-        console.log("FIND USER BY EMAIL:", user ? "FOUND" : "NOT FOUND");
-      } catch (emailError) {
-        console.error("❌ EMAIL LOOKUP ERROR:", emailError.message);
-      }
+      user = await User.findOne({
+        email: String(decoded.email).toLowerCase().trim(),
+      }).select("-password");
     }
-
-    // -------------------------------------------------
-    // USER NOT FOUND
-    // -------------------------------------------------
 
     if (!user) {
-      console.log("❌ USER NOT FOUND");
-
       return res.status(401).json({
         message: "User not found",
       });
     }
 
-    // -------------------------------------------------
-    // VERIFY IDENTITY
-    // -------------------------------------------------
-
-    console.log("✅ USER FOUND");
-    console.log("Database User ID:", user._id);
-    console.log("Database User Name:", user.name);
-    console.log("Database User Email:", user.email);
-    console.log("Database User Role:", user.role);
-    console.log("Database User Active:", user.isActive);
-
-    // -------------------------------------------------
-    // CHECK ACTIVE ACCOUNT
-    // -------------------------------------------------
-
+    // 7. CHECK ACCOUNT STATUS
     if (user.isActive === false) {
-      console.log("❌ USER ACCOUNT DEACTIVATED");
-
-      return res.status(401).json({
+      return res.status(403).json({
         message: "Your account has been deactivated",
       });
     }
 
-    // -------------------------------------------------
-    // SET AUTHENTICATED USER
-    // -------------------------------------------------
-
+    // 8. SET AUTHENTICATED USER
     req.user = {
       _id: user._id,
       id: user._id,
@@ -175,19 +122,21 @@ const protect = async (req, res, next) => {
       role: user.role,
     };
 
-    console.log("✅ AUTHENTICATED USER:", req.user);
+    console.log("AUTHENTICATED USER:", {
+      id: String(user._id),
+      email: user.email,
+      role: user.role,
+    });
+
+    console.log("PROTECT MIDDLEWARE SUCCESS");
     console.log("=================================\n");
 
     next();
   } catch (error) {
-    console.error("\n=================================");
-    console.error("❌ PROTECT MIDDLEWARE ERROR");
-    console.error("=================================");
-    console.error(error);
+    console.error("PROTECT MIDDLEWARE ERROR:", error);
 
-    return res.status(401).json({
-      message: "Authentication failed",
-      error: error.message,
+    return res.status(500).json({
+      message: "Authentication middleware error",
     });
   }
 };
@@ -197,34 +146,21 @@ const protect = async (req, res, next) => {
 // =====================================================
 
 const adminOnly = (req, res, next) => {
-  const role = String(req.user?.role || "")
-    .trim()
-    .toLowerCase();
-
-  console.log("\n=================================");
-  console.log("ADMIN ROLE CHECK");
-  console.log("ROLE:", role);
-
   if (!req.user) {
-    console.log("❌ No authenticated user");
-
     return res.status(401).json({
       message: "Authentication required",
     });
   }
 
-  if (role !== "admin" && role !== "superadmin") {
-    console.log("❌ Admin access denied");
-    console.log("Required role: admin or superadmin");
-    console.log("Received role:", role);
+  const role = String(req.user.role || "")
+    .trim()
+    .toLowerCase();
 
+  if (role !== "admin" && role !== "superadmin") {
     return res.status(403).json({
       message: "Admin access only",
     });
   }
-
-  console.log("✅ Admin access granted");
-  console.log("=================================\n");
 
   next();
 };

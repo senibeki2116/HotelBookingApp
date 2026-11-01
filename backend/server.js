@@ -8,6 +8,7 @@ const roomRoutes = require("./routes/roomRoutes");
 const hotelRoutes = require("./routes/hotelRoutes");
 const userRoutes = require("./routes/userRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 
@@ -51,6 +52,11 @@ app.use("/api/users", userRoutes);
 app.use("/api/hotels", hotelRoutes);
 
 app.use("/api/bookings", bookingRoutes);
+
+// REVIEW ROUTES
+app.use("/api/reviews", reviewRoutes);
+
+console.log("🔥 REVIEW ROUTES REGISTERED");
 
 console.log("🔥 REGISTERING ADMIN ROUTES");
 

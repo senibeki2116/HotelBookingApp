@@ -70,6 +70,14 @@ function App() {
           }
         />
         <Route
+          path="/my-booking"
+          element={
+            <ProtectedRoute>
+              <MyBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/bookings"
           element={
             <ProtectedRoute>
