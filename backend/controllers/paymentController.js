@@ -1,122 +1,122 @@
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 const Booking = require("../models/Booking");
 
-const CHAPA_BASE_URL = "https://api.chapa.co/v1";
-
-// =====================================================
-// HELPER: GET AUTHENTICATED USER ID
-// =====================================================
+const CHAPA_BASE_URL = "https://api.chapa.global/v2";
+const FRONTEND_URL = process.env.FRONTEND_URL;
+const BACKEND_URL = process.env.BACKEND_URL;
 
 const getUserId = (req) => req.user?._id || req.user?.id;
 
+const isValidBookingId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+const getChapaHeaders = (idempotencyKey) => ({
+  Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
+  "Content-Type": "application/json",
+  ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+});
+
+const getNameParts = (name = "") => {
+  const parts = name.trim().split(/\s+/);
+  return {
+    first_name: parts[0] || "Customer",
+    last_name: parts.slice(1).join(" ") || "Stayora Customer",
+  };
+};
+
+// Convert booking amount in ETB to integer cents.
+const toChapaAmount = (amount) => Math.round(Number(amount) * 100);
+
 // =====================================================
-// HELPER: REMOVE TRAILING SLASH FROM URL
+// VERIFY WITH CHAPA
 // =====================================================
 
-const cleanUrl = (url) => String(url || "").replace(/\/$/, "");
-
-// =====================================================
-// HELPER: VERIFY PAYMENT DIRECTLY WITH CHAPA
-// Never trust the browser redirect as proof of payment.
-// =====================================================
-
-const verifyWithChapa = async (txRef) => {
-  if (!process.env.CHAPA_SECRET_KEY) {
-    throw new Error("Chapa secret key is not configured.");
-  }
-
+const verifyWithChapa = async (reference) => {
   const response = await fetch(
-    `${CHAPA_BASE_URL}/transaction/verify/${encodeURIComponent(txRef)}`,
+    `${CHAPA_BASE_URL}/payments/${encodeURIComponent(reference)}/verify`,
     {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      },
-      signal: AbortSignal.timeout(15000),
+      headers: getChapaHeaders(),
     },
   );
 
-  const result = await response.json();
+  const result = await response.json().catch(() => ({}));
 
-  if (!response.ok || result.status !== "success" || !result.data) {
-    throw new Error(result.message || "Unable to verify payment with Chapa.");
+  if (!response.ok) {
+    throw new Error(
+      result.message || `Chapa verification failed (${response.status}).`,
+    );
   }
 
-  return result.data;
+  return result;
 };
 
 // =====================================================
-// HELPER: VERIFY AND UPDATE BOOKING
+// UPDATE BOOKING ONLY AFTER VERIFIED PAYMENT
 // =====================================================
 
-const verifyAndUpdateBooking = async (txRef) => {
-  const booking = await Booking.findOne({
-    paymentReference: txRef,
-  });
+const verifyAndUpdateBooking = async (booking, reference) => {
+  const result = await verifyWithChapa(reference);
 
-  if (!booking) {
-    throw new Error("Booking payment reference not found.");
-  }
+  // The API operation may succeed even when the payment did not.
+  const payment = result.data || {};
 
-  // Do not overwrite an already verified payment.
-  if (booking.paymentStatus === "paid") {
-    return booking;
-  }
-
-  const paymentData = await verifyWithChapa(txRef);
-
-  const verifiedAmount = Number(paymentData.amount);
-  const expectedAmount = Number(booking.totalPrice);
-
-  const verifiedCurrency = String(paymentData.currency || "").toUpperCase();
-
+  const verifiedStatus = String(payment.status || "").toUpperCase();
+  const expectedAmount = toChapaAmount(booking.totalPrice);
+  const receivedAmount = Number(payment.amount);
+  const receivedCurrency = String(payment.currency || "").toUpperCase();
   const expectedCurrency = String(
     booking.paymentCurrency || "ETB",
   ).toUpperCase();
 
-  const verifiedReference = String(paymentData.tx_ref || "");
+  const receivedReference =
+    payment.merchant_reference || payment.tx_ref || payment.reference;
 
-  // Check transaction reference.
-  if (verifiedReference !== txRef) {
-    throw new Error("Payment reference does not match.");
+  const referenceMatches =
+    !receivedReference ||
+    receivedReference === booking.paymentReference ||
+    receivedReference === booking.processorReference;
+
+  const paymentIsValid =
+    verifiedStatus === "SUCCESS" &&
+    Number.isFinite(receivedAmount) &&
+    receivedAmount === expectedAmount &&
+    receivedCurrency === expectedCurrency &&
+    referenceMatches;
+
+  if (!paymentIsValid) {
+    return {
+      success: false,
+      paymentStatus: "pending",
+      message: "Chapa has not confirmed a matching successful payment.",
+    };
   }
 
-  // Check payment amount.
-  if (
-    !Number.isFinite(verifiedAmount) ||
-    Math.abs(verifiedAmount - expectedAmount) > 0.01
-  ) {
-    throw new Error("Verified payment amount does not match booking amount.");
-  }
-
-  // Check payment currency.
-  if (verifiedCurrency !== expectedCurrency) {
-    throw new Error("Payment currency does not match booking currency.");
-  }
-
-  const transactionStatus = String(paymentData.status || "").toLowerCase();
-
-  if (transactionStatus === "success") {
+  // Do not overwrite an already-paid booking.
+  if (booking.paymentStatus !== "paid") {
     booking.paymentStatus = "paid";
+    booking.paymentProvider = "chapa";
+    booking.paymentMethod = payment.payment_method || payment.method || "Chapa";
+    booking.processorReference =
+      payment.reference || booking.processorReference;
     booking.paidAt = new Date();
-    booking.processorReference = paymentData.reference || null;
 
-    if (paymentData.method) {
-      booking.paymentMethod = paymentData.method;
-    }
-
-    await booking.save();
-  } else if (transactionStatus === "failed") {
-    booking.paymentStatus = "failed";
     await booking.save();
   }
 
-  return booking;
+  return {
+    success: true,
+    paymentStatus: "paid",
+    message: "Payment successfully verified.",
+    bookingId: booking._id,
+    amount: booking.totalPrice,
+    currency: expectedCurrency,
+    paidAt: booking.paidAt,
+  };
 };
 
 // =====================================================
-// INITIALIZE CHAPA PAYMENT
+// 1. INITIALIZE CHAPA HOSTED CHECKOUT
 // POST /api/payments/initialize/:bookingId
 // =====================================================
 
@@ -125,6 +125,20 @@ exports.initializePayment = async (req, res) => {
     const userId = getUserId(req);
     const { bookingId } = req.params;
 
+    if (!process.env.CHAPA_SECRET_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: "Chapa private key is not configured on the server.",
+      });
+    }
+
+    if (!FRONTEND_URL || !BACKEND_URL) {
+      return res.status(500).json({
+        success: false,
+        message: "FRONTEND_URL and BACKEND_URL must be configured.",
+      });
+    }
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -132,17 +146,17 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
-    if (!process.env.CHAPA_SECRET_KEY) {
-      return res.status(500).json({
+    if (!isValidBookingId(bookingId)) {
+      return res.status(400).json({
         success: false,
-        message: "Payment service is not configured.",
+        message: "Invalid booking ID.",
       });
     }
 
     const booking = await Booking.findOne({
       _id: bookingId,
       user: userId,
-    }).populate("user", "name email");
+    }).populate("user", "name email phone");
 
     if (!booking) {
       return res.status(404).json({
@@ -154,7 +168,7 @@ exports.initializePayment = async (req, res) => {
     if (booking.status === "cancelled") {
       return res.status(400).json({
         success: false,
-        message: "You cannot pay for a cancelled booking.",
+        message: "Cancelled bookings cannot be paid.",
       });
     }
 
@@ -165,122 +179,110 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
-    if (!booking.user || !booking.user.email || !booking.user.name) {
+    const amountInCents = toChapaAmount(booking.totalPrice);
+
+    if (!Number.isInteger(amountInCents) || amountInCents < 100) {
       return res.status(400).json({
         success: false,
-        message: "Customer name and email are required.",
+        message: "The payment amount must be at least 1 ETB.",
       });
     }
 
-    const amount = Number(booking.totalPrice);
-
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!booking.user?.email) {
       return res.status(400).json({
         success: false,
-        message: "Invalid booking payment amount.",
+        message: "A customer email is required for payment.",
       });
     }
 
-    // Reuse an existing pending checkout link.
+    // Keep the merchant reference within Chapa's 20-character limit.
+    // Reuse it for retries of the same pending payment.
+    let merchantReference = booking.paymentReference;
+
     if (
-      booking.paymentStatus === "pending" &&
-      booking.paymentReference &&
-      booking.checkoutUrl
+      booking.paymentProvider !== "chapa" ||
+      booking.paymentStatus !== "pending" ||
+      !merchantReference ||
+      !merchantReference.startsWith("STY")
     ) {
-      return res.status(200).json({
-        success: true,
-        message: "Existing payment checkout found.",
-        checkoutUrl: booking.checkoutUrl,
-        tx_ref: booking.paymentReference,
-        amount: booking.totalPrice,
-        currency: booking.paymentCurrency || "ETB",
-      });
+      merchantReference = `STY${crypto.randomBytes(8).toString("hex")}`;
     }
 
-    // Generate a unique transaction reference.
-    const txRef = `STAYORA-${booking._id}-${crypto.randomUUID()}`;
-
-    const nameParts = booking.user.name.trim().split(/\s+/);
-
-    const firstName = nameParts[0] || "Customer";
-    const lastName = nameParts.slice(1).join(" ") || "Stayora";
-
-    const frontendUrl = cleanUrl(
-      process.env.FRONTEND_URL || "http://localhost:5174",
-    );
-
-    const backendUrl = cleanUrl(
-      process.env.BACKEND_URL || "http://localhost:5000",
-    );
+    const { first_name, last_name } = getNameParts(booking.user.name);
 
     const payload = {
-      amount: amount.toFixed(2),
+      amount: amountInCents,
       currency: booking.paymentCurrency || "ETB",
-      email: booking.user.email,
-      first_name: firstName,
-      last_name: lastName,
-      tx_ref: txRef,
-
-      callback_url: `${backendUrl}/api/payments/callback`,
-
-      return_url: `${frontendUrl}/payment/result?tx_ref=${encodeURIComponent(
-        txRef,
-      )}`,
-
+      merchant_reference: merchantReference,
+      customer: {
+        first_name,
+        last_name,
+        email: booking.user.email,
+      },
+      callback_url: `${BACKEND_URL}/api/payments/callback`,
+      return_url:
+        `${FRONTEND_URL}/payment/result` +
+        `?bookingId=${booking._id}` +
+        `&tx_ref=${merchantReference}`,
+      meta: {
+        booking_id: String(booking._id),
+        platform: "Stayora",
+      },
       customization: {
         title: "Stayora Hotel Booking",
         description: `Payment for booking ${booking._id}`,
       },
     };
 
-    const chapaResponse = await fetch(
-      `${CHAPA_BASE_URL}/transaction/initialize`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(15000),
-      },
-    );
+    const response = await fetch(`${CHAPA_BASE_URL}/payments/hosted`, {
+      method: "POST",
+      headers: getChapaHeaders(merchantReference),
+      body: JSON.stringify(payload),
+    });
 
-    const chapaData = await chapaResponse.json();
+    const result = await response.json().catch(() => ({}));
 
-    if (
-      !chapaResponse.ok ||
-      chapaData.status !== "success" ||
-      !chapaData.data?.checkout_url
-    ) {
-      console.error("CHAPA INITIALIZATION ERROR:", chapaData);
+    if (!response.ok || result.status !== "success") {
+      console.error("CHAPA INITIALIZATION FAILED:", result);
 
-      return res.status(502).json({
+      return res.status(response.status || 502).json({
         success: false,
-        message: chapaData.message || "Unable to initialize Chapa payment.",
+        message: result.message || "Chapa could not initialize the payment.",
       });
     }
 
-    // Save payment information.
-    booking.paymentStatus = "pending";
+    const checkoutUrl = result.data?.checkout_url;
+
+    if (!checkoutUrl) {
+      return res.status(502).json({
+        success: false,
+        message: "Chapa did not return a checkout URL.",
+      });
+    }
+
+    // Save pending payment details before redirecting the customer.
     booking.paymentProvider = "chapa";
-    booking.paymentReference = txRef;
-    booking.merchantReference = txRef;
-    booking.checkoutUrl = chapaData.data.checkout_url;
-    booking.paymentCurrency = booking.paymentCurrency || "ETB";
+    booking.paymentStatus = "pending";
+    booking.paymentReference = merchantReference;
+    booking.merchantReference = merchantReference;
+    booking.checkoutUrl = checkoutUrl;
+    booking.paymentMethod = null;
+    booking.processorReference =
+      checkoutUrl.split("/").filter(Boolean).pop() || null;
 
     await booking.save();
 
     return res.status(200).json({
       success: true,
-      message: "Payment initialized successfully.",
-      checkoutUrl: booking.checkoutUrl,
-      tx_ref: txRef,
+      message: "Payment checkout created successfully.",
+      bookingId: booking._id,
+      tx_ref: merchantReference,
+      checkoutUrl,
       amount: booking.totalPrice,
-      currency: booking.paymentCurrency,
+      currency: booking.paymentCurrency || "ETB",
     });
   } catch (error) {
-    console.error("INITIALIZE PAYMENT ERROR:", error);
+    console.error("CHAPA INITIALIZATION ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -290,7 +292,7 @@ exports.initializePayment = async (req, res) => {
 };
 
 // =====================================================
-// VERIFY PAYMENT
+// 2. VERIFY PAYMENT
 // GET /api/payments/verify/:tx_ref
 // =====================================================
 
@@ -306,14 +308,6 @@ exports.verifyPayment = async (req, res) => {
       });
     }
 
-    if (!txRef) {
-      return res.status(400).json({
-        success: false,
-        message: "Transaction reference is required.",
-      });
-    }
-
-    // Confirm that this transaction belongs to the logged-in user.
     const booking = await Booking.findOne({
       paymentReference: txRef,
       user: userId,
@@ -326,68 +320,74 @@ exports.verifyPayment = async (req, res) => {
       });
     }
 
-    const updatedBooking = await verifyAndUpdateBooking(txRef);
+    if (booking.paymentProvider !== "chapa") {
+      return res.status(400).json({
+        success: false,
+        message: "This is not a Chapa payment.",
+      });
+    }
+
+    const verification = await verifyAndUpdateBooking(
+      booking,
+      booking.processorReference || booking.paymentReference,
+    );
 
     return res.status(200).json({
-      success: true,
-      message:
-        updatedBooking.paymentStatus === "paid"
-          ? "Payment verified successfully."
-          : "Payment has not been completed.",
-      paymentStatus: updatedBooking.paymentStatus,
-      bookingId: updatedBooking._id,
-      amount: updatedBooking.totalPrice,
-      currency: updatedBooking.paymentCurrency,
-      paidAt: updatedBooking.paidAt,
+      success: verification.success,
+      ...verification,
     });
   } catch (error) {
-    console.error("VERIFY PAYMENT ERROR:", error);
+    console.error("CHAPA VERIFICATION ERROR:", error);
 
-    return res.status(400).json({
+    return res.status(500).json({
       success: false,
-      message: error.message || "Payment verification failed.",
+      message: error.message || "Unable to verify payment.",
     });
   }
 };
 
 // =====================================================
-// CHAPA CALLBACK
+// 3. CHAPA CALLBACK
 // GET /api/payments/callback
 // =====================================================
 
 exports.chapaCallback = async (req, res) => {
-  const frontendUrl = cleanUrl(
-    process.env.FRONTEND_URL || "http://localhost:5174",
-  );
-
   try {
-    const txRef = req.query.trx_ref || req.query.tx_ref;
+    const reference =
+      req.query.merchant_reference || req.query.tx_ref || req.query.reference;
 
-    if (!txRef) {
-      return res.redirect(
-        `${frontendUrl}/payment/result?status=missing_reference`,
-      );
+    if (!reference) {
+      return res.status(400).send("Payment reference is missing.");
     }
 
-    // Verify directly with Chapa before updating the booking.
-    const booking = await verifyAndUpdateBooking(txRef);
+    const booking = await Booking.findOne({
+      $or: [{ paymentReference: reference }, { processorReference: reference }],
+      paymentProvider: "chapa",
+    });
+
+    if (!booking) {
+      return res.status(404).send("Payment booking not found.");
+    }
+
+    await verifyAndUpdateBooking(
+      booking,
+      booking.processorReference || booking.paymentReference,
+    );
 
     return res.redirect(
-      `${frontendUrl}/payment/result?tx_ref=${encodeURIComponent(
-        txRef,
-      )}&status=${encodeURIComponent(booking.paymentStatus)}`,
+      `${FRONTEND_URL}/payment/result?bookingId=${booking._id}`,
     );
   } catch (error) {
     console.error("CHAPA CALLBACK ERROR:", error);
 
     return res.redirect(
-      `${frontendUrl}/payment/result?status=verification_failed`,
+      `${FRONTEND_URL}/payment/result?status=verification_pending`,
     );
   }
 };
 
 // =====================================================
-// GET PAYMENT RECEIPT
+// 4. GET PAYMENT RECEIPT
 // GET /api/payments/receipt/:bookingId
 // =====================================================
 
@@ -400,6 +400,13 @@ exports.getPaymentReceipt = async (req, res) => {
       return res.status(401).json({
         success: false,
         message: "Authentication required.",
+      });
+    }
+
+    if (!isValidBookingId(bookingId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking ID.",
       });
     }
 
@@ -417,10 +424,13 @@ exports.getPaymentReceipt = async (req, res) => {
       });
     }
 
-    if (booking.paymentStatus !== "paid") {
+    if (
+      booking.paymentProvider !== "chapa" ||
+      booking.paymentStatus !== "paid"
+    ) {
       return res.status(400).json({
         success: false,
-        message: "A receipt is available only after successful payment.",
+        message: "A receipt is available only after verified payment.",
         paymentStatus: booking.paymentStatus,
       });
     }
@@ -444,8 +454,10 @@ exports.getPaymentReceipt = async (req, res) => {
         amount: booking.totalPrice,
         currency: booking.paymentCurrency || "ETB",
         paymentStatus: booking.paymentStatus,
+        paymentMethod: booking.paymentMethod,
         paidAt: booking.paidAt,
         issuedAt: new Date(),
+        demo: false,
       },
     });
   } catch (error) {

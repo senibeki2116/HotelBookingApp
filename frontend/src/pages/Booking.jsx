@@ -6,6 +6,15 @@ import "./Booking.css";
 
 const API_URL = "http://localhost:5000";
 
+const getToday = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
 function Booking() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -22,6 +31,8 @@ function Booking() {
   const [error, setError] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
 
+  const today = getToday();
+
   useEffect(() => {
     const fetchHotel = async () => {
       try {
@@ -29,7 +40,8 @@ function Booking() {
 
         setHotel(response.data);
       } catch (err) {
-        console.error(err);
+        console.error("HOTEL FETCH ERROR:", err.response?.data || err.message);
+
         setError("Unable to load hotel information.");
       } finally {
         setLoading(false);
@@ -42,28 +54,24 @@ function Booking() {
   const calculateNights = () => {
     if (!checkIn || !checkOut) return 0;
 
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
+    const start = new Date(`${checkIn}T00:00:00`);
+    const end = new Date(`${checkOut}T00:00:00`);
 
-    const difference = end - start;
-
-    return Math.ceil(difference / (1000 * 60 * 60 * 24));
+    return Math.round((end - start) / (1000 * 60 * 60 * 24));
   };
 
   const nights = calculateNights();
-
   const pricePerNight = Number(hotel?.price) || 0;
-
-  const totalPrice = pricePerNight * nights * Number(rooms);
+  const selectedRooms = Number(rooms);
+  const totalPrice = pricePerNight * nights * selectedRooms;
+  const availableRooms = Number(hotel?.rooms) || 0;
 
   const getImageUrl = (image) => {
     if (!image) {
       return "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
     }
 
-    if (image.startsWith("http")) {
-      return image;
-    }
+    if (image.startsWith("http")) return image;
 
     if (image.startsWith("/uploads/")) {
       return `${API_URL}${image}`;
@@ -76,9 +84,14 @@ function Booking() {
     return `${API_URL}/uploads/${image}`;
   };
 
-  const handleBooking = async (e) => {
-    e.preventDefault();
+  const formatPrice = (amount) =>
+    Number(amount || 0).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
+  const handleBooking = async (event) => {
+    event.preventDefault();
     setError("");
 
     if (!token) {
@@ -91,7 +104,12 @@ function Booking() {
       return;
     }
 
-    if (new Date(checkOut) <= new Date(checkIn)) {
+    if (checkIn < today) {
+      setError("Check-in date cannot be in the past.");
+      return;
+    }
+
+    if (checkOut <= checkIn) {
       setError("Check-out date must be after check-in date.");
       return;
     }
@@ -101,8 +119,23 @@ function Booking() {
       return;
     }
 
-    if (Number(rooms) > Number(hotel?.rooms || 0)) {
-      setError(`Only ${hotel?.rooms || 0} rooms are available.`);
+    if (!Number.isInteger(Number(guests)) || Number(guests) < 1) {
+      setError("Please select a valid number of guests.");
+      return;
+    }
+
+    if (!Number.isInteger(selectedRooms) || selectedRooms < 1) {
+      setError("Please select a valid number of rooms.");
+      return;
+    }
+
+    if (selectedRooms > availableRooms) {
+      setError(`Only ${availableRooms} rooms are available.`);
+      return;
+    }
+
+    if (pricePerNight <= 0) {
+      setError("This hotel does not have a valid room price.");
       return;
     }
 
@@ -114,7 +147,7 @@ function Booking() {
         checkIn,
         checkOut,
         guests: Number(guests),
-        rooms: Number(rooms),
+        rooms: selectedRooms,
       };
 
       const response = await axios.post(
@@ -127,12 +160,22 @@ function Booking() {
         },
       );
 
-      navigate(`/booking-confirmation/${response.data.booking._id}`);
+      const bookingId = response.data?.booking?._id;
+
+      if (!bookingId) {
+        throw new Error(
+          "The booking was created, but the server did not return its ID.",
+        );
+      }
+
+      navigate(`/booking-confirmation/${bookingId}`);
     } catch (err) {
-      console.error(err);
+      console.error("BOOKING ERROR:", err.response?.data || err.message);
 
       setError(
-        err.response?.data?.message || "Unable to complete your booking.",
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to complete your booking.",
       );
     } finally {
       setBookingLoading(false);
@@ -154,9 +197,7 @@ function Booking() {
       <div className="booking-error-screen">
         <div className="booking-error-box">
           <div className="error-icon">!</div>
-
           <h2>Hotel Not Found</h2>
-
           <p>We couldn't find the hotel you're looking for.</p>
 
           <Link to="/hotels" className="return-hotels-btn">
@@ -183,9 +224,7 @@ function Booking() {
       <div className="booking-header">
         <div>
           <span className="booking-eyebrow">RESERVATION</span>
-
           <h1>Complete your booking</h1>
-
           <p>Choose your dates and tell us about your stay.</p>
         </div>
 
@@ -204,8 +243,8 @@ function Booking() {
               src={getImageUrl(hotel.image)}
               alt={hotel.name}
               className="hotel-photo"
-              onError={(e) => {
-                e.currentTarget.src =
+              onError={(event) => {
+                event.currentTarget.src =
                   "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
               }}
             />
@@ -230,8 +269,7 @@ function Booking() {
 
               <div>
                 <small>Available rooms</small>
-
-                <strong>{hotel.rooms || 0} rooms</strong>
+                <strong>{availableRooms} rooms</strong>
               </div>
             </div>
 
@@ -241,8 +279,7 @@ function Booking() {
               <small>Price per night</small>
 
               <div>
-                <strong>ETB {pricePerNight.toLocaleString()}</strong>
-
+                <strong>ETB {formatPrice(pricePerNight)}</strong>
                 <span>/ room</span>
               </div>
             </div>
@@ -253,7 +290,6 @@ function Booking() {
         <div className="reservation-card">
           <div className="reservation-title">
             <h2>Reservation details</h2>
-
             <p>Select your dates, guests and rooms.</p>
           </div>
 
@@ -272,7 +308,6 @@ function Booking() {
 
                 <div>
                   <h3>Stay dates</h3>
-
                   <p>When will you be staying?</p>
                 </div>
               </div>
@@ -287,8 +322,15 @@ function Booking() {
                     <input
                       type="date"
                       value={checkIn}
-                      min={new Date().toISOString().split("T")[0]}
-                      onChange={(e) => setCheckIn(e.target.value)}
+                      min={today}
+                      required
+                      onChange={(event) => {
+                        setCheckIn(event.target.value);
+
+                        if (checkOut && event.target.value >= checkOut) {
+                          setCheckOut("");
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -304,8 +346,9 @@ function Booking() {
                     <input
                       type="date"
                       value={checkOut}
-                      min={checkIn || new Date().toISOString().split("T")[0]}
-                      onChange={(e) => setCheckOut(e.target.value)}
+                      min={checkIn || today}
+                      required
+                      onChange={(event) => setCheckOut(event.target.value)}
                     />
                   </div>
                 </div>
@@ -329,7 +372,6 @@ function Booking() {
 
                 <div>
                   <h3>Guests & rooms</h3>
-
                   <p>Tell us who is staying.</p>
                 </div>
               </div>
@@ -343,7 +385,7 @@ function Booking() {
 
                     <select
                       value={guests}
-                      onChange={(e) => setGuests(e.target.value)}
+                      onChange={(event) => setGuests(event.target.value)}
                     >
                       {[1, 2, 3, 4, 5, 6, 7, 8].map((number) => (
                         <option key={number} value={number}>
@@ -362,11 +404,11 @@ function Booking() {
 
                     <select
                       value={rooms}
-                      onChange={(e) => setRooms(e.target.value)}
+                      onChange={(event) => setRooms(event.target.value)}
                     >
                       {Array.from(
                         {
-                          length: Math.min(Number(hotel.rooms) || 1, 8),
+                          length: Math.min(availableRooms, 8),
                         },
                         (_, index) => index + 1,
                       ).map((number) => (
@@ -387,20 +429,18 @@ function Booking() {
               </div>
 
               <div className="price-row">
-                <span>
-                  ETB {pricePerNight.toLocaleString()} × {nights || 0}{" "}
-                  {nights === 1 ? "night" : "nights"}
-                </span>
-
-                <strong>ETB {(pricePerNight * nights).toLocaleString()}</strong>
+                <span>Price per room / night</span>
+                <strong>ETB {formatPrice(pricePerNight)}</strong>
               </div>
 
               <div className="price-row">
                 <span>
-                  {rooms} {rooms === 1 ? "room" : "rooms"}
+                  {nights} {nights === 1 ? "night" : "nights"}
+                  {" × "}
+                  {selectedRooms} {selectedRooms === 1 ? "room" : "rooms"}
                 </span>
 
-                <strong>ETB {totalPrice.toLocaleString()}</strong>
+                <strong>ETB {formatPrice(totalPrice)}</strong>
               </div>
 
               <div className="summary-line"></div>
@@ -408,11 +448,10 @@ function Booking() {
               <div className="total-row">
                 <div>
                   <span>Total</span>
-
-                  <small>Includes your selected stay</small>
+                  <small>Estimated reservation amount</small>
                 </div>
 
-                <strong>ETB {totalPrice.toLocaleString()}</strong>
+                <strong>ETB {formatPrice(totalPrice)}</strong>
               </div>
             </div>
 
@@ -420,7 +459,9 @@ function Booking() {
             <button
               type="submit"
               className="confirm-booking-button"
-              disabled={bookingLoading}
+              disabled={
+                bookingLoading || availableRooms < 1 || pricePerNight <= 0
+              }
             >
               {bookingLoading ? (
                 <>
@@ -437,7 +478,10 @@ function Booking() {
 
             <div className="booking-security">
               🔒
-              <p>Your reservation is securely processed.</p>
+              <p>
+                Your reservation details are securely submitted. Payment is
+                handled separately at checkout.
+              </p>
             </div>
           </form>
         </div>

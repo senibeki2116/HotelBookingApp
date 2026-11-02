@@ -120,12 +120,17 @@ function MyBookings() {
     fetchData();
   }, [token]);
 
-  // Initialize Chapa payment
+  // =====================================================
+  // CHAPA PAYMENT INITIALIZATION
+  // =====================================================
+
   const initializePayment = async (bookingId) => {
     if (!token) {
       alert("Please log in to make a payment.");
       return;
     }
+
+    if (payingBookingId) return;
 
     setPayingBookingId(bookingId);
 
@@ -136,35 +141,54 @@ function MyBookings() {
         {
           headers: {
             Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
+          timeout: 30000,
         },
       );
 
+      console.log("CHAPA INITIALIZATION RESPONSE:", response.data);
+
       const checkoutUrl = response.data?.checkoutUrl;
 
-      if (!checkoutUrl) {
-        throw new Error("Chapa did not return a checkout link.");
+      if (!response.data?.success || !checkoutUrl) {
+        throw new Error(
+          response.data?.message || "Chapa did not return a checkout URL.",
+        );
       }
 
-      // Redirect customer to Chapa checkout
-      window.location.href = checkoutUrl;
+      // Redirect to Chapa's hosted checkout.
+      window.location.assign(checkoutUrl);
     } catch (error) {
+      // Log the complete Axios error for debugging.
+      console.error("========== CHAPA PAYMENT ERROR ==========");
+      console.error("ERROR OBJECT:", error);
+      console.error("ERROR MESSAGE:", error.message);
+      console.error("HTTP STATUS:", error.response?.status);
       console.error(
-        "PAYMENT INITIALIZATION ERROR:",
-        error.response?.data || error.message,
+        "SERVER RESPONSE:",
+        JSON.stringify(error.response?.data ?? null, null, 2),
       );
+      console.error("REQUEST URL:", error.config?.url);
+      console.error("REQUEST METHOD:", error.config?.method);
+      console.error("==========================================");
 
-      alert(
+      const serverMessage =
         error.response?.data?.message ||
-          error.message ||
-          "Unable to start payment. Please try again.",
-      );
+        error.response?.data?.error ||
+        error.message ||
+        "Unable to start payment. Please try again.";
+
+      alert(`Payment initialization failed:\n${serverMessage}`);
 
       setPayingBookingId(null);
     }
   };
 
-  // Load payment receipt
+  // =====================================================
+  // LOAD PAYMENT RECEIPT
+  // =====================================================
+
   const viewReceipt = async (bookingId) => {
     if (!token) {
       alert("Please log in to view your receipt.");
@@ -203,7 +227,10 @@ function MyBookings() {
     window.print();
   };
 
-  // Cancel booking
+  // =====================================================
+  // CANCEL BOOKING
+  // =====================================================
+
   const deleteBooking = async (id) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to cancel this booking?",
@@ -224,13 +251,19 @@ function MyBookings() {
 
       alert("Booking cancelled successfully!");
     } catch (error) {
-      console.error(error.response?.data || error.message);
+      console.error(
+        "CANCEL BOOKING ERROR:",
+        error.response?.data || error.message,
+      );
 
       alert(error.response?.data?.message || "Failed to cancel booking.");
     }
   };
 
-  // Check whether a booking is eligible for a review
+  // =====================================================
+  // REVIEW ELIGIBILITY
+  // =====================================================
+
   const canReviewBooking = (booking) => {
     if (!booking || booking.status !== "confirmed" || !booking.checkOut) {
       return false;
@@ -255,7 +288,10 @@ function MyBookings() {
     setComment("");
   };
 
-  // Submit hotel review
+  // =====================================================
+  // SUBMIT HOTEL REVIEW
+  // =====================================================
+
   const submitReview = async (event) => {
     event.preventDefault();
 
@@ -314,6 +350,10 @@ function MyBookings() {
     }
   };
 
+  // =====================================================
+  // LOADING SCREEN
+  // =====================================================
+
   if (loading) {
     return (
       <div className="bookings-loading">
@@ -330,6 +370,10 @@ function MyBookings() {
   const paidCount = bookings.filter(
     (booking) => booking.paymentStatus === "paid",
   ).length;
+
+  // =====================================================
+  // MAIN PAGE
+  // =====================================================
 
   return (
     <main className="my-bookings-page">
@@ -534,7 +578,7 @@ function MyBookings() {
                       {/* ACTION BUTTONS */}
                       <div className="booking-card-footer">
                         <div className="booking-actions">
-                          {/* PAYMENT BUTTONS */}
+                          {/* PAYMENT */}
                           {booking.status !== "cancelled" && (
                             <>
                               {isPaid ? (
@@ -553,10 +597,10 @@ function MyBookings() {
                                   type="button"
                                   className="pay-now-btn"
                                   onClick={() => initializePayment(booking._id)}
-                                  disabled={payingBookingId === booking._id}
+                                  disabled={payingBookingId !== null}
                                 >
                                   {payingBookingId === booking._id
-                                    ? "Connecting to Chapa..."
+                                    ? "Preparing secure checkout..."
                                     : paymentStatus === "failed"
                                       ? "Try Payment Again →"
                                       : "Pay Now →"}
@@ -565,7 +609,7 @@ function MyBookings() {
                             </>
                           )}
 
-                          {/* REVIEW BUTTONS */}
+                          {/* REVIEWS */}
                           {eligibleForReview &&
                             (hasReviewed ? (
                               <button
@@ -585,7 +629,7 @@ function MyBookings() {
                               </button>
                             ))}
 
-                          {/* CANCEL BUTTON */}
+                          {/* CANCEL */}
                           {booking.status === "confirmed" && (
                             <button
                               className="cancel-btn"

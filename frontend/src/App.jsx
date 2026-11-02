@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 // ================= USER PAGES =================
@@ -14,6 +13,7 @@ import Booking from "./pages/Booking";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import MyBookings from "./pages/MyBookings";
 import PaymentResult from "./pages/PaymentResult";
+import DemoCheckout from "./pages/DemoCheckout";
 
 // ================= ADMIN PAGES =================
 import AdminDashboard from "./pages/AdminDashboard";
@@ -92,7 +92,17 @@ function App() {
           }
         />
 
-        {/* CHAPA PAYMENT RESULT */}
+        {/* DEMO PAYMENT CHECKOUT */}
+        <Route
+          path="/demo-checkout/:bookingId"
+          element={
+            <ProtectedRoute>
+              <DemoCheckout />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* PAYMENT RESULT */}
         <Route
           path="/payment/result"
           element={
